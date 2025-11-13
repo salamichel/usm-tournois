@@ -1,31 +1,50 @@
-# Version de la syntaxe Docker Compose
+# Docker Compose configuration for USM Tournois
 version: '3.8'
 
-# Définition des services (conteneurs)
 services:
-  # Nom de notre service applicatif
-  app:
-    # Indique à Compose de construire l'image en utilisant le Dockerfile
-    # dans le répertoire courant ('.')
-    build: .
-    # Nom du conteneur pour une identification facile
-    container_name: tournoi_master_app
-    # Redémarre automatiquement le conteneur s'il s'arrête
-    restart: always
-    # Mappage des ports: <port sur la machine hôte>:<port dans le conteneur>
-    # On accède à l'app via http://localhost:3000
+  # React Client (Vite)
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: usm-tournois-client
+    restart: unless-stopped
     ports:
-      - "8050:3000"
-    # Monte les volumes pour le développement
-    # Le code local est synchronisé en temps réel dans le conteneur,
-    # ce qui permet le hot-reloading (avec nodemon par exemple).
+      - "5173:5173"
     volumes:
-      - .:/app
-      # Astuce : on ignore le dossier node_modules local pour utiliser celui
-      # qui a été installé DANS le conteneur, pour éviter les conflits de systèmes d'exploitation.
+      - ./client:/app
       - /app/node_modules
-    # Charge les variables d'environnement depuis le fichier .env
+    environment:
+      - VITE_API_URL=http://localhost:3000/api
+    command: npm run dev
+    depends_on:
+      - server
+    networks:
+      - usm-network
+
+  # Express API Server
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: usm-tournois-server
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./server:/app
+      - ./shared:/shared
+      - ./serviceAccountKey.json:/app/serviceAccountKey.json:ro
+      - /app/node_modules
     env_file:
       - .env
+    environment:
+      - NODE_ENV=development
+      - CLIENT_URL=http://localhost:5173
+    command: npm run dev
+    networks:
+      - usm-network
 
-
+networks:
+  usm-network:
+    driver: bridge
