@@ -1,0 +1,331 @@
+<h1 class="text-3xl font-bold mb-6">Gestion des Poules - <%= tournament.name %></h1>
+
+<a href="/admin/tournaments" class="btn btn-secondary mb-4 inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 bg-gray-600 hover:bg-gray-700 text-white">Retour aux tournois</a>
+
+<div class="glass-card rounded-lg p-6 mb-8">
+    <h2 class="text-2xl font-bold mb-4">Créer une nouvelle Poule</h2>
+    <form action="/admin/tournaments/<%= tournament.id %>/pools" method="POST" class="flex space-x-4">
+        <input type="text" name="name" placeholder="Nom de la poule (ex: Poule A)" class="shadow appearance-none border rounded py-2 px-3 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 border-gray-600 text-white flex-grow" required>
+        <button type="submit" class="btn btn-primary inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 bg-indigo-600 hover:bg-indigo-700 text-white">Créer la Poule</button>
+    </form>
+</div>
+
+<% if (tournament.eliminationPhaseEnabled) { %>
+    <div class="glass-card rounded-lg p-6 mb-8">
+        <h2 class="text-2xl font-bold mb-4">Phase d'Élimination</h2>
+        <% if (tournament.eliminationMatchesGenerated) { %>
+            <p class="text-gray-300 mb-4">
+                Les matchs d'élimination ont déjà été générés pour ce tournoi. Vous pouvez les régénérer si nécessaire, mais cela écrasera les matchs existants.
+            </p>
+            <div class="flex space-x-4">
+                <a href="/admin/tournaments/<%= tournament.id %>/elimination" class="btn btn-primary inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 bg-indigo-600 hover:bg-indigo-700 text-white">Accéder aux Matchs d'Élimination</a>
+                <form action="/admin/tournaments/<%= tournament.id %>/generate-elimination-matches" method="POST" onsubmit="return confirm('Voulez-vous vraiment RÉGÉNÉRER les matchs d\'élimination ? Cette action est irréversible et écrasera les matchs existants.');">
+                    <button type="submit" class="btn btn-warning inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 bg-yellow-600 hover:bg-yellow-700 text-white">Régénérer les Matchs d'Élimination</button>
+                </form>
+            </div>
+        <% } else { %>
+            <p class="text-gray-300 mb-4">
+                Cette action générera les matchs pour la phase d'élimination en fonction des paramètres du tournoi.
+                Assurez-vous que les poules sont terminées et que les équipes qualifiées sont prêtes.
+            </p>
+            <form action="/admin/tournaments/<%= tournament.id %>/generate-elimination-matches" method="POST" onsubmit="return confirm('Voulez-vous vraiment générer les matchs d\'élimination ? Cette action est irréversible pour les matchs générés.');">
+                <button type="submit" class="btn btn-warning inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 bg-yellow-600 hover:bg-yellow-700 text-white">Générer les Matchs d'Élimination</button>
+            </form>
+        <% } %>
+    </div>
+<% } %>
+<% if (pools.length > 0) { %>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <% 
+            const colors = ['bg-blue-800/70', 'bg-green-800/70', 'bg-purple-800/70', 'bg-red-800/70', 'bg-yellow-800/70'];
+            pools.forEach((pool, index) => { 
+            const colorClass = colors[index % colors.length];
+        %>
+            <div class="glass-card rounded-lg p-6 <%= colorClass %>">
+                <div class="flex flex-col sm:flex-row items-center sm:justify-between mb-4 space-y-2 sm:space-y-0">
+                    <!-- Formulaire de modification du nom de la poule -->
+                    <form action="/admin/tournaments/<%= tournament.id %>/pools/<%= pool.id %>/update-name" method="POST" class="flex items-center space-x-2 w-full sm:w-auto">
+                        <input type="text" name="name" value="<%= pool.name %>" class="shadow appearance-none border rounded py-2 px-3 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 border-gray-600 text-white w-full text-2xl font-bold" required>
+                        <button type="submit" class="btn btn-primary btn-sm inline-flex items-center justify-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 bg-indigo-600 hover:bg-indigo-700 text-white">Renommer</button>
+                    </form>
+                    <form action="/admin/tournaments/<%= tournament.id %>/pools/<%= pool.id %>/delete" method="POST" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cette poule et tous ses matchs ?');" class="w-full sm:w-auto sm:ml-4">
+                        <button type="submit" class="btn btn-danger btn-sm inline-flex items-center justify-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 bg-red-600 hover:bg-red-700 text-white w-full">Supprimer la Poule</button>
+                    </form>
+                </div>
+
+                <!-- Classement de la Poule -->
+                <h3 class="text-xl font-semibold mt-6 mb-3">Classement de la Poule</h3>
+                <% if (pool.ranking && pool.ranking.length > 0) { %>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-gray-800 rounded-lg overflow-hidden">
+                            <thead class="bg-gray-700 text-white">
+                                <tr>
+                                    <th class="py-2 px-3 text-left">Équipe</th>
+                                    <th class="py-2 px-3 text-center">V</th>
+                                    <th class="py-2 px-3 text-center">D</th>
+                                    <th class="py-2 px-3 text-center">Sets G</th>
+                                    <th class="py-2 px-3 text-center">Sets P</th>
+                                    <th class="py-2 px-3 text-center">Points G</th>
+                                    <th class="py-2 px-3 text-center">Points P</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-gray-300">
+                                <% pool.ranking.forEach(team => { %>
+                                    <tr class="border-b border-gray-700">
+                                        <td class="py-2 px-3 text-sm"><%= team.name %></td>
+                                        <td class="py-2 px-3 text-center"><%= team.wins %></td>
+                                        <td class="py-2 px-3 text-center"><%= team.losses %></td>
+                                        <td class="py-2 px-3 text-center"><%= team.setsWon %></td>
+                                        <td class="py-2 px-3 text-center"><%= team.setsLost %></td>
+                                        <td class="py-2 px-3 text-center"><%= team.pointsWon %></td>
+                                        <td class="py-2 px-3 text-center"><%= team.pointsLost %></td>
+                                    </tr>
+                                <% }); %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% } else { %>
+                    <p class="text-gray-400 text-sm italic">Aucun classement disponible pour cette poule (aucun match complété).</p>
+                <% } %>
+
+                <!-- Gestion des équipes dans la poule -->
+                <h3 class="text-xl font-semibold mt-6 mb-3">Équipes dans cette poule (<%= pool.teams ? pool.teams.length : 0 %> / <%= tournament.maxTeamsPerPool || 'N/A' %>)</h3>
+                <form action="/admin/tournaments/<%= tournament.id %>/pools/<%= pool.id %>/assign-teams" method="POST" class="mb-4">
+                    <div class="mb-3">
+                        <label for="teams-<%= pool.id %>" class="block text-gray-300 text-sm font-bold mb-2">Sélectionner les équipes pour cette poule:</label>
+                        <div id="teams-<%= pool.id %>-checkboxes" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 p-3 bg-gray-700 border border-gray-600 rounded h-48 overflow-y-auto">
+                            <% teams.forEach(team => { %>
+                                <% const isAssignedToCurrentPool = pool.teams && pool.teams.some(pTeam => pTeam.id === team.id); %>
+                                <% const isAssignedToAnotherPool = team.isAssigned && !isAssignedToCurrentPool; %>
+                                <label class="flex items-center space-x-2 text-white cursor-pointer <%= isAssignedToAnotherPool ? 'opacity-50 cursor-not-allowed' : '' %>">
+                                    <input type="checkbox" name="teamIds" value="<%= team.id %>" class="form-checkbox h-4 w-4 text-indigo-600 bg-gray-800 border-gray-600 rounded focus:ring-indigo-500" <%= isAssignedToCurrentPool ? 'checked' : '' %> <%= isAssignedToAnotherPool ? 'disabled' : '' %>>
+                                    <span class="text-sm">
+                                        <%= team.name %>
+                                        <% if (isAssignedToAnotherPool) { %>
+                                            <span class="text-gray-400 text-xs">(Assignée à <%= team.assignedToPoolName %>)</span>
+                                        <% } %>
+                                    </span>
+                                </label>
+                            <% }); %>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm inline-flex items-center justify-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 bg-indigo-600 hover:bg-indigo-700 text-white">Mettre à jour les équipes</button>
+                </form>
+
+                <!-- Génération des matchs -->
+                <h3 class="text-xl font-semibold mt-6 mb-3">Matchs de la Poule</h3>
+                <form action="/admin/tournaments/<%= tournament.id %>/pools/<%= pool.id %>/generate-matches" method="POST" onsubmit="return confirm('Ceci va supprimer tous les matchs existants et en générer de nouveaux. Continuer ?');">
+                    <button type="submit" class="btn btn-info btn-sm mb-4 inline-flex items-center justify-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 bg-blue-600 hover:bg-blue-700 text-white">Générer les Matchs</button>
+                </form>
+
+                <% if (pool.matches && pool.matches.length > 0) { %>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-gray-800 rounded-lg overflow-hidden">
+                            <thead class="bg-gray-700 text-white">
+                                <tr>
+                                    <th class="py-2 px-3 text-left">Match</th>
+                                    <th class="py-2 px-3 text-center">Score</th>
+                                    <th class="py-2 px-3 text-center">Statut</th>
+                                    <th class="py-2 px-3 text-left">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-gray-300">
+                                <% pool.matches.forEach(match => { %>
+                                    <tr class="border-b border-gray-700">
+                                        <td class="py-2 px-3 text-sm">
+                                            <% 
+                                                let team1SetsWon = 0;
+                                                let team2SetsWon = 0;
+                                                if (match.sets && Array.isArray(match.sets)) {
+                                                    match.sets.forEach(set => {
+                                                        if (set.score1 !== null && set.score2 !== null) {
+                                                            if (set.score1 > set.score2) team1SetsWon++;
+                                                            else if (set.score2 > set.score1) team2SetsWon++;
+                                                        }
+                                                    });
+                                                }
+                                                let team1Class = '';
+                                                let team2Class = '';
+                                                if (match.status === 'completed') {
+                                                    if (team1SetsWon > team2SetsWon) {
+                                                        team1Class = 'font-bold text-green-400';
+                                                    } else if (team2SetsWon > team1SetsWon) {
+                                                        team2Class = 'font-bold text-green-400';
+                                                    }
+                                                }
+                                            %>
+                                            <span class="<%= team1Class %>">
+                                                <%= match.team1.name %>
+                                            </span>
+                                            vs
+                                            <span class="<%= team2Class %>">
+                                                <%= match.team2.name %>
+                                            </span>
+                                        </td>
+                                        <td class="py-2 px-3 text-center">
+                                            <button type="button" class="btn btn-primary btn-sm toggle-score-form inline-flex items-center justify-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 bg-indigo-600 hover:bg-indigo-700 text-white" data-match-id="<%= match.id %>">
+                                                Mettre à jour le score
+                                            </button>
+                                            <div id="score-form-<%= match.id %>" class="score-form-container hidden mt-4">
+                                                <form class="update-score-form" action="/admin/tournaments/<%= tournament.id %>/pools/<%= pool.id %>/matches/<%= match.id %>/update-score" method="POST">
+                                                    <div class="flex flex-col items-center space-y-4 p-4 border border-gray-700 rounded-lg bg-gray-800">
+                                                        <% if (match.sets && Array.isArray(match.sets)) { %>
+                                                            <% 
+                                                                let team1SetsWon = 0;
+                                                                let team2SetsWon = 0;
+                                                                match.sets.forEach(set => {
+                                                                    if (set.score1 !== null && set.score2 !== null) {
+                                                                        if (set.score1 > set.score2) team1SetsWon++;
+                                                                        else if (set.score2 > set.score1) team2SetsWon++;
+                                                                    }
+                                                                });
+                                                            %>
+                                                            <% match.sets.forEach((set, index) => { %>
+                                                                <div class="flex flex-col items-center w-full">
+                                                                    <span class="text-base font-semibold text-gray-300 mb-2">Set <%= index + 1 %></span>
+                                                                    <div class="flex items-center justify-around w-full">
+                                                                        <div class="flex flex-col items-center w-5/12">
+                                                                            <span class="text-base text-gray-200 font-bold mb-1 truncate"><%= match.team1.name %></span>
+                                                                            <input type="number" name="sets[<%= index %>][score1]" value="<%= set.score1 !== null ? set.score1 : '' %>" class="w-24 bg-gray-700 border border-gray-600 rounded text-white text-center text-xl py-2" min="0">
+                                                                        </div>
+                                                                        <span class="text-3xl font-bold text-gray-300 mx-2">-</span>
+                                                                        <div class="flex flex-col items-center w-5/12">
+                                                                            <span class="text-base text-gray-200 font-bold mb-1 truncate"><%= match.team2.name %></span>
+                                                                            <input type="number" name="sets[<%= index %>][score2]" value="<%= set.score2 !== null ? set.score2 : '' %>" class="w-24 bg-gray-700 border border-gray-600 rounded text-white text-center text-xl py-2" min="0">
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            <% }); %>
+                                                            <% if (match.tieBreakEnabled && team1SetsWon === team2SetsWon && team1SetsWon === (match.setsToWin - 1)) { %>
+                                                                <!-- Afficher un set supplémentaire pour le tie-break si activé et égalité -->
+                                                                <div class="flex flex-col items-center w-full mt-4 pt-4 border-t border-gray-600">
+                                                                    <span class="text-base font-semibold text-gray-300 mb-2">Tie-break</span>
+                                                                    <div class="flex items-center justify-around w-full">
+                                                                        <div class="flex flex-col items-center w-5/12">
+                                                                            <span class="text-base text-gray-200 font-bold mb-1 truncate"><%= match.team1.name %></span>
+                                                                            <input type="number" name="sets[<%= match.sets.length %>][score1]" value="<%= match.sets[match.sets.length] ? match.sets[match.sets.length].score1 : '' %>" class="w-24 bg-gray-700 border border-gray-600 rounded text-white text-center text-xl py-2" min="0">
+                                                                        </div>
+                                                                        <span class="text-3xl font-bold text-gray-300 mx-2">-</span>
+                                                                        <div class="flex flex-col items-center w-5/12">
+                                                                            <span class="text-base text-gray-200 font-bold mb-1 truncate"><%= match.team2.name %></span>
+                                                                            <input type="number" name="sets[<%= match.sets.length %>][score2]" value="<%= match.sets[match.sets.length] ? match.sets[match.sets.length].score2 : '' %>" class="w-24 bg-gray-700 border border-gray-600 rounded text-white text-center text-xl py-2" min="0">
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            <% } %>
+                                                        <% } else { %>
+                                                            <!-- Afficher les anciens champs de score si 'sets' n'est pas un tableau -->
+                                                            <div class="flex items-center justify-around w-full">
+                                                                <div class="flex flex-col items-center w-5/12">
+                                                                    <span class="text-base text-gray-200 font-bold mb-1 truncate"><%= match.team1.name %></span>
+                                                                    <input type="number" name="score1" value="<%= match.score1 !== null ? match.score1 : '' %>" class="w-24 bg-gray-700 border border-gray-600 rounded text-white text-center text-xl py-2" min="0">
+                                                                </div>
+                                                                <span class="text-3xl font-bold text-gray-300 mx-2">-</span>
+                                                                <div class="flex flex-col items-center w-5/12">
+                                                                    <span class="text-base text-gray-200 font-bold mb-1 truncate"><%= match.team2.name %></span>
+                                                                    <input type="number" name="score2" value="<%= match.score2 !== null ? match.score2 : '' %>" class="w-24 bg-gray-700 border border-gray-600 text-white text-center text-xl py-2" min="0">
+                                                                </div>
+                                                            </div>
+                                                        <% } %>
+                                                        <button type="submit" class="btn btn-primary btn-sm mt-4 inline-flex items-center justify-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 bg-indigo-600 hover:bg-indigo-700 text-white">Valider les scores</button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </td>
+                                        <td class="py-2 px-3 text-center">
+                                            <span class="px-2 py-1 rounded-full text-xs font-semibold
+                                                <% if (match.status === 'completed') { %> bg-green-600 text-white
+                                                <% } else if (match.status === 'in_progress') { %> bg-yellow-600 text-white
+                                                <% } else { %> bg-gray-600 text-white <% } %>">
+                                                <%= match.status %>
+                                            </span>
+                                        </td>
+                                        <td class="py-2 px-3">
+                                            <!-- Ajoutez d'autres actions si nécessaire, par exemple pour changer le statut -->
+                                        </td>
+                                    </tr>
+                                <% }); %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% } else { %>
+                    <p class="text-gray-400 text-sm italic">Aucun match généré pour cette poule.</p>
+                <% } %>
+            </div>
+        <% }); %>
+    </div>
+<% } else { %>
+    <p class="text-gray-400 text-center">Aucune poule créée pour ce tournoi.</p>
+<% } %>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const scoreForms = document.querySelectorAll('.update-score-form');
+        const toggleButtons = document.querySelectorAll('.toggle-score-form');
+
+        toggleButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const matchId = button.dataset.matchId;
+                const formContainer = document.getElementById(`score-form-${matchId}`);
+                formContainer.classList.toggle('hidden');
+            });
+        });
+
+        scoreForms.forEach(form => {
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault(); // Empêcher le rechargement de la page par défaut
+
+                const formData = new FormData(form);
+                const actionUrl = form.action;
+                let payload = {};
+
+                // Vérifier si les champs de sets existent (nouveau format)
+                const setsInputs = form.querySelectorAll('[name^="sets["]');
+                if (setsInputs.length > 0) {
+                    const setsData = [];
+                    setsInputs.forEach(input => {
+                        const name = input.name; // ex: sets[0][score1]
+                        const match = name.match(/sets\[(\d+)\]\[(score1|score2)\]/);
+                        if (match) {
+                            const setIndex = parseInt(match[1]);
+                            const scoreType = match[2];
+                            if (!setsData[setIndex]) {
+                                setsData[setIndex] = { score1: null, score2: null };
+                            }
+                            setsData[setIndex][scoreType] = parseInt(input.value) || 0; // Convertir en nombre, 0 si vide
+                        }
+                    });
+                    payload = { sets: setsData, status: 'completed' };
+                } else {
+                    // Ancien format de score
+                    const score1 = parseInt(formData.get('score1')) || 0;
+                    const score2 = parseInt(formData.get('score2')) || 0;
+                    payload = { score1, score2, status: 'completed' };
+                }
+
+                try {
+                    const response = await fetch(actionUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(payload),
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        console.log('Score mis à jour avec succès:', result.message);
+                        alert('Score mis à jour avec succès !');
+                        location.reload(); 
+                    } else {
+                        console.error('Erreur lors de la mise à jour du score:', result.message);
+                        alert('Erreur lors de la mise à jour du score: ' + result.message);
+                    }
+                } catch (error) {
+                    console.error('Erreur réseau lors de la mise à jour du score:', error);
+                    alert('Erreur réseau lors de la mise à jour du score.');
+                }
+            });
+        });
+    });
+</script>

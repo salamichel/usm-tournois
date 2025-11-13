@@ -1,0 +1,55 @@
+<h1 class="text-3xl font-bold mb-6"><%= tournamentId ? `Équipes du Tournoi: ${eventName}` : 'Gestion de toutes les Équipes' %></h1>
+
+<% if (tournamentId) { %>
+    <a href="/admin/tournaments/<%= tournamentId %>/teams/new" class="btn btn-primary mb-4 inline-flex">Créer une nouvelle équipe pour ce tournoi</a>
+    <a href="/admin/tournaments" class="btn btn-secondary mb-4 inline-flex ml-2">Retour aux tournois</a>
+<% } else { %>
+    <a href="/admin/teams/new" class="btn btn-primary mb-4 inline-flex">Créer une nouvelle équipe (globale)</a>
+<% } %>
+
+<div class="overflow-x-auto">
+    <table class="min-w-full bg-white shadow-md rounded-lg overflow-hidden">
+        <thead class="bg-gray-800 text-white">
+            <tr>
+                <th class="py-3 px-4 text-left">Nom de l'équipe</th>
+                <th class="py-3 px-4 text-left">Capitaine (ID)</th>
+                <th class="py-3 px-4 text-left">Membres (IDs)</th>
+                <% if (!tournamentId) { %>
+                    <th class="py-3 px-4 text-left">Tournoi (ID)</th>
+                <% } %>
+                <th class="py-3 px-4 text-left">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="text-gray-700">
+            <% if (teams.length === 0) { %>
+                <tr>
+                    <td colspan="<%= tournamentId ? '4' : '5' %>" class="py-3 px-4 text-center">Aucune équipe trouvée.</td>
+                </tr>
+            <% } else { %>
+                <% teams.forEach(team => { %>
+                    <tr class="border-b border-gray-200 hover:bg-gray-100">
+                        <td class="py-3 px-4"><%= team.name %></td>
+                        <td class="py-3 px-4"><%= team.captainPseudo %> (<%= team.captainId %>)</td>
+                        <td class="py-3 px-4"><%= team.memberPseudos && team.memberPseudos.length > 0 ? team.memberPseudos.join(', ') : 'Aucun membre' %></td>
+                        <% if (!tournamentId) { %>
+                            <td class="py-3 px-4"><%= team.tournamentId %></td>
+                        <% } %>
+                        <td class="py-3 px-4 flex space-x-2">
+                            <% if (tournamentId) { %>
+                                <a href="/admin/tournaments/<%= tournamentId %>/teams/<%= team.id %>/edit" class="btn btn-secondary py-1 px-3 text-sm">Modifier</a>
+                                <form action="/admin/tournaments/<%= tournamentId %>/teams/<%= team.id %>/delete" method="POST" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cette équipe ?');">
+                                    <button type="submit" class="btn btn-danger py-1 px-3 text-sm">Supprimer</button>
+                                </form>
+                            <% } else { %>
+                                <a href="/admin/tournaments/<%= team.tournamentId %>/teams/<%= team.id %>/edit" class="btn btn-secondary py-1 px-3 text-sm">Modifier</a>
+                                <form action="/admin/tournaments/<%= team.tournamentId %>/teams/<%= team.id %>/delete" method="POST" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cette équipe ?');">
+                                    <button type="submit" class="btn btn-danger py-1 px-3 text-sm">Supprimer</button>
+                                </form>
+                            <% } %>
+                        </td>
+                    </tr>
+                <% }); %>
+            <% } %>
+        </tbody>
+    </table>
+</div>

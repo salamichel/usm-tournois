@@ -1,0 +1,329 @@
+<!-- Main Content -->
+<main class="container mx-auto p-4 sm:p-6 lg:p-8" data-team-id="<%= team.id %>" data-tournament-id="<%= tournament.id %>">
+
+    <!-- Page Header -->
+    <div class="mb-10">
+        <a href="/mon-compte" class="text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors">
+            <i class="fas fa-arrow-left mr-2"></i>Retour au tableau de bord
+        </a>
+        <h1 class="text-4xl font-extrabold text-white mt-4">Gestion de l'équipe "<%= team.name %>"</h1>
+        <p class="text-lg text-gray-400 mt-2">Tournoi "<%= tournament.name %>"</p>
+        <p class="text-md text-gray-400 mt-1">Minimum de joueurs requis : <%= tournament.minPlayersPerTeam %></p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
+
+        <!-- Left Column: Team & Settings -->
+        <div class="lg:col-span-2 space-y-8">
+            <!-- Members Card -->
+            <div class="glass-card rounded-lg p-6">
+                <% const isTeamComplete = team.members.length >= tournament.minPlayersPerTeam; %>
+                <h2 class="text-2xl font-bold mb-6">Membres de l'équipe (<%= team.members.length %>/<%= tournament.playersPerTeam %>)
+                    <% if (isTeamComplete) { %>
+                        <span class="text-green-400 text-sm ml-2">(Équipe complète !)</span>
+                    <% } else { %>
+                        <span class="text-orange-400 text-sm ml-2">(<%= tournament.minPlayersPerTeam - team.members.length %> joueur(s) manquant(s) pour être complète)</span>
+                    <% } %>
+                </h2>
+                <ul class="space-y-3" id="team-members-list">
+                    <% team.members.forEach(member=> { %>
+                        <li class="flex items-center justify-between">
+                            <div class="flex items-center">
+                                <% if (member.userId===team.captainId) { %>
+                                    <i class="fas fa-crown text-yellow-400 w-6 text-center mr-3"></i>
+                                    <% } else { %>
+                                        <i class="fas fa-user text-gray-500 w-6 text-center mr-3"></i>
+                                        <% } %>
+                                            <div>
+                                                <p class="font-bold text-white">
+                                                    <%= member.pseudo %>
+                                                </p>
+                                                <p class="text-sm text-gray-400">
+                                                    <%= member.level %>
+                                                </p>
+                                            </div>
+                            </div>
+                            <% if (member.userId !==team.captainId) { %>
+                                <button class="remove-player-btn btn-danger text-white font-bold py-1 px-3 rounded-full text-sm"
+                                    style="background-color: #dc3545 !important; color: white !important;"
+                                    data-member-id="<%= member.userId %>"><i class="fas fa-user-minus mr-2"></i>Retirer</button>
+                                <% } %>
+                        </li>
+                        <% }); %>
+                </ul>
+            </div>
+
+            <!-- Settings Card -->
+            <div class="glass-card rounded-lg p-6">
+                <h2 class="text-2xl font-bold mb-6">Paramètres</h2>
+                <form id="team-settings-form" class="space-y-4">
+                    <div>
+                        <label for="team-name" class="block text-sm font-medium text-gray-300 mb-1">Nom de
+                            l'équipe</label>
+                        <input type="text" id="team-name" value="<%= team.name %>"
+                            class="w-full bg-gray-900 border border-gray-700 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="font-medium text-gray-300">Statut du recrutement</span>
+                        <% if (team.recruitmentOpen) { %>
+                            <span class="text-green-400 font-semibold">Ouvert</span>
+                        <% } else { %>
+                            <span class="text-red-400 font-semibold">Fermé</span>
+                        <% } %>
+                    </div>
+                    <div class="flex justify-end">
+                        <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">Enregistrer les modifications</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Right Column: Recruitment -->
+        <div class="lg:col-span-3">
+            <div class="glass-card rounded-lg p-6">
+                <h2 class="text-2xl font-bold mb-6">Recrutement</h2>
+
+                <!-- Ajouter un nouveau joueur virtuel -->
+                <div class="mb-8">
+                    <h3 class="font-bold mb-3">Ajouter un nouveau joueur</h3>
+                    <form id="add-virtual-player-form" class="space-y-4">
+                        <div>
+                            <label for="virtual-player-pseudo" class="block text-sm font-medium text-gray-300 mb-1">Pseudo du joueur</label>
+                            <input type="text" id="virtual-player-pseudo" name="pseudo" required
+                                class="w-full bg-gray-900 border border-gray-700 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label for="virtual-player-email" class="block text-sm font-medium text-gray-300 mb-1">Email du joueur (facultatif)</label>
+                            <input type="email" id="virtual-player-email" name="email"
+                                class="w-full bg-gray-900 border border-gray-700 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label for="virtual-player-level" class="block text-sm font-medium text-gray-300 mb-1">Niveau du joueur</label>
+                            <select id="virtual-player-level" name="level" required
+                                class="w-full bg-gray-900 border border-gray-700 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500 text-white">
+                                <option value="Débutant">Débutant</option>
+                                <option value="Intermédiaire">Intermédiaire</option>
+                                <option value="Confirmé">Confirmé</option>
+                            </select>
+                        </div>
+                        <div class="flex justify-end">
+                            <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">Ajouter ce joueur</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Joueurs libres disponibles -->
+                <div>
+                    <h3 class="font-bold mb-3">Joueurs libres disponibles</h3>
+                    <ul class="space-y-3" id="free-agents-list">
+                        <% if (freeAgents.length > 0) { %>
+                            <% freeAgents.forEach(agent => { %>
+                                <li class="glass-card rounded-lg p-3 flex items-center justify-between">
+                                    <div>
+                                        <p class="font-semibold text-white">
+                                            <%= agent.pseudo %>
+                                        </p>
+                                        <p class="text-sm text-gray-400">
+                                            <%= agent.level %>
+                                        </p>
+                                    </div>
+                                    <button
+                                        class="add-player-btn btn-success text-white font-bold py-1 px-3 rounded-full text-sm"
+                                        style="background-color: #28a745 !important; color: white !important;"
+                                        data-agent-id="<%= agent.id %>"><i
+                                            class="fas fa-user-plus mr-2"></i>Ajouter</button>
+                                </li>
+                            <% }); %>
+                        <% } else { %>
+                            <p class="text-gray-400 text-sm italic">Aucun joueur libre disponible pour le moment.</p>
+                        <% } %>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const mainElement = document.querySelector('main');
+        let teamId = null;
+        let tournamentId = null;
+
+        if (mainElement) {
+            teamId = mainElement.dataset.teamId;
+            tournamentId = mainElement.dataset.tournamentId;
+            console.log(`Client-side (from mainElement.dataset): teamId=${teamId}, tournamentId=${tournamentId}`);
+        } else {
+            console.error("Client-side: L'élément <main> n'a pas été trouvé.");
+        }
+
+        // Fallback: tenter de récupérer depuis l'URL si dataset est vide/undefined
+        if (!teamId) {
+            const pathParts = window.location.pathname.split('/');
+            const teamIdIndex = pathParts.indexOf('gestion-equipe') + 1;
+            if (teamIdIndex > 0 && pathParts[teamIdIndex]) {
+                teamId = pathParts[teamIdIndex];
+                console.log(`Client-side (from URL path): teamId=${teamId}`);
+            }
+        }
+        if (!tournamentId) {
+            const urlParams = new URLSearchParams(window.location.search);
+            tournamentId = urlParams.get('tournamentId');
+            console.log(`Client-side (from URL params): tournamentId=${tournamentId}`);
+        }
+
+        console.log(`Client-side (final values): teamId=${teamId}, tournamentId=${tournamentId}`);
+
+        // Gestion de l'ajout d'un joueur virtuel
+        const addVirtualPlayerForm = document.getElementById('add-virtual-player-form');
+        if (addVirtualPlayerForm) {
+            addVirtualPlayerForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const pseudo = document.getElementById('virtual-player-pseudo').value;
+                const email = document.getElementById('virtual-player-email').value; // Récupérer l'email
+                const level = document.getElementById('virtual-player-level').value;
+
+                console.log(`Client-side (addVirtualPlayerForm submit): teamId=${teamId}, tournamentId=${tournamentId}, pseudo=${pseudo}, email=${email}, level=${level}`);
+
+                try {
+                    const response = await fetch(`/gestion-equipe/${teamId}/add-virtual-member`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ pseudo, email, level, tournamentId }), // Envoyer l'email
+                    });
+
+                    const data = await response.json();
+                    console.log(`[DEBUG - AJAX Response] Data received for virtual player add:`, data);
+
+                    if (data.success) {
+                        storeToastMessage(data.message, 'success');
+                        window.location.reload(); // Recharger la page pour afficher le nouveau membre
+                    } else {
+                        storeToastMessage(`Erreur: ${data.message}`, 'error');
+                        window.location.reload(); // Recharger pour afficher le message flash d'erreur
+                    }
+                } catch (error) {
+                    console.error('[DEBUG - AJAX Error] Erreur lors de l\'ajout du joueur virtuel:', error);
+                    storeToastMessage("Une erreur est survenue lors de l'ajout du joueur virtuel.", 'error');
+                    window.location.reload(); // Recharger pour afficher un message flash générique
+                }
+            });
+        }
+
+        // Gestion de l'ajout et du retrait de membres via délégation d'événements
+        if (mainElement) {
+            mainElement.addEventListener('click', async (e) => {
+                // Gestion de l'ajout d'un joueur libre existant
+                if (e.target.closest('.add-player-btn')) {
+                    e.stopPropagation(); // Empêche la propagation de l'événement
+                    console.log("add-player-btn clicked");
+                    const button = e.target.closest('.add-player-btn');
+                    const memberId = button.dataset.agentId;
+
+                    try {
+                        const response = await fetch(`/gestion-equipe/${teamId}/add-member`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ tournamentId, memberId }),
+                        });
+                        console.log(`[DEBUG - AJAX Response] Raw response for add member:`, response);
+                        const data = await response.json();
+                        console.log(`[DEBUG - AJAX Response] Data received for add member:`, data);
+
+                        if (data.success) {
+                            storeToastMessage(data.message, 'success');
+                            window.location.reload();
+                        } else {
+                            storeToastMessage(`Erreur: ${data.message}`, 'error');
+                            window.location.reload();
+                        }
+                    } catch (error) {
+                        console.error('[DEBUG - AJAX Error] Erreur lors de l\'ajout du membre:', error);
+                        storeToastMessage("Une erreur est survenue lors de l'ajout du membre.", 'error');
+                        window.location.reload();
+                    }
+                }
+
+                // Gestion du retrait d'un membre
+                if (e.target.closest('.remove-player-btn')) {
+                    e.stopPropagation(); // Empêche la propagation de l'événement
+                    console.log("remove-player-btn clicked");
+                    const button = e.target.closest('.remove-player-btn');
+                    const memberId = button.dataset.memberId;
+
+                    if (!confirm('Êtes-vous sûr de vouloir retirer ce membre de l\'équipe ?')) {
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch(`/gestion-equipe/${teamId}/remove-member`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ tournamentId, memberId }),
+                        });
+                        console.log(`[DEBUG - AJAX Response] Raw response for remove member:`, response);
+                        const data = await response.json();
+                        console.log(`[DEBUG - AJAX Response] Data received for remove member:`, data);
+
+                        if (data.success) {
+                            storeToastMessage(data.message, 'success');
+                            window.location.reload();
+                        } else {
+                            storeToastMessage(`Erreur: ${data.message}`, 'error');
+                            window.location.reload();
+                        }
+                    } catch (error) {
+                        console.error('[DEBUG - AJAX Error] Erreur lors du retrait du membre:', error);
+                        storeToastMessage("Une erreur est survenue lors du retrait du membre.", 'error');
+                        window.location.reload();
+                    }
+                }
+            });
+        }
+
+        // Gestion de la mise à jour des paramètres de l'équipe
+        const teamSettingsForm = document.getElementById('team-settings-form');
+        if (teamSettingsForm) {
+            teamSettingsForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const teamName = document.getElementById('team-name').value;
+                // recruitmentOpen n'est plus éditable, donc ne pas l'envoyer
+                // const recruitmentOpen = document.getElementById('recruitment-toggle').checked; 
+
+                try {
+                    const response = await fetch(`/gestion-equipe/${teamId}/update-settings`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ tournamentId, teamName }), // Ne pas envoyer recruitmentOpen
+                    });
+                    console.log(`[DEBUG - AJAX Response] Raw response for team settings update:`, response);
+                    const data = await response.json();
+                    console.log(`[DEBUG - AJAX Response] Data received for team settings update:`, data);
+
+                    if (data.success) {
+                        storeToastMessage(data.message, 'success');
+                        window.location.reload();
+                    } else {
+                        storeToastMessage(`Erreur: ${data.message}`, 'error');
+                        window.location.reload();
+                    }
+                } catch (error) {
+                    console.error('[DEBUG - AJAX Error] Erreur lors de la mise à jour des paramètres de l\'équipe:', error);
+                    storeToastMessage("Une erreur est survenue lors de la mise à jour des paramètres de l'équipe.", 'error');
+                    window.location.reload();
+                }
+            });
+        }
+    });
+</script>

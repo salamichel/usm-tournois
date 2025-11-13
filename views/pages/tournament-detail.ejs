@@ -1,0 +1,549 @@
+<% if (event) { %>
+    <!-- =========== VUE DÉTAIL DU TOURNOI =========== -->
+    <div id="view-detail" class="view container mx-auto p-4 sm:p-6 lg:p-8">
+        <!-- Title & Back Button -->
+        <div class="mb-8">
+             <a href="/" class="text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors">
+                <i class="fas fa-arrow-left mr-2"></i>Retour à la liste des tournois
+            </a>
+            <div class="mt-4 text-center">
+                <h1 class="text-4xl font-extrabold text-white"><%= event.name %></h1>
+                <p class="text-2xl font-bold text-blue-400 mt-2">
+                    <% if (event.date && event.date.toDate) { %>
+                        <% const fullDateTime = new Date(event.date.toDate()); %>
+                        <%= fullDateTime.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) %>
+                        à <%= fullDateTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) %>
+                    <% } else { %>
+                        Date non disponible
+                    <% } %>
+                </p>
+            </div>
+        </div>
+
+        <div class="max-w-6xl mx-auto">
+            <!-- Nouvelle disposition des onglets -->
+            <div class="glass-card rounded-lg p-6 mb-8">
+                <div class="flex justify-center mb-6">
+                    <div class="glass-card rounded-lg p-1 flex space-x-1">
+                        <button data-detail-tab="teams" class="detail-tab-btn font-semibold px-4 py-2 rounded-md transition-colors active bg-blue-600 text-white">Équipes complètes (<%= completeTeamsCount %>/<%= event.maxTeams %>)</button>
+                        <button data-detail-tab="players" class="detail-tab-btn font-semibold px-4 py-2 rounded-md transition-colors text-gray-400 hover:text-white">Joueurs Libres (<%= unassignedPlayers.length %>)</button>
+                        <% if (event.waitingListSize > 0) { %>
+                            <button data-detail-tab="waiting-list" class="detail-tab-btn font-semibold px-4 py-2 rounded-md transition-colors text-gray-400 hover:text-white">Liste d'attente (<%= waitingList.length %>)</button>
+                        <% } %>
+                    </div>
+                </div>
+
+                <!-- Contenu des onglets -->
+                <div>
+                    <div id="tab-detail-teams" class="detail-tab-panel tab-panel active">
+                        <% if (teams.length > 0) { %>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <% teams.forEach(team => { %>
+                                    <% const isTeamComplete = team.members && team.members.length >= event.minPlayersPerTeam; %>
+                                    <div class="glass-card p-4 rounded-lg flex flex-col justify-between <%= isTeamComplete ? 'border-2 border-green-500' : '' %>">
+                                        <div>
+                                            <h3 class="font-bold text-xl text-white mb-2">
+                                                <%= team.name %>
+                                                <% if (isTeamComplete) { %>
+                                                    <i class="fas fa-check-circle text-green-500 ml-2 text-base" title="Équipe complète"></i>
+                                                <% } %>
+                                            </h3>
+                                            <% const captain = allUsers.find(u => u.id === team.captainId); %>
+                                            <p class="text-sm text-yellow-400 mb-3">Capitaine: <%= captain ? captain.pseudo : 'N/A' %></p>
+                                            <% if (team.members && team.members.length > 0) { %>
+                                                <div class="mt-3">
+                                                    <p class="text-sm text-gray-400 mb-1">Membres (<%= team.members.length %>/<%= event.playersPerTeam %>):</p>
+                                                    <ul class="list-disc list-inside text-sm text-gray-300 ml-4">
+                                                        <% team.members.forEach(member => { %>
+                                                            <li><%= member.pseudo %> (<%= member.level %>)</li>
+                                                        <% }); %>
+                                                    </ul>
+                                                </div>
+                                            <% } else { %>
+                                                <p class="text-sm text-gray-400 italic mt-2">Aucun membre pour le moment.</p>
+                                            <% } %>
+                                        </div>
+                                    </div>
+                                <% }); %>
+                            </div>
+                        <% } else { %>
+                            <p class="text-gray-400 text-center text-sm italic">Aucune équipe inscrite pour le moment.</p>
+                        <% } %>
+                    </div>
+                    <div id="tab-detail-players" class="detail-tab-panel tab-panel space-y-4">
+                        <% if (unassignedPlayers.length > 0) { %>
+                            <ul class="list-disc list-inside text-sm text-gray-300 ml-4">
+                                <% unassignedPlayers.forEach(player => { %>
+                                    <li class="glass-card p-2 rounded-lg mb-2"><%= player.pseudo %> (<%= player.level %>)</li>
+                                <% }); %>
+                            </ul>
+                        <% } else { %>
+                            <p class="text-gray-400 text-center text-sm italic">Aucun joueur libre pour le moment.</p>
+                        <% } %>
+                    </div>
+
+                    <% if (event.waitingListSize > 0) { %>
+                        <div id="tab-detail-waiting-list" class="detail-tab-panel tab-panel space-y-4 hidden">
+                            <% if (waitingList.length > 0) { %>
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    <% waitingList.forEach(team => { %>
+                                        <div class="glass-card p-4 rounded-lg flex flex-col justify-between">
+                                            <div>
+                                                <h3 class="font-bold text-xl text-white mb-2"><%= team.name %></h3>
+                                                <% const captain = allUsers.find(u => u.id === team.captainId); %>
+                                                <p class="text-sm text-yellow-400 mb-3">Capitaine: <%= captain ? captain.pseudo : 'N/A' %></p>
+                                                <% if (team.members && team.members.length > 0) { %>
+                                                    <div class="mt-3">
+                                                        <p class="text-sm text-gray-400 mb-1">Membres:</p>
+                                                        <ul class="list-disc list-inside text-sm text-gray-300 ml-4">
+                                                            <% team.members.forEach(member => { %>
+                                                                <li><%= member.pseudo %> (<%= member.level %>)</li>
+                                                        <% }); %>
+                                                        </ul>
+                                                    </div>
+                                                <% } else { %>
+                                                    <p class="text-sm text-gray-400 italic mt-2">Aucun membre pour le moment.</p>
+                                                <% } %>
+                                            </div>
+                                        </div>
+                                    <% }); %>
+                                </div>
+                            <% } else { %>
+                                <p class="text-gray-400 text-center text-sm italic">Aucune équipe en liste d'attente pour le moment.</p>
+                            <% } %>
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Colonne Principale (Infos) -->
+                <div class="lg:col-span-2 space-y-8">
+                    <% if (event.coverImage) { %>
+                        <div class="rounded-lg overflow-hidden">
+                            <img src="<%= event.coverImage %>" alt="Photo de couverture de <%= event.name %>" class="w-full">
+                        </div>
+                    <% } %>
+                    <div class="glass-card rounded-lg p-6">
+                        <h2 class="text-2xl font-bold mb-4">Description</h2>
+                        <div class="text-gray-300 markdown-content"><%- event.description %></div>
+                    </div>
+                </div>
+                <!-- Colonne Latérale (Actions et Infos) -->
+                <div class="space-y-6">
+                    <div class="glass-card rounded-lg p-6">
+                        <h2 class="text-2xl font-bold mb-4">Actions</h2>
+                        <div class="space-y-3">
+                            <% if (user) { %>
+                                <% if (userStatus.isRegistered) { %>
+                                    <% if (userStatus.registrationType === 'team') { %>
+                                        <p class="w-full text-center bg-gray-700 text-gray-400 font-bold py-3 px-4 rounded-lg">Vous êtes inscrit avec l'équipe: <span class="font-semibold text-white ml-1"><%= userStatus.teamName %></span></p>
+                                        <button data-event-id="<%= event.id %>" data-team-id="<%= userStatus.teamId %>" data-action="leave-team" class="action-btn w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg">Quitter l'équipe</button>
+                                    <% } else if (userStatus.registrationType === 'free-player') { %>
+                                        <p class="w-full text-center bg-gray-700 text-gray-400 font-bold py-3 px-4 rounded-lg">Vous êtes inscrit en tant que joueur libre.</p>
+                                        <button data-event-id="<%= event.id %>" data-action="leave-tournament" class="action-btn w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg">Quitter le tournoi (annuler l'inscription)</button>
+                                    <% } %>
+                                <% } else if (userStatus.isOnWaitingList) { %>
+                                    <p class="w-full text-center bg-purple-700 text-purple-200 font-bold py-3 px-4 rounded-lg">Votre équipe est en liste d'attente.</p>
+                                    <button data-event-id="<%= event.id %>" data-team-id="<%= userStatus.teamId %>" data-action="leave-waiting-list" class="action-btn w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg">Quitter la liste d'attente</button>
+                                <% } %>
+
+                                <% 
+                                    const now = new Date();
+                                    const registrationStarts = event.registrationStartDateTime ? event.registrationStartDateTime.toDate() : new Date(0); // Utilise une date très ancienne si non définie
+                                    const registrationsAreOpen = event.registrationsOpen; // Déjà dynamique dans le contrôleur
+                                    const isFullByCompleteTeams = completeTeamsCount >= event.maxTeams; // Vérification basée sur les équipes complètes
+                                    const isFullByTotalTeams = teams.length >= event.maxTeams; // Vérification basée sur le nombre total d'équipes
+                                %>
+
+                                <% if (registrationsAreOpen && !userStatus.isRegistered && !userStatus.isOnWaitingList) { %>
+                                    <% if (isFullByCompleteTeams && event.waitingListEnabled && event.waitingListSize > 0) { %>
+                                        <button data-event-id="<%= event.id %>" data-action="join-waiting-list" class="action-btn w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg">Rejoindre la liste d'attente</button>
+                                    <% } else if (!isFullByCompleteTeams) { %>
+                                        <button data-event-id="<%= event.id %>" data-action="register-player" class="action-btn w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg">S'inscrire en joueur libre</button>
+                                        <button data-event-id="<%= event.id %>" data-action="create-team" class="action-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg">Créer une équipe</button>
+                                        <!-- Formulaire pour rejoindre une équipe existante (visible si non dans une équipe et inscriptions ouvertes) -->
+                                        <div class="space-y-3">
+                                            <form id="join-team-form" action="/tournoi/<%= event.id %>/rejoindre-equipe" method="POST" class="space-y-3" data-event-id="<%= event.id %>">
+                                                <label for="team-select" class="block text-sm font-medium text-gray-300">Rejoindre une équipe existante :</label>
+                                                <select id="team-select" name="teamId" class="block w-full p-3 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-blue-500 focus:border-blue-500">
+                                                    <option value="">-- Sélectionner une équipe --</option>
+                                                    <% availableTeams.forEach(team => { %>
+                                                        <option value="<%= team.id %>"><%= team.name %></option>
+                                                    <% }); %>
+                                                </select>
+                                                <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg">Rejoindre l'équipe</button>
+                                            </form>
+                                        </div>
+                                    <% } else { %>
+                                        <p class="w-full text-center bg-gray-700 text-gray-400 font-bold py-3 px-4 rounded-lg">Le tournoi est complet.</p>
+                                    <% } %>
+                                <% } else if (!registrationsAreOpen && now < registrationStarts) { %>
+                                    <p class="w-full text-center bg-gray-700 text-gray-400 font-bold py-3 px-4 rounded-lg">Les inscriptions ouvriront le <%= registrationStarts.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) %> à <%= registrationStarts.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) %>.</p>
+                                <% } else { %>
+                                    <p class="w-full text-center bg-gray-700 text-gray-400 font-bold py-3 px-4 rounded-lg">Les inscriptions pour ce tournoi sont fermées.</p>
+                                <% } %>
+                            <% } else { %>
+                                <a href="/login" class="block w-full text-center bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 px-4 rounded-lg">Connectez-vous pour vous inscrire</a>
+                            <% } %>
+                            <a href="#results" class="block text-center w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg">Voir les résultats</a>
+                            <button id="share-tournament-btn" class="w-full bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 px-4 rounded-lg">Partager</button>
+                        </div>
+                        <% if (event.whatsappGroupLink && userStatus.isRegistered) { %>
+                            <div class="glass-card rounded-lg p-6 mt-6 text-center">
+                                <h2 class="text-2xl font-bold mb-4">Rejoindre le groupe WhatsApp</h2>
+                                <p class="text-gray-300 mb-4">Scannez ou cliquez sur le QR code pour rejoindre le groupe du tournoi :</p>
+                                <a href="<%= event.whatsappGroupLink %>" target="_blank" rel="noopener noreferrer" class="inline-block p-2 bg-white rounded-lg">
+                                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=<%= encodeURIComponent(event.whatsappGroupLink) %>" alt="QR Code Groupe WhatsApp" class="w-36 h-36">
+                                </a>
+                            </div>
+                        <% } %>
+                    </div>
+                    <div class="glass-card rounded-lg p-6">
+                        <h2 class="text-2xl font-bold mb-4">Informations</h2>
+                        <ul class="space-y-3 text-gray-300">
+                            <li><i class="fas fa-map-marker-alt fa-fw mr-3 text-blue-400"></i><%= event.location %></li>
+                            <li><i class="fas fa-info-circle fa-fw mr-3 text-blue-400"></i>Type <%= event.type %></li>
+                            <li><i class="fas fa-users fa-fw mr-3 text-blue-400"></i><%= event.maxTeams %> équipes maximum</li>
+                            <li><i class="fas fa-user-check fa-fw mr-3 text-blue-400"></i><%= event.minPlayersPerTeam %> joueurs minimum par équipe</li>
+                            <li><i class="fas fa-user-friends fa-fw mr-3 text-blue-400"></i><%= event.playersPerTeam %> joueurs maximum par équipe</li>
+                            <% if (event.fields) { %>
+                                <li><i class="fas fa-futbol fa-fw mr-3 text-blue-400"></i><%= event.fields %> terrains</li>
+                            <% } %>
+                            <% if (event.fee && event.fee > 0) { %>
+                                <li><i class="fas fa-euro-sign fa-fw mr-3 text-blue-400"></i>Frais d'inscription : <%= event.fee %>€</li>
+                            <% } %>
+                            <% if (event.mixity && event.mixity !== 'none') { %>
+                                <li><i class="fas fa-venus-mars fa-fw mr-3 text-blue-400"></i>Mixité : <%= event.mixity === 'male_female' ? 'Homme/Femme' : event.mixity %></li>
+                            <% } %>
+                            <% if (event.requiresFemalePlayer) { %>
+                                <li><i class="fas fa-female fa-fw mr-3 text-blue-400"></i>Équipe avec joueuse requise</li>
+                            <% } %>
+                            <% if (event.waitingListSize > 0) { %>
+                                <li><i class="fas fa-hourglass-half fa-fw mr-3 text-blue-400"></i>Liste d'attente activée (<%= event.waitingListSize %> équipes max)</li>
+                            <% } %>
+                        </ul>
+                    </div>
+                    <!-- Jauges Équipe/Joueur -->
+                    <div class="glass-card rounded-lg p-6">
+                        <h2 class="text-2xl font-bold mb-4">Progression des Inscriptions</h2>
+                        <div class="space-y-4">
+                            <div>
+                                <div class="text-sm text-gray-300 mb-1 flex justify-between"><span>Équipes complètes</span><span><%= completeTeamsCount %>/<%= teamsMax %></span></div>
+                                <div class="w-full bg-gray-700 rounded-full h-2.5"><div class="bg-blue-600 h-2.5 rounded-full" style="width: <%= teamsProgress %>%;"></div></div>
+                            </div>
+                            <div>
+                                <div class="text-sm text-gray-300 mb-1 flex justify-between"><span>Joueurs</span><span><%= playersCount %>/<%= playersMax %></span></div>
+                                <div class="w-full bg-gray-700 rounded-full h-2.5"><div class="bg-green-500 h-2.5 rounded-full" style="width: <%= playersProgress %>%;"></div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========== VUE RÉSULTATS DU TOURNOI =========== -->
+    <div id="view-results" class="view container mx-auto p-4 sm:p-6 lg:p-8">
+        <!-- Back Button & Title -->
+        <div class="mb-8">
+            <a href="/tournoi/<%= event.id %>" class="text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors">
+                <i class="fas fa-arrow-left mr-2"></i>Retour à la page du tournoi
+            </a>
+            <div class="mt-4 text-center">
+                <h1 class="text-4xl font-extrabold text-white"><%= event.name %></h1>
+                <p class="text-2xl font-bold text-blue-400 mt-2">
+                    <% if (event.date && event.date.toDate) { %>
+                        <% const fullDateTime = new Date(event.date.toDate()); %>
+                        <%= fullDateTime.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) %>
+                        à <%= fullDateTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) %>
+                    <% } else { %>
+                        Date non disponible
+                    <% } %>
+                </p>
+            </div>
+        </div>
+
+        <!-- Tabs Navigation -->
+        <div class="flex justify-center mb-8">
+            <div class="glass-card rounded-lg p-1 flex space-x-1">
+                <button data-results-tab="poules" class="results-tab-btn font-semibold px-4 py-2 rounded-md transition-colors active bg-blue-600 text-white">Phase de Poules</button>
+                <button data-results-tab="finales" class="results-tab-btn font-semibold px-4 py-2 rounded-md transition-colors">Phases Finales</button>
+                <button data-results-tab="classement" class="results-tab-btn font-semibold px-4 py-2 rounded-md transition-colors">Classement Final</button>
+            </div>
+        </div>
+
+        <!-- Tab Panels -->
+        <div>
+            <!-- Poules Panel -->
+            <div id="tab-results-poules" class="results-tab-panel tab-panel active">
+                <% if (pools && pools.length > 0) { %>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <% pools.forEach(pool => { %>
+                            <div class="glass-card rounded-lg p-6">
+                                <h3 class="text-2xl font-bold mb-4 text-center"><%= pool.name %></h3>
+                                <% if (pool.teams && pool.teams.length > 0) { %>
+                                    <h4 class="font-bold mb-3">Équipes:</h4>
+                                    <ul class="list-disc list-inside text-sm text-gray-300 ml-4 mb-6">
+                                        <% pool.teams.forEach(team => { %>
+                                            <li><%= team.name %></li>
+                                        <% }); %>
+                                    </ul>
+                                <% } else { %>
+                                    <p class="text-gray-400 text-sm italic mb-6">Aucune équipe assignée à cette poule.</p>
+                                <% } %>
+
+                                <% if (pool.matches && pool.matches.length > 0) { %>
+                                    <h4 class="font-bold mb-3">Matchs</h4>
+                                    <div class="overflow-x-auto mb-6">
+                                        <table class="w-full text-sm text-left">
+                                            <thead class="table-header">
+                                                <tr>
+                                                    <th class="p-3 rounded-l-lg">Match</th>
+                                                    <th class="text-center">Score</th>
+                                                    <th class="text-center">Statut</th>
+                                                    <th class="text-center rounded-r-lg">Gagnant</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="text-gray-300">
+                                                <% pool.matches.forEach(match => { %>
+                                                    <tr class="border-b border-gray-700">
+                                                        <td class="p-3 text-sm">
+                                                            <%= match.team1Name %> vs <%= match.team2Name %>
+                                                        </td>
+                                                        <td class="text-center">
+                                                            <% if (match.sets && match.sets.length > 0) { %>
+                                                                <span class="font-bold">
+                                                                    <% match.sets.forEach((set, index) => { %>
+                                                                        <% if (set.score1 !== null && set.score2 !== null) { %>
+                                                                            <%= set.score1 %>-<%= set.score2 %><% if (index < match.sets.length - 1) { %>, <% } %>
+                                                                        <% } %>
+                                                                    <% }); %>
+                                                                </span>
+                                                            <% } else { %>
+                                                                <span>N/A</span>
+                                                            <% } %>
+                                                        </td>
+                                                        <td class="text-center">
+                                                            <span class="px-2 py-1 rounded-full text-xs font-semibold
+                                                                <% if (match.status === 'completed') { %> bg-green-600 text-white
+                                                                <% } else if (match.status === 'in_progress') { %> bg-yellow-600 text-white
+                                                                <% } else { %> bg-gray-600 text-white <% } %>">
+                                                                <%= match.status %>
+                                                            </span>
+                                                        </td>
+                                                        <td class="p-3 text-sm text-center">
+                                                            <% if (match.status === 'completed' && match.sets && match.sets.length > 0) { %>
+                                                                <% let team1Wins = 0; %>
+                                                                <% let team2Wins = 0; %>
+                                                                <% match.sets.forEach(set => { %>
+                                                                    <% if (set.score1 !== null && set.score2 !== null) { %>
+                                                                        <% if (set.score1 > set.score2) { team1Wins++; } else if (set.score2 > set.score1) { team2Wins++; } %>
+                                                                    <% } %>
+                                                                <% }); %>
+                                                                <% if (team1Wins > team2Wins) { %>
+                                                                    <span class="font-bold text-green-400"><%= match.team1Name %></span>
+                                                                <% } else if (team2Wins > team1Wins) { %>
+                                                                    <span class="font-bold text-green-400"><%= match.team2Name %></span>
+                                                                <% } else { %>
+                                                                    <span>Match nul</span>
+                                                                <% } %>
+                                                            <% } else { %>
+                                                                <span>N/A</span>
+                                                            <% } %>
+                                                        </td>
+                                                    </tr>
+                                                <% }); %>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                <% } else { %>
+                                    <p class="text-gray-400 text-sm italic">Aucun match généré pour cette poule.</p>
+                                <% } %>
+                            </div>
+                        <% }); %>
+                    </div>
+                <% } else { %>
+                    <p class="text-gray-400 text-center">Aucune poule configurée pour ce tournoi.</p>
+                <% } %>
+            </div>
+            <!-- Phases Finales Panel -->
+            <div id="tab-results-finales" class="results-tab-panel tab-panel">
+                <div class="glass-card rounded-lg p-6 mb-8">
+                    <h2 class="text-2xl font-bold text-white mb-4 text-center">Phase d'Élimination</h2>
+                    <% if (eliminationMatches && eliminationMatches.length > 0) { %>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                            <!-- Tours Préliminaires -->
+                            <% if (preliminaryMatches && preliminaryMatches.length > 0) { %>
+                                <div class="lg:col-span-1 space-y-4">
+                                    <h4 class="font-bold text-lg text-center text-purple-400">Tours Préliminaires</h4>
+                                    <% preliminaryMatches.forEach(match => { %>
+                                        <div class="glass-card rounded p-3 mb-2">
+                                            <p class="text-white">
+                                                <span class="<%= match.setsWonTeam1 > match.setsWonTeam2 ? 'font-bold text-green-400' : '' %>"><%= match.team1Name || 'Équipe à déterminer' %></span>
+                                                vs
+                                                <span class="<%= match.setsWonTeam2 > match.setsWonTeam1 ? 'font-bold text-green-400' : '' %>"><%= match.team2Name || 'Équipe à déterminer' %></span>
+                                            </p>
+                                            <p class="text-center font-bold text-lg mt-1">
+                                                <% if (match.sets && match.sets.length > 0) { %>
+                                                    <% match.sets.forEach((set, index) => { %>
+                                                        <% if (set.score1 !== null && set.score2 !== null) { %>
+                                                            <%= set.score1 %>-<%= set.score2 %><% if (index < match.sets.length - 1) { %>, <% } %>
+                                                        <% } %>
+                                                    <% }); %>
+                                                <% } else { %>
+                                                    N/A
+                                                <% } %>
+                                            </p>
+                                            <p class="text-center text-sm text-gray-400">Statut: <%= match.status %></p>
+                                        </div>
+                                    <% }); %>
+                                </div>
+                            <% } %>
+
+                            <!-- Quarts de Finale -->
+                            <% if (qfMatches && qfMatches.length > 0) { %>
+                                <div class="lg:col-span-1 space-y-4">
+                                    <h4 class="font-bold text-lg text-center text-blue-400">Quarts de Finale</h4>
+                                    <% qfMatches.forEach(match => { %>
+                                        <div class="glass-card rounded p-3 mb-2">
+                                            <p class="text-white">
+                                                <span class="<%= match.setsWonTeam1 > match.setsWonTeam2 ? 'font-bold text-green-400' : '' %>"><%= match.team1Name || 'Équipe à déterminer' %></span>
+                                                vs
+                                                <span class="<%= match.setsWonTeam2 > match.setsWonTeam1 ? 'font-bold text-green-400' : '' %>"><%= match.team2Name || 'Équipe à déterminer' %></span>
+                                            </p>
+                                            <p class="text-center font-bold text-lg mt-1">
+                                                <% if (match.sets && match.sets.length > 0) { %>
+                                                    <% match.sets.forEach((set, index) => { %>
+                                                        <% if (set.score1 !== null && set.score2 !== null) { %>
+                                                            <%= set.score1 %>-<%= set.score2 %><% if (index < match.sets.length - 1) { %>, <% } %>
+                                                        <% } %>
+                                                    <% }); %>
+                                                <% } else { %>
+                                                    N/A
+                                                <% } %>
+                                            </p>
+                                            <p class="text-center text-sm text-gray-400">Statut: <%= match.status %></p>
+                                        </div>
+                                    <% }); %>
+                                </div>
+                            <% } %>
+
+                            <!-- Demi-finales -->
+                            <% if (dfMatches && dfMatches.length > 0) { %>
+                                <div class="lg:col-span-1 space-y-4">
+                                    <h4 class="font-bold text-lg text-center text-blue-400">Demi-finales</h4>
+                                    <% dfMatches.forEach(match => { %>
+                                        <div class="glass-card rounded p-3 mb-2">
+                                            <p class="text-white">
+                                                <span class="<%= match.setsWonTeam1 > match.setsWonTeam2 ? 'font-bold text-green-400' : '' %>"><%= match.team1Name || 'Équipe à déterminer' %></span>
+                                                vs
+                                                <span class="<%= match.setsWonTeam2 > match.setsWonTeam1 ? 'font-bold text-green-400' : '' %>"><%= match.team2Name || 'Équipe à déterminer' %></span>
+                                            </p>
+                                            <p class="text-center font-bold text-lg mt-1">
+                                                <% if (match.sets && match.sets.length > 0) { %>
+                                                    <% match.sets.forEach((set, index) => { %>
+                                                        <% if (set.score1 !== null && set.score2 !== null) { %>
+                                                            <%= set.score1 %>-<%= set.score2 %><% if (index < match.sets.length - 1) { %>, <% } %>
+                                                        <% } %>
+                                                    <% }); %>
+                                                <% } else { %>
+                                                    N/A
+                                                <% } %>
+                                            </p>
+                                            <p class="text-center text-sm text-gray-400">Statut: <%= match.status %></p>
+                                        </div>
+                                    <% }); %>
+                                </div>
+                            <% } %>
+
+                            <!-- Match 3ème place et Finale -->
+                            <div class="lg:col-span-1 space-y-4">
+                                <% if (finalMatch) { %>
+                                    <h4 class="font-bold text-xl text-center text-yellow-400">FINALE</h4>
+                                    <div class="glass-card rounded p-4 border-2 border-yellow-500 mb-2">
+                                        <p class="text-white">
+                                            <span class="<%= finalMatch.setsWonTeam1 > finalMatch.setsWonTeam2 ? 'font-bold text-green-400' : '' %>"><%= finalMatch.team1Name || 'Équipe à déterminer' %></span>
+                                            vs
+                                            <span class="<%= finalMatch.setsWonTeam2 > finalMatch.setsWonTeam1 ? 'font-bold text-green-400' : '' %>"><%= finalMatch.team2Name || 'Équipe à déterminer' %></span>
+                                        </p>
+                                        <p class="text-center font-bold text-lg mt-1">
+                                            <% if (finalMatch.sets && finalMatch.sets.length > 0) { %>
+                                                <% finalMatch.sets.forEach((set, index) => { %>
+                                                    <% if (set.score1 !== null && set.score2 !== null) { %>
+                                                        <%= set.score1 %>-<%= set.score2 %><% if (index < finalMatch.sets.length - 1) { %>, <% } %>
+                                                    <% } %>
+                                                <% }); %>
+                                            <% } else { %>
+                                                N/A
+                                            <% } %>
+                                        </p>
+                                        <p class="text-center text-sm text-gray-400">Statut: <%= finalMatch.status %></p>
+                                    </div>
+                                <% } %>
+                                <% if (m3pMatch) { %>
+                                    <h4 class="font-bold text-lg text-center text-orange-400 mt-6">3ème Place</h4>
+                                    <div class="glass-card rounded p-3 mb-2">
+                                        <p class="text-white">
+                                            <span class="<%= m3pMatch.setsWonTeam1 > m3pMatch.setsWonTeam2 ? 'font-bold text-green-400' : '' %>"><%= m3pMatch.team1Name || 'Équipe à déterminer' %></span>
+                                            vs
+                                            <span class="<%= m3pMatch.setsWonTeam2 > m3pMatch.setsWonTeam1 ? 'font-bold text-green-400' : '' %>"><%= m3pMatch.team2Name || 'Équipe à déterminer' %></span>
+                                        </p>
+                                        <p class="text-center font-bold text-lg mt-1">
+                                            <% if (m3pMatch.sets && m3pMatch.sets.length > 0) { %>
+                                                <% m3pMatch.sets.forEach((set, index) => { %>
+                                                    <% if (set.score1 !== null && set.score2 !== null) { %>
+                                                        <%= set.score1 %>-<%= set.score2 %><% if (index < m3pMatch.sets.length - 1) { %>, <% } %>
+                                                    <% } %>
+                                                <% }); %>
+                                            <% } else { %>
+                                                N/A
+                                            <% } %>
+                                        </p>
+                                        <p class="text-center text-sm text-gray-400">Statut: <%= m3pMatch.status %></p>
+                                    </div>
+                                <% } %>
+                            </div>
+                        </div>
+                    <% } else { %>
+                        <p class="text-gray-400 text-center text-sm italic">Aucun match à élimination directe généré pour ce tournoi.</p>
+                    <% } %>
+                </div>
+            </div>
+            <!-- Classement Final Panel -->
+            <div id="tab-results-classement" class="results-tab-panel tab-panel">
+                <div class="glass-card rounded-lg p-6 max-w-lg mx-auto">
+                    <h3 class="text-2xl font-bold mb-6 text-center">Classement Final</h3>
+                    <% if (finalRanking && finalRanking.length > 0) { %>
+                        <ol class="space-y-3">
+                            <% finalRanking.forEach((team, index) => { %>
+                                <li class="glass-card p-4 rounded-lg text-lg font-bold flex flex-col items-start">
+                                    <div class="flex items-center w-full mb-2">
+                                        <span class="text-3xl mr-4 min-w-[40px] text-center">
+                                            <% if (index === 0) { %>
+                                                <i class="fas fa-trophy text-yellow-400"></i>
+                                            <% } else if (index === 1) { %>
+                                                <i class="fas fa-medal text-gray-300"></i>
+                                            <% } else if (index === 2) { %>
+                                                <i class="fas fa-award text-orange-400"></i>
+                                            <% } else { %>
+                                                <%= index + 1 %>.
+                                            <% } %>
+                                        </span>
+                                        <span class="flex-grow text-white"><%= team.teamName %></span>
+                                        <span class="text-xl font-bold text-blue-400 ml-auto"><%= team.points || 0 %> pts</span>
+                                    </div>
+                                </li>
+                            <% }); %>
+                        </ol>
+                    <% } else { %>
+                        <p class="text-gray-400 text-center">Aucun classement final disponible pour le moment.</p>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+    </div>
+<% } else { %>
+    <!-- Message affiché si le tournoi n'est pas trouvé -->
+    <p class="text-center text-gray-400">Ce tournoi n'a pas été trouvé.</p>
+<% } %>

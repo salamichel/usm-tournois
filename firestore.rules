@@ -1,0 +1,104 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Fonctions Utilitaires ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.uid == "WXDlHDPZkCf1a5S7we8XdcJcTS53";
+    }
+
+    // Vérifie si l'utilisateur connecté a le rôle 'captain' dans son profil utilisateur.
+    // Ce rôle est généralement attribué pour permettre la création d'équipes.
+    function hasCaptainRole() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'captain';
+    }
+
+    function isTeamCaptain(tournamentId, teamId) {
+        return isSignedIn() && get(/databases/$(database)/documents/events/$(tournamentId)/teams/$(teamId)).data.captainId == request.auth.uid;
+    }
+
+    // --- Profils Utilisateurs ---
+    match /users/{userId} {
+      allow read, list: if true;
+      allow create: if request.auth.uid == userId || isAdmin(); 
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+
+      match /notifications/{notificationId} {
+          allow read, write, list: if isOwner(userId);
+      }
+    }
+
+    // --- Événements et Sous-collections ---
+    match /events/{eventId} {
+      allow read, list: if true;
+        allow create, update, delete: if isAdmin();
+
+        // --- Poules dans un événement ---
+        match /pools/{poolId} {
+          allow read, list: if true; // Lecture publique
+          allow create, update, delete: if isAdmin();
+
+          // --- Matchs dans une poule ---
+          match /matches/{matchId} {
+            allow read, list: if true; // Lecture publique
+            allow create, update, delete: if isAdmin();
+          }
+        }
+
+        // --- Équipes dans un événement ---
+        match /teams/{teamId} {
+          allow read, list: if true;
+          // Tout utilisateur authentifié peut créer une équipe, ou un admin
+          allow create: if isSignedIn() || isAdmin();
+          // Un capitaine peut mettre à jour son équipe, ou un admin
+          // Permettre au capitaine de modifier les membres de son équipe, tant qu'il ne change pas le captainId
+          allow update: if (isTeamCaptain(eventId, teamId) && request.resource.data.captainId == resource.data.captainId) ||
+                          isAdmin() ||
+                          isSignedIn() ;
+          // Un capitaine peut supprimer son équipe, ou un admin
+          allow delete: if isTeamCaptain(eventId, teamId) || isAdmin();
+        }
+
+      // --- Joueurs sans équipe ---      
+      match /unassignedPlayers/{playerId} {
+        allow read, list: if true;
+        // Un joueur peut s'inscrire en tant que joueur libre (s'il est le joueur lui-même).
+        // Un admin ou un utilisateur avec le rôle 'captain' peut ajouter/supprimer/modifier des joueurs libres.
+        allow create, update, delete: if (isSignedIn() && request.auth.uid == playerId) || isAdmin() || hasCaptainRole();
+      }
+
+        // --- Équipes en liste d'attente ---
+        match /waitingListTeams/{teamId} {
+          allow read, list: if true;
+          // Un utilisateur avec le rôle 'captain' peut ajouter son équipe à la liste d'attente
+          allow create: if hasCaptainRole() || isAdmin();
+          // Le capitaine de l'équipe peut se retirer de la liste
+          allow delete: if isTeamCaptain(eventId, teamId) || isAdmin();
+          // Pas de mise à jour autorisée pour le moment pour simplifier
+          allow update: if isAdmin();
+        }
+
+        // --- Matchs éliminatoires dans un événement ---
+        match /eliminationMatches/{matchId} {
+          allow read, list: if true; // Lecture publique
+          allow create, update, delete: if isAdmin();
+        }
+
+        // --- Classement final dans un événement ---
+        match /finalRanking/{rankingId} {
+          allow read, list: if true; // Lecture publique
+          allow create, update, delete: if isAdmin(); // Seul l'admin peut créer/modifier le classement
+        }
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "usm-tournois",
+  "version": "1.0.0",
+  "description": "Application de gestion de tournois pour l'USMVB",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cookie-session": "^2.1.0",
+    "dotenv": "^16.6.1",
+    "ejs": "^3.1.10",
+    "express": "^4.19.2",
+    "express-ejs-layouts": "^2.5.1",
+    "express-session": "^1.18.2",
+    "firebase": "^12.4.0",
+    "firebase-admin": "^13.5.0",
+    "marked": "^16.4.1",
+    "multer": "^2.0.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}

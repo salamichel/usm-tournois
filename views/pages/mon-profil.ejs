@@ -1,0 +1,76 @@
+<h1 class="text-3xl font-bold text-white mb-6">Mon Profil</h1>
+
+<div class="space-y-12">
+    <section>
+        <h2 class="text-2xl font-bold text-white mb-6 flex items-center">
+            <i class="fas fa-user-edit text-green-400 mr-4"></i>Modifier mon Profil
+        </h2>
+        <div class="glass-card rounded-lg p-6">
+            <form id="profileUpdateForm" class="space-y-4">
+                <div>
+                    <label for="pseudo" class="block text-gray-300 text-sm font-bold mb-2">Pseudo:</label>
+                    <input type="text" id="pseudo" name="pseudo" value="<%= currentUser.pseudo %>" class="shadow appearance-none border rounded w-full py-2 px-3  leading-tight focus:outline-none focus:shadow-outline bg-gray-700 border-gray-600 text-white" required>
+                </div>
+                <div>
+                    <label for="level" class="block text-gray-300 text-sm font-bold mb-2">Niveau:</label>
+                    <select id="level" name="level" class="shadow appearance-none border rounded w-full py-2 px-3  leading-tight focus:outline-none focus:shadow-outline bg-gray-700 border-gray-600 text-white" required>
+                        <option value="Débutant" <%= currentUser.level === 'Débutant' ? 'selected' : '' %>>Débutant</option>
+                        <option value="Intermédiaire" <%= currentUser.level === 'Intermédiaire' ? 'selected' : '' %>>Intermédiaire</option>
+                        <option value="Confirmé" <%= currentUser.level === 'Confirmé' ? 'selected' : '' %>>Confirmé</option>
+                    </select>
+                </div>
+                <div class="flex justify-end">
+                    <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                        Mettre à jour le profil
+                    </button>
+                </div>
+                <div id="profileMessage" class="mt-4 text-center font-semibold"></div>
+            </form>
+        </div>
+    </section>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const profileUpdateForm = document.getElementById('profileUpdateForm');
+        const profileMessageDiv = document.getElementById('profileMessage');
+
+        if (profileUpdateForm) {
+            profileUpdateForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const pseudo = document.getElementById('pseudo').value;
+                const level = document.getElementById('level').value;
+
+                try {
+                    const response = await fetch('/mon-profil', { // Utiliser la nouvelle route /mon-profil
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ pseudo, level }),
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        profileMessageDiv.textContent = data.message;
+                        profileMessageDiv.className = 'mt-4 text-center font-semibold text-green-500';
+                        // Mettre à jour le pseudo dans le header si nécessaire
+                        const userPseudoSpan = document.querySelector('#user-menu-btn span');
+                        if (userPseudoSpan) {
+                            userPseudoSpan.textContent = pseudo;
+                        }
+                    } else {
+                        profileMessageDiv.textContent = data.message;
+                        profileMessageDiv.className = 'mt-4 text-center font-semibold text-red-500';
+                    }
+                } catch (error) {
+                    console.error('Erreur lors de la mise à jour du profil:', error);
+                    profileMessageDiv.textContent = 'Une erreur est survenue lors de la mise à jour.';
+                    profileMessageDiv.className = 'mt-4 text-center font-semibold text-red-500';
+                }
+            });
+        }
+    });
+</script>

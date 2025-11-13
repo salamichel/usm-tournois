@@ -1,0 +1,33 @@
+<h1 class="text-3xl font-bold mb-6">Tableau de bord d'Administration</h1>
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-xl font-semibold mb-2">Utilisateurs</h2>
+        <p class="text-gray-600 text-3xl font-bold"><%= totalUsers %></p>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-xl font-semibold mb-2">Tournois</h2>
+        <p class="text-gray-600 text-3xl font-bold"><%= totalTournaments %></p>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-xl font-semibold mb-2">Équipes</h2>
+        <p class="text-gray-600 text-3xl font-bold"><%= totalTeams %></p>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <a href="/admin/tournaments" class="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300">
+        <h2 class="text-xl font-semibold mb-2">Gérer les Tournois</h2>
+        <p class="text-gray-600">Créer, modifier ou supprimer des tournois.</p>
+    </a>
+
+    <a href="/admin/teams" class="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300">
+        <h2 class="text-xl font-semibold mb-2">Gérer les Équipes</h2>
+        <p class="text-gray-600">Administrer les équipes et leurs membres.</p>
+    </a>
+
+    <a href="/admin/users" class="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300">
+        <h2 class="text-xl font-semibold mb-2">Gérer les Utilisateurs</h2>
+        <p class="text-gray-600">Gérer les comptes utilisateurs et leurs rôles.</p>
+    </a>
+</div>

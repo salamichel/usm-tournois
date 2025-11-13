@@ -1,0 +1,223 @@
+/* Ce fichier centralise les styles personnalisés des pages index.html, admin.html, et factice.html.
+  Il est conçu pour fonctionner en complément de Tailwind CSS.
+*/
+
+/* General Styling */
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #0d1117;
+    color: #e6edf3;
+    overflow-x: hidden;
+}
+/* Glassmorphism Card Effect */
+.glass-card {
+    background: rgba(22, 27, 34, 0.6);
+    backdrop-filter: blur(12px); /* Maintained 12px from index.html */
+    -webkit-backdrop-filter: blur(12px); /* Maintained 12px from index.html */
+    border: 1px solid rgba(48, 54, 61, 0.5);
+}
+/* Views Management */
+.view {
+    display: none;
+    animation: fadeIn 0.5s ease-in-out;
+}
+.view.active {
+    display: block;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.view.active {
+    animation: fadeIn 0.5s ease-in-out;
+}
+/* Custom Buttons */
+.btn { @apply font-bold py-2 px-4 rounded-lg transition-all duration-300 flex items-center justify-center; }
+.btn-primary { 
+    @apply bg-blue-600 text-white;
+}
+.btn-primary:hover { 
+    @apply bg-blue-700;
+}
+.btn-secondary { 
+    @apply bg-gray-600 text-white border border-gray-700;
+}
+.btn-secondary:hover { 
+    @apply bg-gray-700;
+}
+.btn-danger { 
+    @apply bg-red-600 text-white;
+}
+.btn-danger:hover { 
+    @apply bg-red-700;
+}
+.btn-success {
+    @apply bg-green-600 text-white;
+}
+.btn-success:hover {
+    @apply bg-green-700;
+}
+.btn-info {
+    @apply bg-blue-500 text-white;
+}
+.btn-info:hover {
+    @apply bg-blue-600;
+}
+/* Form Inputs */
+.form-input { @apply w-full shadow appearance-none border rounded py-2 px-3 text-white leading-tight focus:outline-none focus:shadow-outline bg-gray-700 border-gray-600 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none; }
+/* Tabs */
+.tab-btn.active { @apply bg-blue-600 text-white; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+/* Tag */
+.tag {
+    display: inline-block;
+    padding: 0.25rem 0.6rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+/* Styles spécifiques à la page de détail du tournoi */
+.detail-tab-btn.active {
+    background-color: #1f6feb;
+    color: #ffffff;
+}
+.table-header { background-color: rgba(31, 111, 235, 0.1); }
+.winner { font-weight: 700; color: #2ea043; }
+
+/* Table Styling */
+.admin-table {
+    @apply w-full text-sm text-left text-gray-400;
+}
+
+.admin-table thead {
+    @apply text-xs text-gray-100 uppercase bg-gray-700;
+}
+
+.admin-table th {
+    @apply px-6 py-3;
+}
+
+.admin-table tbody tr {
+    @apply bg-gray-800 border-b border-gray-700;
+}
+
+.admin-table tbody tr:hover {
+    @apply bg-gray-700;
+}
+
+.admin-table td {
+    @apply px-6 py-4;
+}
+
+/* Toast Notification */
+.toast {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 1rem 1.5rem;
+    border-radius: 0.5rem;
+    background-color: #2ea043;
+    color: white;
+    font-weight: 600;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s, visibility 0.3s, transform 0.3s;
+}
+.toast.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, -1rem);
+}
+
+/* Styles pour le contenu Markdown */
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4,
+.markdown-content h5,
+.markdown-content h6 {
+    color: #ffffff; /* Texte blanc pour les titres */
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+    font-weight: 700;
+}
+
+.markdown-content h1 {
+    font-size: 2.25rem; /* 36px */
+    line-height: 2.5rem; /* 40px */
+}
+
+.markdown-content h2 {
+    font-size: 1.875rem; /* 30px */
+    line-height: 2.25rem; /* 36px */
+}
+
+.markdown-content h3 {
+    font-size: 1.5rem; /* 24px */
+    line-height: 2rem; /* 32px */
+}
+
+.markdown-content p {
+    margin-bottom: 1rem;
+    line-height: 1.6;
+}
+
+.markdown-content a {
+    color: #60a5fa; /* Bleu clair pour les liens */
+    text-decoration: underline;
+    transition: color 0.2s ease-in-out;
+}
+
+.markdown-content a:hover {
+    color: #93c5fd; /* Bleu plus clair au survol */
+}
+
+.markdown-content ul,
+.markdown-content ol {
+    margin-bottom: 1rem;
+    padding-left: 1.5rem;
+}
+
+.markdown-content ul {
+    list-style-type: disc;
+}
+
+.markdown-content ol {
+    list-style-type: decimal;
+}
+
+.markdown-content li {
+    margin-bottom: 0.5rem;
+}
+
+.markdown-content blockquote {
+    border-left: 4px solid #4a5568; /* Bordure grise foncée */
+    padding-left: 1rem;
+    margin: 1.5rem 0;
+    color: #a0aec0; /* Texte gris clair */
+    font-style: italic;
+}
+
+.markdown-content code {
+    background-color: #2d3748; /* Fond gris foncé */
+    color: #e2e8f0; /* Texte gris très clair */
+    padding: 0.2rem 0.4rem;
+    border-radius: 0.25rem;
+    font-family: 'Courier New', Courier, monospace;
+}
+
+.markdown-content pre {
+    background-color: #1a202c; /* Fond presque noir */
+    padding: 1rem;
+    border-radius: 0.5rem;
+    overflow-x: auto;
+    margin-bottom: 1rem;
+}
+
+.markdown-content pre code {
+    padding: 0;
+    background-color: transparent;
+}

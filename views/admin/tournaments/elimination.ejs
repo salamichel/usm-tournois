@@ -1,0 +1,318 @@
+<div class="container mx-auto p-4 sm:p-6 lg:p-8">
+    <div class="mb-8">
+        <a href="/admin/tournaments" class="text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors">
+            <i class="fas fa-arrow-left mr-2"></i>Retour à la liste des tournois
+        </a>
+        <div class="mt-4 text-center">
+            <h1 class="text-4xl font-extrabold text-white">Matchs à Élimination Directe</h1>
+        </div>
+    </div>
+
+    <div class="glass-card rounded-lg p-6 mb-8">
+        <h2 class="text-2xl font-bold text-white mb-4 text-center">Phase d'Élimination</h2>
+        <% if (eliminationMatches && eliminationMatches.length > 0) { %>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <!-- Tours Préliminaires -->
+                <% if (preliminaryMatches && preliminaryMatches.length > 0) { %>
+                    <div class="lg:col-span-1 space-y-4">
+                        <h4 class="font-bold text-lg text-center text-purple-400">Tours Préliminaires</h4>
+                        <% preliminaryMatches.forEach(match => { %>
+                            <div class="glass-card rounded p-3 elimination-match-container" data-match='<%= JSON.stringify(match) %>' data-tournament-id='<%= tournamentId %>'>
+                                <!-- Le contenu sera rendu par JavaScript -->
+                            </div>
+                        <% }); %>
+                    </div>
+                <% } %>
+
+                <!-- Quarts de Finale -->
+                <% if (qfMatches.length > 0) { %>
+                    <div class="lg:col-span-1 space-y-4">
+                        <h4 class="font-bold text-lg text-center text-blue-400">Quarts de Finale</h4>
+                        <% qfMatches.forEach(match => { %>
+                            <div class="glass-card rounded p-3 elimination-match-container" data-match='<%= JSON.stringify(match) %>' data-tournament-id='<%= tournamentId %>'>
+                                <!-- Le contenu sera rendu par JavaScript -->
+                            </div>
+                        <% }); %>
+                    </div>
+                <% } %>
+
+                <!-- Demi-finales -->
+                <% if (dfMatches.length > 0) { %>
+                    <div class="lg:col-span-1 space-y-4">
+                        <h4 class="font-bold text-lg text-center text-blue-400">Demi-finales</h4>
+                        <% dfMatches.forEach(match => { %>
+                            <div class="glass-card rounded p-3 elimination-match-container" data-match='<%= JSON.stringify(match) %>' data-tournament-id='<%= tournamentId %>'>
+                                <!-- Le contenu sera rendu par JavaScript -->
+                            </div>
+                        <% }); %>
+                    </div>
+                <% } %>
+
+                <!-- Match 3ème place et Finale -->
+                <div class="lg:col-span-1 space-y-4">
+                    <% if (finalMatch) { %>
+                        <h4 class="font-bold text-xl text-center text-yellow-400">FINALE</h4>
+                        <div class="glass-card rounded p-4 border-2 border-yellow-500 elimination-match-container" data-match='<%= JSON.stringify(finalMatch) %>' data-tournament-id='<%= tournamentId %>'>
+                            <!-- Le contenu sera rendu par JavaScript -->
+                        </div>
+                    <% } %>
+                    <% if (m3pMatch) { %>
+                        <h4 class="font-bold text-lg text-center text-orange-400 mt-6">3ème Place</h4>
+                        <div class="glass-card rounded p-3 elimination-match-container" data-match='<%= JSON.stringify(m3pMatch) %>' data-tournament-id='<%= tournamentId %>'>
+                            <!-- Le contenu sera rendu par JavaScript -->
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+        <% } else { %>
+            <p class="text-gray-400 text-center text-sm italic">Aucun match à élimination directe généré pour ce tournoi.</p>
+        <% } %>
+    </div>
+
+    <div class="text-center mt-6 mb-8">
+        <a href="/admin/tournaments" class="btn btn-secondary py-2 px-4 rounded-lg">Retour à la liste des tournois</a>
+        <button id="freeze-ranking-btn" data-tournament-id="<%= tournamentId %>" class="btn btn-primary py-2 px-4 rounded-lg ml-4 bg-green-600 hover:bg-green-700 text-white font-bold">Figer le Classement Final</button>
+    </div>
+
+    <!-- Tableau Général des Scores et Points -->
+    <% if (eliminationMatches && eliminationMatches.length > 0) { %>
+        <div class="glass-card rounded-lg p-6 mt-8">
+            <h2 class="text-2xl font-bold text-white mb-4 text-center">Classement Général</h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-800">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Équipe</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Matchs Joués</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Victoires</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Défaites</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Sets Gagnés</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Sets Perdus</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Points Gagnés</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Points Perdus</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Ratio Points</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Points Bonus</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Points Total</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-gray-900 divide-y divide-gray-700">
+                        <% sortedTeams.forEach(([teamName, stats]) => { 
+                            const pointsRatio = stats.pointsConceded > 0 ? (stats.pointsScored / stats.pointsConceded).toFixed(2) : (stats.pointsScored > 0 ? 'Inf.' : '0.00');
+                            %>
+                            <tr class="hover:bg-gray-800">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-white"><%= teamName %></td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300"><%= stats.matchesPlayed %></td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300"><%= stats.wins %></td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300"><%= stats.losses %></td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300"><%= stats.setsWon %></td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300"><%= stats.setsLost %></td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300"><%= stats.pointsScored %></td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300"><%= stats.pointsConceded %></td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300"><%= pointsRatio %></td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300"><%= stats.bonusPoints %></td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-400"><%= stats.points %></td>
+                            </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    <% } %>
+</div>
+
+<script>
+    // Fonction utilitaire pour rendre un match d'élimination
+    function renderEliminationMatch(match, tournamentId) {
+        // Utilise directement les noms d'équipes enrichis par le contrôleur
+        // Si le nom est toujours manquant, affiche "Équipe à déterminer"
+        const team1Display = match.team1 && match.team1.name ? match.team1.name : 'Équipe à déterminer';
+        const team2Display = match.team2 && match.team2.name ? match.team2.name : 'Équipe à déterminer';
+
+        let scoreDisplay = 'N/A';
+        let team1SetsWon = match.setsWonTeam1 || 0;
+        let team2SetsWon = match.setsWonTeam2 || 0;
+
+        if (match.status === 'completed') {
+            scoreDisplay = `${team1SetsWon} - ${team2SetsWon}`;
+        } else if (match.sets && Array.isArray(match.sets) && match.sets.some(s => s.score1 !== null || s.score2 !== null)) {
+            scoreDisplay = `${team1SetsWon} - ${team2SetsWon}`;
+        }
+
+        let team1Class = '';
+        let team2Class = '';
+        if (match.status === 'completed') {
+            if (team1SetsWon > team2SetsWon) {
+                team1Class = 'font-bold text-green-400';
+            } else if (team2SetsWon > team1SetsWon) {
+                team2Class = 'font-bold text-green-400';
+            }
+        }
+
+        const canEnterScore = match.team1 && match.team1.id && match.team2 && match.team2.id;
+        const disabledAttribute = canEnterScore ? '' : 'disabled';
+        const buttonClasses = canEnterScore ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-500 cursor-not-allowed';
+       
+        return `
+            <p>
+                <span class="${team1Class}">${team1Display}</span> vs <span class="${team2Class}">${team2Display}</span>
+            </p>
+            <p class="text-center font-bold text-lg mt-1">${scoreDisplay}</p>
+            <p class="text-center text-sm text-gray-400">Statut: ${match.status}</p>
+            <div class="text-center mt-2">
+                <button type="button" class="btn btn-primary btn-sm toggle-elimination-score-form inline-flex items-center justify-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 ${buttonClasses} text-white" data-match-id="${match.id}" ${disabledAttribute}>
+                    ${canEnterScore ? 'Mettre à jour le score' : 'Équipes non définies'}
+                </button>
+                <div id="elimination-score-form-${match.id}" class="elimination-score-form-container hidden mt-4">
+                    <form class="update-elimination-score-form" action="/admin/tournaments/${tournamentId}/elimination-matches/${match.id}/update-score" method="POST">
+                        <div class="flex flex-col items-center space-y-4 p-4 border border-gray-700 rounded-lg bg-gray-800">
+                            ${match.sets.map((set, index) => `
+                                <div class="flex flex-col items-center w-full">
+                                    <span class="text-base font-semibold text-gray-300 mb-2">Set ${index + 1}</span>
+                                    <div class="flex items-center justify-around w-full">
+                                        <div class="flex flex-col items-center w-5/12">
+                                            <span class="text-base text-gray-200 font-bold mb-1 truncate">${match.team1.name || team1Display}</span>
+                                            <input type="number" name="sets[${index}][score1]" value="${set.score1 !== null ? set.score1 : ''}" class="w-24 bg-gray-700 border border-gray-600 rounded text-white text-center text-xl py-2" min="0" ${disabledAttribute}>
+                                        </div>
+                                        <span class="text-3xl font-bold text-gray-300 mx-2">-</span>
+                                        <div class="flex flex-col items-center w-5/12">
+                                            <span class="text-base text-gray-200 font-bold mb-1 truncate">${match.team2.name || team2Display}</span>
+                                            <input type="number" name="sets[${index}][score2]" value="${set.score2 !== null ? set.score2 : ''}" class="w-24 bg-gray-700 border border-gray-600 rounded text-white text-center text-xl py-2" min="0" ${disabledAttribute}>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                            <button type="submit" class="btn btn-primary btn-sm mt-4 inline-flex items-center justify-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 ${buttonClasses} text-white" ${disabledAttribute}>Valider les scores</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Rendre les matchs d'élimination côté client
+        const eliminationMatchContainers = document.querySelectorAll('.elimination-match-container');
+        eliminationMatchContainers.forEach(container => {
+            const matchData = JSON.parse(container.dataset.match);
+            const tournamentId = container.dataset.tournamentId;
+            container.innerHTML = renderEliminationMatch(matchData, tournamentId);
+        });
+
+        // Logique pour le bouton "Figer le Classement Final"
+        const freezeRankingBtn = document.getElementById('freeze-ranking-btn');
+        if (freezeRankingBtn) {
+            freezeRankingBtn.addEventListener('click', async () => {
+                const tournamentId = freezeRankingBtn.dataset.tournamentId;
+                // Assurez-vous que sortedTeams est correctement échappé pour éviter les erreurs de syntaxe avec des caractères spéciaux comme '&'
+                const finalRankingData = JSON.parse('<%- JSON.stringify(sortedTeams) %>');
+
+                try {
+                    const response = await fetch(`/admin/tournaments/${tournamentId}/freeze-ranking`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ finalRanking: finalRankingData }),
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        if (typeof showToast === 'function') {
+                            showToast('success', result.message);
+                        } else {
+                            alert(result.message);
+                        }
+                        location.reload();
+                    } else {
+                        if (typeof showToast === 'function') {
+                            showToast('error', 'Erreur lors du figement du classement: ' + result.message);
+                        } else {
+                            alert('Erreur lors du figement du classement: ' + result.message);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Erreur réseau lors du figement du classement:', error);
+                    if (typeof showToast === 'function') {
+                        showToast('error', 'Erreur réseau lors du figement du classement.');
+                    } else {
+                        alert('Erreur réseau lors du figement du classement.');
+                    }
+                }
+            });
+        }
+
+        // Logique pour les matchs d'élimination (formulaires de score)
+        const eliminationScoreForms = document.querySelectorAll('.update-elimination-score-form');
+        const toggleEliminationButtons = document.querySelectorAll('.toggle-elimination-score-form');
+
+        toggleEliminationButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const matchId = button.dataset.matchId;
+                const formContainer = document.getElementById(`elimination-score-form-${matchId}`);
+                formContainer.classList.toggle('hidden');
+            });
+        });
+
+        eliminationScoreForms.forEach(form => {
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+
+                const formData = new FormData(form);
+                const actionUrl = form.action;
+                const setsData = [];
+                const setsInputs = form.querySelectorAll('[name^="sets["]');
+
+                setsInputs.forEach(input => {
+                    const name = input.name;
+                    const match = name.match(/sets\[(\d+)\]\[(score1|score2)\]/);
+                    if (match) {
+                        const setIndex = parseInt(match[1]);
+                        const scoreType = match[2];
+                        if (!setsData[setIndex]) {
+                            setsData[setIndex] = { score1: null, score2: null };
+                        }
+                        setsData[setIndex][scoreType] = parseInt(input.value) || 0;
+                    }
+                });
+
+                try {
+                    const response = await fetch(actionUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ sets: setsData }),
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        console.log('Score du match d\'élimination mis à jour avec succès:', result.message);
+                        // Remplacer alert par un toast de succès
+                        if (typeof showToast === 'function') {
+                            showToast('success', result.message);
+                        } else {
+                            alert(result.message);
+                        }
+                        location.reload();
+                    } else {
+                        console.error('Erreur lors de la mise à jour du score du match d\'élimination:', result.message);
+                        // Remplacer alert par un toast d'erreur
+                        if (typeof showToast === 'function') {
+                            showToast('error', 'Erreur lors de la mise à jour du score du match d\'élimination: ' + result.message);
+                        } else {
+                            alert('Erreur lors de la mise à jour du score du match d\'élimination: ' + result.message);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Erreur réseau lors de la mise à jour du score du match d\'élimination:', error);
+                    // Remplacer alert par un toast d'erreur réseau
+                    if (typeof showToast === 'function') {
+                        showToast('error', 'Erreur réseau lors de la mise à jour du score du match d\'élimination.');
+                    } else {
+                        alert('Erreur réseau lors de la mise à jour du score du match d\'élimination.');
+                    }
+                }
+            });
+        });
+    });
+</script>

@@ -1,0 +1,97 @@
+<% 
+    const completeTeamsCount = event.completeTeamsCount || 0; // Utilise le nouveau champ
+    const teamsMax = event.maxTeams || 1; // Utilise event.maxTeams pour le max d'équipes
+    const playersCount = event.playersCount || 0;
+    const playersMax = event.maxTeams * event.playersPerTeam || 1; // Calcule le max de joueurs
+    const teamsProgress = (completeTeamsCount / teamsMax) * 100; // Basé sur completeTeamsCount
+    const playersProgress = (playersCount / playersMax) * 100;
+
+    const now = new Date();
+    const registrationStarts = event.registrationStartDateTime ? event.registrationStartDateTime.toDate() : new Date(0);
+    
+    let statusColor;
+    let displayStatus = event.status;
+
+    // Le contrôleur a déjà mis à jour event.registrationsOpen dynamiquement
+    // et event.status est déjà 'Terminé', 'Complet' ou 'Ouvert'
+
+    if (event.status === 'Terminé') {
+        statusColor = 'bg-gray-800 text-gray-400 border border-gray-600';
+    } else if (event.status === 'Complet') {
+        statusColor = 'bg-red-800 text-red-200 border border-red-600';
+    } else if (event.status === "Liste d'attente") {
+        statusColor = 'bg-purple-800 text-purple-200 border border-purple-600';
+    } else if (!event.registrationsOpen && now < registrationStarts) { // Si les inscriptions ne sont pas encore ouvertes
+        statusColor = 'bg-yellow-800 text-yellow-200 border border-yellow-600';
+        displayStatus = 'À venir'; // Nouveau statut pour l'affichage
+    } else { // 'Ouvert' (event.registrationsOpen est true et now >= registrationStarts)
+        statusColor = 'bg-green-800 text-green-200 border border-green-600';
+    }
+%>
+<a href="/tournoi/<%= event.id %>" 
+   class="tournament-card glass-card rounded-lg flex flex-col justify-between transform hover:-translate-y-1 transition-transform duration-300 overflow-hidden"
+   data-name="<%= event.name %>"
+   data-location="<%= event.location %>"
+   data-type="<%= event.type %>"
+   data-date="<%= event.date ? event.date.toDate().toISOString() : '' %>"
+   data-registration-start-date="<%= event.registrationStartDateTime ? event.registrationStartDateTime.toDate().toISOString() : '' %>">
+    <div>
+        <% if (event.coverImage) { %>
+            <img src="<%= event.coverImage %>" alt="Photo de couverture de <%= event.name %>" class="w-full h-48 object-cover">
+        <% } %>
+        <% if (event.registrationType) { %>
+            <div class="p-3 bg-gray-800 border-b border-gray-700 text-sm text-gray-300 flex items-center justify-center">
+                <% if (event.registrationType === 'team') { %>
+                    <i class="fas fa-users mr-2 text-blue-400"></i>Inscrit avec l'équipe: <span class="font-semibold text-white ml-1"><%= event.teamName %></span>
+                <% } else if (event.registrationType === 'free-player') { %>
+                    <i class="fas fa-user mr-2 text-green-400"></i>Inscrit en tant que joueur libre
+                <% } %>
+            </div>
+        <% } %>
+        <div class="p-5 border-b border-gray-700">
+            <div class="flex justify-between items-start mb-2">
+                <h3 class="text-lg font-bold text-white pr-4"><%= event.name %></h3>
+                <span class="tag <%= statusColor %> flex-shrink-0"><%= displayStatus %></span>
+            </div>
+            <div class="flex items-center text-sm text-gray-400 space-x-4">
+                <span><i class="fas fa-calendar-alt fa-fw mr-2"></i><%= event.date ? new Date(event.date.toDate()).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }) : 'N/A' %></span>
+                <span><i class="fas fa-clock fa-fw mr-2"></i><%= event.date ? new Date(event.date.toDate()).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : 'N/A' %></span>
+                <span><i class="fas fa-map-marker-alt fa-fw mr-2"></i><%= event.location %></span>
+            </div>
+            <% if (!event.registrationsOpen && now < registrationStarts) { %>
+                <div class="flex items-center text-sm text-yellow-400 space-x-4 mt-2">
+                    <span><i class="fas fa-hourglass-start fa-fw mr-2"></i>Inscriptions le <%= registrationStarts.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }) %> à <%= registrationStarts.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) %></span>
+                </div>
+            <% } %>
+            <div class="flex items-center text-sm text-gray-400 space-x-4 mt-2">
+                <span><i class="fas fa-info-circle fa-fw mr-2"></i><%= event.type %></span>
+                <% if (event.mixity && event.mixity !== 'none') { %>
+                    <span><i class="fas fa-venus-mars fa-fw mr-2"></i>Mixte</span>
+                <% } %>
+                <% if (event.requiresFemalePlayer) { %>
+                    <span><i class="fas fa-female fa-fw mr-2"></i>Féminin</span>
+                <% } %>
+                <% if (event.fee && event.fee > 0) { %>
+                    <span><i class="fas fa-euro-sign fa-fw mr-2"></i><%= event.fee %>€</span>
+                <% } %>
+            </div>
+        </div>
+        <div class="p-5">
+            <div class="space-y-4">
+                <div>
+                    <div class="text-sm text-gray-300 mb-1 flex justify-between"><span>Équipes complètes</span><span><%= completeTeamsCount %>/<%= teamsMax %></span></div>
+                    <div class="w-full bg-gray-700 rounded-full h-2.5"><div class="bg-blue-600 h-2.5 rounded-full" style="width: <%= teamsProgress %>%;"></div></div>
+                    <% if (event.waitingListCount > 0) { %>
+                        <div class="text-xs text-purple-400 mt-1 text-right">
+                            + <%= event.waitingListCount %> en liste d'attente
+                        </div>
+                    <% } %>
+                </div>
+                <div>
+                    <div class="text-sm text-gray-300 mb-1 flex justify-between"><span>Joueurs</span><span><%= playersCount %>/<%= playersMax %></span></div>
+                    <div class="w-full bg-gray-700 rounded-full h-2.5"><div class="bg-green-500 h-2.5 rounded-full" style="width: <%= playersProgress %>%;"></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</a>

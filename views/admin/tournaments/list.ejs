@@ -1,0 +1,61 @@
+<div class="container mx-auto p-4 sm:p-6 lg:p-8">
+    <h1 class="text-4xl font-extrabold text-white mb-6 text-center">Gestion des Tournois</h1>
+
+    <a href="/admin/tournaments/new" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors mb-6 inline-flex items-center">
+        <i class="fas fa-plus-circle mr-2"></i>Créer un nouveau tournoi
+    </a>
+
+    <div class="glass-card rounded-lg p-6 mb-8 overflow-x-auto">
+        <table class="min-w-full text-white">
+            <thead class="bg-gray-800">
+                <tr>
+                    <th class="py-3 px-4 text-left text-sm font-semibold">Nom</th>
+                    <th class="py-3 px-4 text-left text-sm font-semibold">Date</th>
+                    <th class="py-3 px-4 text-left text-sm font-semibold">Max Équipes</th>
+                    <th class="py-3 px-4 text-left text-sm font-semibold">Min Joueurs/Équipe</th>
+                    <th class="py-3 px-4 text-left text-sm font-semibold">Max Joueurs/Équipe</th>
+                    <th class="py-3 px-4 text-left text-sm font-semibold">Liste d'attente</th>
+                    <th class="py-3 px-4 text-left text-sm font-semibold">Actions</th>
+                    <th class="py-3 px-4 text-left text-sm font-semibold">Gestion</th>
+                </tr>
+            </thead>
+            <tbody class="text-gray-300">
+                <% if (tournaments.length === 0) { %>
+                    <tr>
+                        <td colspan="8" class="py-3 px-4 text-center text-sm italic">Aucun tournoi trouvé.</td>
+                    </tr>
+                <% } else { %>
+                    <% tournaments.forEach(tournament => { %>
+                        <tr class="border-b border-gray-700 hover:bg-gray-800 transition-colors">
+                            <td class="py-3 px-4 text-sm font-medium"><%= tournament.name %></td>
+                            <td class="py-3 px-4 text-sm"><%= tournament.date ? (typeof tournament.date.toDate === 'function' ? new Date(tournament.date.toDate()).toLocaleDateString('fr-FR') : new Date(tournament.date).toLocaleDateString('fr-FR')) : 'N/A' %></td>
+                            <td class="py-3 px-4 text-sm"><%= tournament.maxTeams %></td>
+                            <td class="py-3 px-4 text-sm"><%= tournament.minPlayersPerTeam %></td>
+                            <td class="py-3 px-4 text-sm"><%= tournament.playersPerTeam %></td>
+                            <td class="py-3 px-4 text-sm"><%= tournament.waitingListSize !== undefined ? tournament.waitingListSize : 'N/A' %></td>
+                            <td class="py-3 px-4">
+                                <div class="flex flex-wrap gap-2">
+                                    <a href="/admin/tournaments/<%= tournament.id %>/edit" class="bg-yellow-600 hover:bg-yellow-700 text-white py-1 px-3 rounded-lg text-xs font-semibold transition-colors">Modifier</a>
+                                    <form action="/admin/tournaments/<%= tournament.id %>/clone" method="POST" onsubmit="return confirm('Voulez-vous vraiment cloner ce tournoi ?');" class="inline-block">
+                                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white py-1 px-3 rounded-lg text-xs font-semibold transition-colors">Cloner</button>
+                                    </form>
+                                    <form action="/admin/tournaments/<%= tournament.id %>/delete" method="POST" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce tournoi ?');" class="inline-block">
+                                        <button type="submit" class="bg-red-600 hover:bg-red-700 text-white py-1 px-3 rounded-lg text-xs font-semibold transition-colors">Supprimer</button>
+                                    </form>
+                                </div>
+                            </td>
+                            <td class="py-3 px-4">
+                                <div class="flex flex-wrap gap-2">
+                                    <a href="/admin/tournaments/<%= tournament.id %>/teams" class="bg-green-600 hover:bg-green-700 text-white py-1 px-3 rounded-lg text-xs font-semibold transition-colors">Équipes</a>
+                                    <a href="/admin/tournaments/<%= tournament.id %>/unassigned-players" class="bg-green-600 hover:bg-green-700 text-white py-1 px-3 rounded-lg text-xs font-semibold transition-colors">Joueurs Libres</a>
+                                    <a href="/admin/tournaments/<%= tournament.id %>/pools" class="bg-green-600 hover:bg-green-700 text-white py-1 px-3 rounded-lg text-xs font-semibold transition-colors">Poules</a>
+                                    <a href="/admin/tournaments/<%= tournament.id %>/elimination" class="bg-green-600 hover:bg-green-700 text-white py-1 px-3 rounded-lg text-xs font-semibold transition-colors">Élimination</a>
+                                </div>
+                            </td>
+                        </tr>
+                    <% }); %>
+                <% } %>
+            </tbody>
+        </table>
+    </div>
+</div>

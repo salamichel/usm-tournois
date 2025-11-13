@@ -1,0 +1,195 @@
+
+<div class="container mx-auto p-4 sm:p-6 lg:p-8">
+    <div class="mb-8">
+        <a href="/admin/tournaments/<%= tournamentId %>/elimination" class="text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors">
+            <i class="fas fa-arrow-left mr-2"></i>Retour aux matchs à élimination
+        </a>
+        <div class="mt-4 text-center">
+            <h1 class="text-4xl font-extrabold text-white">Feuille de Match - Phase Éliminatoire</h1>
+        </div>
+    </div>
+
+    <% if (match) { %>
+        <div class="glass-card rounded-lg p-6 mb-8">
+            <h2 class="text-2xl font-bold text-white mb-4 text-center">Détails du Match</h2>
+            <p class="text-gray-300 mb-2"><strong>Tournoi:</strong> <%= tournament ? tournament.name : 'N/A' %></p>
+            <p class="text-gray-300 mb-2"><strong>Match ID:</strong> <%= match.id %></p>
+            <p class="text-gray-300 mb-2"><strong>Équipe 1:</strong> <span class="font-semibold text-blue-400"><%= match.team1 ? match.team1.name : 'À déterminer' %></span></p>
+            <p class="text-gray-300 mb-2"><strong>Équipe 2:</strong> <span class="font-semibold text-blue-400"><%= match.team2 ? match.team2.name : 'À déterminer' %></span></p>
+            <p class="text-gray-300 mb-2"><strong>Statut:</strong> <span class="px-2 py-1 rounded-full text-xs font-semibold <%= match.status === 'completed' ? 'bg-green-600' : match.status === 'in_progress' ? 'bg-yellow-600' : 'bg-gray-600' %> text-white"><%= match.status || 'Non démarré' %></span></p>
+            <p class="text-gray-300 mb-2"><strong>Sets à gagner:</strong> <%= match.setsToWin %></p>
+            <p class="text-gray-300 mb-2"><strong>Points par set:</strong> <%= match.pointsPerSet %></p>
+            <p class="text-gray-300 mb-2"><strong>Tie-break activé:</strong> <%= match.tieBreakEnabled ? 'Oui' : 'Non' %></p>
+        </div>
+
+        <div class="glass-card rounded-lg p-6 mb-8">
+            <h2 class="text-2xl font-bold text-white mb-4 text-center">Scores par Set</h2>
+            <form action="/admin/tournaments/<%= tournamentId %>/elimination/matches/<%= match.id %>/update-score" method="POST" class="space-y-4">
+                <div class="flex flex-col items-center space-y-4 p-4 border border-gray-700 rounded-lg bg-gray-800">
+                    <%
+                        let team1SetsWon = 0;
+                        let team2SetsWon = 0;
+                        if (match.sets && Array.isArray(match.sets)) {
+                            match.sets.forEach(set => {
+                                if (set.score1 !== null && set.score2 !== null) {
+                                    if (set.score1 > set.score2) team1SetsWon++;
+                                    else if (set.score2 > set.score1) team2SetsWon++;
+                                }
+                            });
+                        }
+                    %>
+                    <% if (match.sets && Array.isArray(match.sets)) { %>
+                        <% match.sets.forEach((set, index) => { %>
+                            <div class="flex flex-col items-center w-full">
+                                <span class="text-base font-semibold text-gray-300 mb-2">Set <%= index + 1 %></span>
+                                <div class="flex items-center justify-around w-full">
+                                    <div class="flex flex-col items-center w-5/12">
+                                        <span class="text-base text-gray-200 font-bold mb-1 truncate"><%= match.team1 ? match.team1.name : 'Équipe 1' %></span>
+                                        <input type="number" name="sets[<%= index %>][score1]" value="<%= set.score1 !== null ? set.score1 : '' %>" class="w-24 bg-gray-700 border border-gray-600 rounded text-white text-center text-xl py-2" min="0">
+                                    </div>
+                                    <span class="text-3xl font-bold text-gray-300 mx-2">-</span>
+                                    <div class="flex flex-col items-center w-5/12">
+                                        <span class="text-base text-gray-200 font-bold mb-1 truncate"><%= match.team2 ? match.team2.name : 'Équipe 2' %></span>
+                                        <input type="number" name="sets[<%= index %>][score2]" value="<%= set.score2 !== null ? set.score2 : '' %>" class="w-24 bg-gray-700 border border-gray-600 rounded text-white text-center text-xl py-2" min="0">
+                                    </div>
+                                </div>
+                            </div>
+                        <% }); %>
+                        <% if (match.tieBreakEnabled && team1SetsWon === team2SetsWon && team1SetsWon === (match.setsToWin - 1)) { %>
+                            <!-- Afficher un set supplémentaire pour le tie-break si activé et égalité -->
+                            <div class="flex flex-col items-center w-full mt-4 pt-4 border-t border-gray-600">
+                                <span class="text-base font-semibold text-gray-300 mb-2">Tie-break</span>
+                                <div class="flex items-center justify-around w-full">
+                                    <div class="flex flex-col items-center w-5/12">
+                                        <span class="text-base text-gray-200 font-bold mb-1 truncate"><%= match.team1 ? match.team1.name : 'Équipe 1' %></span>
+                                        <input type="number" name="sets[<%= match.sets.length %>][score1]" value="<%= match.sets[match.sets.length] && match.sets[match.sets.length].score1 !== null ? match.sets[match.sets.length].score1 : '' %>" class="w-24 bg-gray-700 border border-gray-600 rounded text-white text-center text-xl py-2" min="0">
+                                    </div>
+                                    <span class="text-3xl font-bold text-gray-300 mx-2">-</span>
+                                    <div class="flex flex-col items-center w-5/12">
+                                        <span class="text-base text-gray-200 font-bold mb-1 truncate"><%= match.team2 ? match.team2.name : 'Équipe 2' %></span>
+                                        <input type="number" name="sets[<%= match.sets.length %>][score2]" value="<%= match.sets[match.sets.length] && match.sets[match.sets.length].score2 !== null ? match.sets[match.sets.length].score2 : '' %>" class="w-24 bg-gray-700 border border-gray-600 text-white text-center text-xl py-2" min="0">
+                                    </div>
+                                </div>
+                            </div>
+                        <% } %>
+                    <% } else { %>
+                        <p class="text-gray-400 text-center text-sm italic">Aucun set enregistré pour ce match.</p>
+                    <% } %>
+                    <button type="submit" class="btn btn-primary btn-sm mt-4">Mettre à jour les Scores</button>
+                </div>
+            </form>
+        </div>
+        
+        <div class="glass-card rounded-lg p-6 mb-8">
+            <h2 class="text-2xl font-bold text-white mb-4 text-center">Résumé des Scores</h2>
+            <% if (match.sets && match.sets.length > 0) { %>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-white">
+                        <thead class="bg-gray-800">
+                            <tr>
+                                <th class="py-3 px-4 text-left text-sm font-semibold">Set</th>
+                                <th class="py-3 px-4 text-center text-sm font-semibold"><%= match.team1 ? match.team1.name : 'Équipe 1' %></th>
+                                <th class="py-3 px-4 text-center text-sm font-semibold"><%= match.team2 ? match.team2.name : 'Équipe 2' %></th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-gray-300">
+                            <% match.sets.forEach((set, index) => { %>
+                                <tr class="border-b border-gray-700">
+                                    <td class="py-2 px-3 text-sm font-medium">Set <%= index + 1 %></td>
+                                    <td class="py-2 px-3 text-center text-lg"><%= set.score1 !== undefined ? set.score1 : '-' %></td>
+                                    <td class="py-2 px-3 text-center text-lg"><%= set.score2 !== undefined ? set.score2 : '-' %></td>
+                                </tr>
+                            <% }); %>
+                            <tr class="border-t-2 border-blue-600 font-bold">
+                                <td class="py-2 px-3 text-sm">Sets Gagnés</td>
+                                <td class="py-2 px-3 text-center text-xl text-yellow-400"><%= match.setsWonTeam1 !== undefined ? match.setsWonTeam1 : '?' %></td>
+                                <td class="py-2 px-3 text-center text-xl text-yellow-400"><%= match.setsWonTeam2 !== undefined ? match.setsWonTeam2 : '?' %></td>
+                            </tr>
+                            <% if (match.winnerName) { %>
+                                <tr class="border-t border-gray-700 font-bold">
+                                    <td colspan="3" class="py-2 px-3 text-center text-xl text-green-400">Vainqueur: <%= match.winnerName %></td>
+                                </tr>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            <% } else { %>
+                <p class="text-gray-400 text-center text-sm italic">Aucun set enregistré pour ce match.</p>
+            <% } %>
+        </div>
+
+    <% } else { %>
+        <div class="glass-card rounded-lg p-6 mb-8">
+            <p class="text-gray-400 text-center text-sm italic">Match non trouvé ou non spécifié.</p>
+        </div>
+    <% } %>
+
+    <div class="text-center mt-6">
+        <a href="/admin/tournaments/<%= tournamentId %>/elimination" class="btn btn-secondary py-2 px-4 rounded-lg">Retour aux matchs à élimination</a>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const scoreForm = document.querySelector('form[action*="/elimination/matches/"]'); // Sélectionne le formulaire de score
+
+        if (scoreForm) {
+            scoreForm.addEventListener('submit', async (event) => {
+                event.preventDefault(); // Empêcher le rechargement de la page par défaut
+
+                const formData = new FormData(scoreForm);
+                const actionUrl = scoreForm.action;
+                let payload = {};
+
+                // Vérifier si les champs de sets existent (nouveau format)
+                const setsInputs = scoreForm.querySelectorAll('[name^="sets["]');
+                if (setsInputs.length > 0) {
+                    const setsData = [];
+                    setsInputs.forEach(input => {
+                        const name = input.name; // ex: sets[0][score1]
+                        const match = name.match(/sets\[(\d+)\]\[(score1|score2)\]/);
+                        if (match) {
+                            const setIndex = parseInt(match[1]);
+                            const scoreType = match[2];
+                            if (!setsData[setIndex]) {
+                                setsData[setIndex] = { score1: null, score2: null };
+                            }
+                            setsData[setIndex][scoreType] = parseInt(input.value) || 0; // Convertir en nombre, 0 si vide
+                        }
+                    });
+                    payload = { sets: setsData, status: 'completed' };
+                } else {
+                    // Ancien format de score (ne devrait pas être utilisé ici si la vue est mise à jour)
+                    const score1 = parseInt(formData.get('score1')) || 0;
+                    const score2 = parseInt(formData.get('score2')) || 0;
+                    payload = { score1, score2, status: 'completed' };
+                }
+
+                try {
+                    const response = await fetch(actionUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json', // Indique que le client attend une réponse JSON
+                        },
+                        body: JSON.stringify(payload),
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        console.log('Score mis à jour avec succès:', result.message);
+                        location.reload(); // Recharger la page pour afficher le message flash
+                    } else {
+                        console.error('Erreur lors de la mise à jour du score:', result.message);
+                        location.reload(); // Recharger la page pour afficher le message flash
+                    }
+                } catch (error) {
+                    console.error('Erreur réseau lors de la mise à jour du score:', error);
+                    // En cas d'erreur réseau, on peut aussi recharger pour afficher un message flash générique si le serveur le gère
+                    // Ou laisser le gestionnaire d'erreurs global d'Express s'en occuper si la requête n'atteint pas le contrôleur
+                    location.reload();
+                }
+            });
+        }
+    });
+</script>
