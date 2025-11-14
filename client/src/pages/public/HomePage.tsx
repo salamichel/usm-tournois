@@ -10,7 +10,7 @@ const HomePage = () => {
 
   useEffect(() => {
     fetchTournaments();
-  }, []);
+  }, [fetchTournaments]);
 
   if (isLoading) {
     return (
