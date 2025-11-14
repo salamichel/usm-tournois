@@ -48,6 +48,7 @@ server: {
   host: true, // ✅ Écoute sur 0.0.0.0 (accessible depuis l'hôte)
   port: 5173,
   strictPort: true,
+  allowedHosts: ['usm-tournois.moka-web.net', '.moka-web.net'], // ✅ Autorise l'accès via nom de domaine
   watch: {
     usePolling: true, // ✅ Nécessaire pour Docker
   },

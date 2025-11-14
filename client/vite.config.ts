@@ -23,6 +23,7 @@ export default defineConfig({
     host: true, // Listen on all addresses (0.0.0.0) for Docker
     port: 5173,
     strictPort: true,
+    allowedHosts: ['usm-tournois.moka-web.net', '.moka-web.net'], // Allow specific domain and all subdomains
     watch: {
       usePolling: true, // Necessary for Docker on some systems
     },
