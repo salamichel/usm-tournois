@@ -1,0 +1,402 @@
+<h1 class="text-3xl font-bold mb-2 text-white">🏆 <%= tournament.name %></h1>
+
+<div id="tournament-data"
+     data-tournament-id="<%= tournament.id %>"
+     data-current-king-phase="<%= tournament.currentKingPhase || 0 %>"
+     style="display: none;"></div>
+
+<!-- ======================================== -->
+<!-- TOP SECTION - PROGRESSION & STATS -->
+<!-- ======================================== -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+  <!-- PROGRESSION -->
+  <div class="glass-card p-6 rounded-lg bg-gray-900/50 lg:col-span-1">
+    <h3 class="font-bold text-white mb-4">📊 Phases</h3>
+    <div class="space-y-2">
+      <div class="flex items-center gap-2">
+        <% if (tournament.currentKingPhase > 1) { %>
+          <span class="text-green-400">✓</span>
+          <span class="text-gray-400 line-through">Phase 1 (4v4)</span>
+        <% } else if (tournament.currentKingPhase === 1) { %>
+          <span class="text-blue-400">⚡</span>
+          <span class="text-white font-semibold">Phase 1 (4v4)</span>
+        <% } else { %>
+          <span class="text-gray-600">○</span>
+          <span class="text-gray-400">Phase 1 (4v4)</span>
+        <% } %>
+      </div>
+      <div class="flex items-center gap-2">
+        <% if (tournament.currentKingPhase > 2) { %>
+          <span class="text-green-400">✓</span>
+          <span class="text-gray-400 line-through">Phase 2 (3v3)</span>
+        <% } else if (tournament.currentKingPhase === 2) { %>
+          <span class="text-blue-400">⚡</span>
+          <span class="text-white font-semibold">Phase 2 (3v3)</span>
+        <% } else { %>
+          <span class="text-gray-600">○</span>
+          <span class="text-gray-400">Phase 2 (3v3)</span>
+        <% } %>
+      </div>
+      <div class="flex items-center gap-2">
+        <% if (tournament.currentKingPhase > 3) { %>
+          <span class="text-green-400">✓</span>
+          <span class="text-gray-400 line-through">Phase Finale (2v2)</span>
+        <% } else if (tournament.currentKingPhase === 3) { %>
+          <span class="text-blue-400">⚡</span>
+          <span class="text-white font-semibold">Phase Finale (2v2)</span>
+        <% } else { %>
+          <span class="text-gray-600">○</span>
+          <span class="text-gray-400">Phase Finale (2v2)</span>
+        <% } %>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="glass-card p-6 rounded-lg bg-gray-900/50 lg:col-span-2">
+    <h3 class="font-bold text-white mb-4">📈 Statistiques</h3>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div class="text-center">
+        <div class="text-2xl font-bold text-blue-400"><%= players.length %></div>
+        <div class="text-xs text-gray-400">Joueurs</div>
+      </div>
+      <% if (kingData && kingData.totalMatches) { %>
+        <div class="text-center">
+          <div class="text-2xl font-bold text-purple-400"><%= kingData.totalMatches %></div>
+          <div class="text-xs text-gray-400">Matchs total</div>
+        </div>
+      <% } %>
+      <% if (kingData && kingData.completedMatches) { %>
+        <div class="text-center">
+          <div class="text-2xl font-bold text-green-400"><%= kingData.completedMatches %></div>
+          <div class="text-xs text-gray-400">Complétés</div>
+        </div>
+        <div class="text-center">
+          <div class="text-2xl font-bold text-yellow-400"><%= Math.round((kingData.completedMatches / Math.max(kingData.totalMatches, 1)) * 100) %>%</div>
+          <div class="text-xs text-gray-400">Avancement</div>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================== -->
+<!-- JOUEURS -->
+<!-- ======================================== -->
+<div class="glass-card p-6 rounded-lg bg-gray-900/50 mb-6">
+  <h3 class="font-bold text-white mb-4">👥 Participants (<%= players.length %>)</h3>
+  <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+    <% players.forEach(p => { %>
+      <div style="background: rgba(31, 41, 55, 0.6); border: 1px solid rgba(75, 85, 99, 0.3); border-radius: 4px; padding: 6px; font-size: 11px;">
+        <div class="font-semibold text-gray-300 truncate"><%= p.pseudo %></div>
+        <% if (p.level) { %>
+          <div class="text-gray-500 text-xs"><%= p.level %></div>
+        <% } %>
+      </div>
+    <% }); %>
+  </div>
+</div>
+
+<!-- ======================================== -->
+<!-- RANKING -->
+<!-- ======================================== -->
+<% if (kingData && kingData.ranking && kingData.ranking.length > 0) { %>
+  <div class="glass-card p-6 rounded-lg bg-gray-900/50 mb-6">
+    <h3 class="font-bold text-white mb-4">🏅 Classement</h3>
+    <div style="overflow-x: auto;">
+      <table style="width: 100%; font-size: 13px;">
+        <thead>
+          <tr style="border-bottom: 2px solid rgba(75, 85, 99, 0.5);">
+            <th style="padding: 8px; text-align: left; color: #9ca3af; font-weight: 600;">Rang</th>
+            <th style="padding: 8px; text-align: left; color: #9ca3af; font-weight: 600;">Joueur</th>
+            <th style="padding: 8px; text-align: center; color: #9ca3af; font-weight: 600;">V</th>
+            <th style="padding: 8px; text-align: center; color: #9ca3af; font-weight: 600;">P</th>
+            <th style="padding: 8px; text-align: center; color: #9ca3af; font-weight: 600;">%</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% kingData.ranking.slice(0, 10).forEach((p, idx) => { %>
+            <tr style="border-bottom: 1px solid rgba(75, 85, 99, 0.2);">
+              <td style="padding: 8px;">
+                <% if (idx === 0) { %>🥇<% } else if (idx === 1) { %>🥈<% } else if (idx === 2) { %>🥉<% } else { %><%= idx + 1 %><% } %>
+              </td>
+              <td style="padding: 8px;"><%= p.pseudo || p.name %></td>
+              <td style="padding: 8px; text-align: center; color: #3b82f6; font-weight: bold;"><%= p.wins || 0 %></td>
+              <td style="padding: 8px; text-align: center; color: #ef4444;"><%= p.losses || 0 %></td>
+              <td style="padding: 8px; text-align: center; color: #9ca3af;">
+                <%= p.matchesPlayed > 0 ? Math.round((p.wins / p.matchesPlayed) * 100) : 0 %>%
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+<% } %>
+
+<!-- ======================================== -->
+<!-- PHASES - ACCORDÉONS -->
+<!-- ======================================== -->
+<% if (kingData && kingData.phases && kingData.phases.length > 0) { %>
+  <% kingData.phases.forEach((phase) => { %>
+    <div class="glass-card p-0 rounded-lg bg-gray-900/50 mb-4 accordion-item" data-phase="<%= phase.phaseNumber %>">
+      <!-- HEADER -->
+      <div class="accordion-header p-4 cursor-pointer hover:bg-gray-800/30 transition flex justify-between items-center"
+           onclick="toggleAccordion(this)">
+        <div class="flex items-center gap-3">
+          <% if (tournament.currentKingPhase > phase.phaseNumber) { %>
+            <span class="text-green-400">✓</span>
+          <% } else if (tournament.currentKingPhase === phase.phaseNumber) { %>
+            <span class="text-blue-400">⚡</span>
+          <% } else { %>
+            <span class="text-gray-600">○</span>
+          <% } %>
+          <div>
+            <h3 class="font-bold text-white">
+              <% if (phase.phaseNumber === 1) { %>🔵 Phase 1<% } 
+                 else if (phase.phaseNumber === 2) { %>🟡 Phase 2<% } 
+                 else { %>👑 Phase Finale<% } %>
+            </h3>
+            <p class="text-xs text-gray-400"><%= phase.format %></p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <% 
+            const phaseMatches = phase.allMatches || [];
+            const phaseCompleted = phaseMatches.filter(m => m.status === 'completed').length;
+            const phaseTotal = phaseMatches.length;
+          %>
+          <div class="text-right">
+            <div class="text-sm font-semibold text-blue-400"><%= phaseCompleted %>/<%= phaseTotal %></div>
+            <div class="text-xs text-gray-500">matchs</div>
+          </div>
+          <div class="accordion-toggle" style="color: #9ca3af; font-size: 20px;">▼</div>
+        </div>
+      </div>
+
+      <!-- CONTENT -->
+      <div class="accordion-content hidden p-4 border-t border-gray-700">
+        <!-- POOLS -->
+        <% if (phase.pools && phase.pools.length > 0) { %>
+          <% phase.pools.forEach((pool, pidx) => { %>
+            <div class="mb-6 last:mb-0">
+              <div class="flex justify-between items-center mb-3 pb-2 border-b border-gray-700">
+                <h4 class="font-semibold text-gray-300">
+                  <%= pool.name %> 
+                  <span class="text-xs bg-purple-900 text-purple-300 px-2 py-1 rounded"><%= phase.format %></span>
+                </h4>
+                <span class="text-xs text-gray-500"><%= pool.playerCount %> joueurs</span>
+              </div>
+
+              <!-- MATCHS -->
+              <% if (pool.matches && pool.matches.length > 0) { %>
+                <div class="space-y-3">
+                  <% pool.matches.forEach(match => { %>
+                    <div style="background: rgba(17, 24, 39, 0.4); border: 1px solid rgba(75, 85, 99, 0.2); border-radius: 6px; overflow: hidden;">
+                      <!-- MATCH HEADER -->
+                      <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; padding: 8px; background: rgba(0,0,0,0.2); align-items: center;">
+                        <div style="text-align: right;">
+                          <div style="font-weight: 600; color: #93c5fd; font-size: 12px;"><%= match.team1 ? match.team1.name : 'Éq. 1' %></div>
+                          <% if (match.status === 'completed') { %>
+                            <div style="font-size: 14px; font-weight: bold; color: #3b82f6;"><%= match.setsWonTeam1 %></div>
+                          <% } %>
+                        </div>
+                        <div style="text-align: center; color: #6b7280; font-size: 11px; font-weight: bold;">VS</div>
+                        <div style="text-align: left;">
+                          <div style="font-weight: 600; color: #fca5a5; font-size: 12px;"><%= match.team2 ? match.team2.name : 'Éq. 2' %></div>
+                          <% if (match.status === 'completed') { %>
+                            <div style="font-size: 14px; font-weight: bold; color: #ef4444;"><%= match.setsWonTeam2 %></div>
+                          <% } %>
+                        </div>
+                      </div>
+
+                      <!-- MATCH FORM/STATUS -->
+                      <div style="padding: 8px; border-top: 1px solid rgba(75, 85, 99, 0.2);">
+                        <% if (match.status === 'completed') { %>
+                          <div style="text-align: center; margin-bottom: 8px;">
+                            <span style="color: #86efac; font-size: 12px; font-weight: bold;">
+                              ✓ <%= match.winnerTeam ? match.winnerTeam.name : 'Gagnant' %>
+                            </span>
+                          </div>
+                          <form class="record-score-form" data-tournament-id="<%= tournament.id %>" data-match-id="<%= match.id %>" data-phase="<%= phase.phaseNumber %>" style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 4px; align-items: end;">
+                            <div>
+                              <input type="number" name="setsWonTeam1" value="<%= match.setsWonTeam1 || 0 %>" min="0" class="w-full p-1 text-xs rounded bg-gray-700 text-white text-center border border-gray-600" required>
+                            </div>
+                            <div>
+                              <input type="number" name="setsWonTeam2" value="<%= match.setsWonTeam2 || 0 %>" min="0" class="w-full p-1 text-xs rounded bg-gray-700 text-white text-center border border-gray-600" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary" style="padding: 4px 8px; font-size: 11px;">✏️</button>
+                          </form>
+                        <% } else { %>
+                          <form class="record-score-form" data-tournament-id="<%= tournament.id %>" data-match-id="<%= match.id %>" data-phase="<%= phase.phaseNumber %>" style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 4px; align-items: end;">
+                            <div>
+                              <input type="number" name="setsWonTeam1" value="0" min="0" class="w-full p-1 text-xs rounded bg-gray-700 text-white text-center border border-gray-600" placeholder="0" required>
+                            </div>
+                            <div>
+                              <input type="number" name="setsWonTeam2" value="0" min="0" class="w-full p-1 text-xs rounded bg-gray-700 text-white text-center border border-gray-600" placeholder="0" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary" style="padding: 4px 8px; font-size: 11px;">✓</button>
+                          </form>
+                        <% } %>
+                      </div>
+                    </div>
+                  <% }); %>
+                </div>
+              <% } %>
+            </div>
+          <% }); %>
+        <% } %>
+
+        <!-- ACTIONS -->
+        <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(75, 85, 99, 0.2); display: flex; gap: 8px; flex-wrap: wrap;">
+          <% if (phase.phaseNumber === 1 && tournament.currentKingPhase === 0) { %>
+            <button onclick="startPhase1()" class="btn btn-primary" style="font-size: 12px;">▶️ Lancer P1</button>
+          <% } else if (phase.phaseNumber === 1 && tournament.currentKingPhase >= 1) { %>
+            <button onclick="resetPhase('1')" class="btn btn-secondary" style="font-size: 12px;">🔄 Réinit</button>
+            <button onclick="startPhase2()" class="btn btn-primary" style="font-size: 12px;" <%= tournament.currentKingPhase === 1 && !tournament.isKingPhaseCompleted ? 'disabled' : '' %>>→ P2</button>
+          <% } else if (phase.phaseNumber === 2 && tournament.currentKingPhase === 2) { %>
+            <button onclick="resetPhase('2')" class="btn btn-secondary" style="font-size: 12px;">🔄 Réinit</button>
+            <button onclick="startPhase3()" class="btn btn-primary" style="font-size: 12px;" <%= tournament.currentKingPhase === 2 && !tournament.isKingPhaseCompleted ? 'disabled' : '' %>>→ Finale</button>
+          <% } else if (phase.phaseNumber === 3 && tournament.currentKingPhase === 3) { %>
+            <button onclick="resetPhase('3')" class="btn btn-secondary" style="font-size: 12px;">🔄 Réinit</button>
+            <button onclick="getKingWinner()" class="btn btn-primary" style="font-size: 12px;">🏆 KING</button>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  <% }); %>
+<% } else if (tournament.currentKingPhase === 0) { %>
+  <div class="glass-card p-6 rounded-lg bg-gray-900/50">
+    <h3 class="font-bold text-white mb-4">⚙️ Configuration Phase 1</h3>
+    <form id="config-phase1" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px;">
+      <div>
+        <label class="text-gray-300 text-sm block mb-2">Équipes par poule</label>
+        <input type="number" name="teamsPerPool" value="<%= tournament.phase1TeamsPerPool || 4 %>" class="form-input" min="1" required>
+      </div>
+      <div>
+        <label class="text-gray-300 text-sm block mb-2">Taille équipe</label>
+        <input type="number" name="teamSize" value="<%= tournament.phase1TeamSize || 4 %>" class="form-input" min="2" required>
+      </div>
+      <div>
+        <label class="text-gray-300 text-sm block mb-2">Tours par poule</label>
+        <input type="number" name="numRoundsPerPool" value="<%= tournament.phase1NumRoundsPerPool || 3 %>" class="form-input" min="1" required>
+      </div>
+    </form>
+    <button onclick="startPhase1()" class="btn btn-primary">▶️ Lancer Phase 1</button>
+  </div>
+<% } %>
+
+<script>
+  const tournamentId = document.getElementById('tournament-data').dataset.tournamentId;
+  let allKingData = null;
+
+  document.addEventListener('DOMContentLoaded', function() {
+    allKingData = <%- JSON.stringify(kingData) %>;
+  });
+
+  function toggleAccordion(header) {
+    const item = header.parentElement;
+    const content = item.querySelector('.accordion-content');
+    const toggle = header.querySelector('.accordion-toggle');
+    
+    content.classList.toggle('hidden');
+    toggle.style.transform = content.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)';
+    toggle.style.transition = 'transform 0.2s';
+  }
+
+  document.querySelectorAll('.record-score-form').forEach(form => {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const matchId = form.dataset.matchId;
+      const setsWonTeam1 = parseInt(form.querySelector('input[name="setsWonTeam1"]').value);
+      const setsWonTeam2 = parseInt(form.querySelector('input[name="setsWonTeam2"]').value);
+
+      try {
+        const response = await fetch(`/admin/tournaments/${tournamentId}/king/matches/${matchId}/record-result`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ setsWonTeam1, setsWonTeam2 })
+        });
+        const data = await response.json();
+        if (data.success) {
+          alert('✓ Score enregistré');
+          window.location.reload();
+        } else {
+          alert('❌ ' + data.message);
+        }
+      } catch (error) {
+        alert('❌ Erreur');
+      }
+    });
+  });
+
+  async function startPhase1() {
+    if (confirm('Lancer Phase 1?')) {
+      const response = await fetch(`/admin/tournaments/${tournamentId}/king/start-phase-1`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await response.json();
+      if (data.success) {
+        alert('✓ Phase 1 lancée');
+        window.location.reload();
+      } else {
+        alert('❌ ' + data.message);
+      }
+    }
+  }
+
+  async function startPhase2() {
+    if (confirm('Lancer Phase 2?')) {
+      const response = await fetch(`/admin/tournaments/${tournamentId}/king/start-phase-2`, {
+        method: 'POST'
+      });
+      const data = await response.json();
+      if (data.success) {
+        alert('✓ Phase 2 lancée');
+        window.location.reload();
+      } else {
+        alert('❌ ' + data.message);
+      }
+    }
+  }
+
+  async function startPhase3() {
+    if (confirm('Lancer Phase Finale?')) {
+      const response = await fetch(`/admin/tournaments/${tournamentId}/king/start-phase-3`, {
+        method: 'POST'
+      });
+      const data = await response.json();
+      if (data.success) {
+        alert('✓ Phase Finale lancée');
+        window.location.reload();
+      } else {
+        alert('❌ ' + data.message);
+      }
+    }
+  }
+
+  async function resetPhase(phase) {
+    if (confirm(`Réinitialiser Phase ${phase}?`)) {
+      const response = await fetch(`/admin/tournaments/${tournamentId}/king/reset-phase-${phase}`, {
+        method: 'POST'
+      });
+      const data = await response.json();
+      if (data.success) {
+        alert('✓ Réinitialisée');
+        window.location.reload();
+      } else {
+        alert('❌ ' + data.message);
+      }
+    }
+  }
+
+  async function getKingWinner() {
+    const response = await fetch(`/admin/tournaments/${tournamentId}/king/winner`);
+    const data = await response.json();
+    if (data.success && data.king) {
+      const ranking = data.finalRanking.map((p, i) => `${i+1}. ${p.pseudo || p.name} (${p.wins}V)`).join('\n');
+      alert(`🏆 KING: ${data.king.pseudo || data.king.name}\n\n${ranking}`);
+    }
+  }
+</script>

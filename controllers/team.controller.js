@@ -1,5 +1,7 @@
 const { db, adminAuth, adminDb } = require('../services/firebase'); // Importez adminAuth et adminDb
 const { collection, getDocs, query, where, doc, getDoc, addDoc, updateDoc, arrayUnion, arrayRemove, writeBatch, deleteDoc, setDoc } = require('firebase/firestore');
+const { getTeamsAndPlayersCounts } = require('../services/tournament.utils'); // Importez getTeamsAndPlayersCounts
+const { getTournamentStatus } = require('../services/tournament.status.helper'); // Importez getTournamentStatus
 
 /*
  * =============================================
@@ -45,6 +47,11 @@ exports.showTeamManagementPage = async (req, res, title = 'Gestion d\'équipe') 
         }
         const tournament = { id: tournamentDoc.id, ...tournamentDoc.data() };
 
+        // Calculer le statut du tournoi pour la vue
+        const { completeTeamsCount, teamsCount } = await getTeamsAndPlayersCounts(tournament.id, tournament);
+        const tournamentStatusDetails = getTournamentStatus(tournament, { isRegistered: false, isOnWaitingList: false }, completeTeamsCount, teamsCount);
+        tournament.tournamentStatus = tournamentStatusDetails; // Ajouter le statut au tournoi
+
         // Récupérer tous les utilisateurs pour les détails des membres et les agents libres
         const allUsersSnapshot = await getDocs(collection(db, 'users'));
         const allUsersMap = new Map(allUsersSnapshot.docs.map(d => [d.id, d.data()]));
@@ -77,7 +84,7 @@ exports.showTeamManagementPage = async (req, res, title = 'Gestion d\'équipe') 
         // Récupérer les joueurs actuellement dans la collection `unassignedPlayers` pour ce tournoi
         const unassignedPlayersInCurrentTournamentSnapshot = await getDocs(collection(db, `events/${tournamentId}/unassignedPlayers`));
         const unassignedPlayersInCurrentTournament = unassignedPlayersInCurrentTournamentSnapshot.docs.map(d => ({
-            id: d.id,
+            id: d.data().userId, // Utiliser userId comme ID pour le freeAgent
             pseudo: d.data().pseudo,
             level: d.data().level
         }));
@@ -107,7 +114,7 @@ exports.showTeamManagementPage = async (req, res, title = 'Gestion d\'équipe') 
         // Ajouter les joueurs libres de l'événement actuel (ceux qui ont été retirés d'une équipe ou se sont inscrits comme joueurs libres)
         unassignedPlayersInCurrentTournament.forEach(player => {
             if (!currentTeamMemberIds.has(player.id)) { // S'assurer qu'ils ne sont pas déjà dans l'équipe actuelle
-                freeAgentsMap.set(player.id, player);
+                freeAgentsMap.set(player.id, player); // player.id est maintenant le userId
             }
         });
 

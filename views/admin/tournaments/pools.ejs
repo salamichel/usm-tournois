@@ -167,7 +167,7 @@
                                                 Mettre à jour le score
                                             </button>
                                             <div id="score-form-<%= match.id %>" class="score-form-container hidden mt-4">
-                                                <form class="update-score-form" action="/admin/tournaments/<%= tournament.id %>/pools/<%= pool.id %>/matches/<%= match.id %>/update-score" method="POST">
+                                                <form class="update-score-form" action="/admin/tournaments/<%= tournament.id %>/pools/<%= pool.id %>/matches/<%= match.id %>/record-result" method="POST">
                                                     <div class="flex flex-col items-center space-y-4 p-4 border border-gray-700 rounded-lg bg-gray-800">
                                                         <% if (match.sets && Array.isArray(match.sets)) { %>
                                                             <% 

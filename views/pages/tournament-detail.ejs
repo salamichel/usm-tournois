@@ -138,19 +138,26 @@
                                 <% if (userStatus.isRegistered) { %>
                                     <% if (userStatus.registrationType === 'team') { %>
                                         <p class="w-full text-center bg-gray-700 text-gray-400 font-bold py-3 px-4 rounded-lg">Vous êtes inscrit avec l'équipe: <span class="font-semibold text-white ml-1"><%= userStatus.teamName %></span></p>
-                                        <button data-event-id="<%= event.id %>" data-team-id="<%= userStatus.teamId %>" data-action="leave-team" class="action-btn w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg">Quitter l'équipe</button>
+                                        <% if (event.tournamentStatus.showUnregisterButton) { %>
+                                            <button data-event-id="<%= event.id %>" data-team-id="<%= userStatus.teamId %>" data-action="leave-team" class="action-btn w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg">Quitter l'équipe</button>
+                                        <% } %>
                                     <% } else if (userStatus.registrationType === 'free-player') { %>
                                         <p class="w-full text-center bg-gray-700 text-gray-400 font-bold py-3 px-4 rounded-lg">Vous êtes inscrit en tant que joueur libre.</p>
-                                        <button data-event-id="<%= event.id %>" data-action="leave-tournament" class="action-btn w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg">Quitter le tournoi (annuler l'inscription)</button>
+                                        <% if (event.tournamentStatus.showUnregisterButton) { %>
+                                            <button data-event-id="<%= event.id %>" data-action="leave-tournament" class="action-btn w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg">Quitter le tournoi (annuler l'inscription)</button>
+                                        <% } %>
                                     <% } %>
                                 <% } else if (userStatus.isOnWaitingList) { %>
                                     <p class="w-full text-center bg-purple-700 text-purple-200 font-bold py-3 px-4 rounded-lg">Votre équipe est en liste d'attente.</p>
-                                    <button data-event-id="<%= event.id %>" data-team-id="<%= userStatus.teamId %>" data-action="leave-waiting-list" class="action-btn w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg">Quitter la liste d'attente</button>
+                                    <% if (event.tournamentStatus.showLeaveWaitingListButton) { %>
+                                        <button data-event-id="<%= event.id %>" data-team-id="<%= userStatus.teamId %>" data-action="leave-waiting-list" class="action-btn w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg">Quitter la liste d'attente</button>
+                                    <% } %>
                                 <% } %>
 
-                                <% 
+                                <%
                                     const now = new Date();
                                     const registrationStarts = event.registrationStartDateTime ? event.registrationStartDateTime.toDate() : new Date(0); // Utilise une date très ancienne si non définie
+                                    const registrationEnds = event.registrationEndDateTime ? event.registrationEndDateTime.toDate() : new Date(8640000000000000); // Date très lointaine si non définie
                                     const registrationsAreOpen = event.registrationsOpen; // Déjà dynamique dans le contrôleur
                                     const isFullByCompleteTeams = completeTeamsCount >= event.maxTeams; // Vérification basée sur les équipes complètes
                                     const isFullByTotalTeams = teams.length >= event.maxTeams; // Vérification basée sur le nombre total d'équipes
@@ -180,7 +187,9 @@
                                     <% } %>
                                 <% } else if (!registrationsAreOpen && now < registrationStarts) { %>
                                     <p class="w-full text-center bg-gray-700 text-gray-400 font-bold py-3 px-4 rounded-lg">Les inscriptions ouvriront le <%= registrationStarts.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) %> à <%= registrationStarts.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) %>.</p>
-                                <% } else { %>
+                                <% } else if (!registrationsAreOpen && now > registrationEnds) { %>
+                                    <p class="w-full text-center bg-gray-700 text-gray-400 font-bold py-3 px-4 rounded-lg">Les inscriptions pour ce tournoi sont fermées depuis le <%= registrationEnds.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) %> à <%= registrationEnds.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) %>.</p>
+                                <% } else if (!userStatus.isRegistered) { %>
                                     <p class="w-full text-center bg-gray-700 text-gray-400 font-bold py-3 px-4 rounded-lg">Les inscriptions pour ce tournoi sont fermées.</p>
                                 <% } %>
                             <% } else { %>
@@ -221,6 +230,10 @@
                             <% } %>
                             <% if (event.waitingListSize > 0) { %>
                                 <li><i class="fas fa-hourglass-half fa-fw mr-3 text-blue-400"></i>Liste d'attente activée (<%= event.waitingListSize %> équipes max)</li>
+                            <% } %>
+                            <% if (event.registrationEndDateTime && event.registrationEndDateTime.toDate) { %>
+                                <% const registrationEndsDisplay = new Date(event.registrationEndDateTime.toDate()); %>
+                                <li><i class="fas fa-calendar-times fa-fw mr-3 text-blue-400"></i>Fin des inscriptions : <%= registrationEndsDisplay.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) %> à <%= registrationEndsDisplay.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) %></li>
                             <% } %>
                         </ul>
                     </div>
@@ -380,9 +393,11 @@
                                     <% preliminaryMatches.forEach(match => { %>
                                         <div class="glass-card rounded p-3 mb-2">
                                             <p class="text-white">
-                                                <span class="<%= match.setsWonTeam1 > match.setsWonTeam2 ? 'font-bold text-green-400' : '' %>"><%= match.team1Name || 'Équipe à déterminer' %></span>
+                                                <% const team1Class = match.setsWonTeam1 > match.setsWonTeam2 ? 'font-bold text-green-400' : ''; %>
+                                                <span class="<%= team1Class %>"><%= match.team1Name || 'Équipe à déterminer' %></span>
                                                 vs
-                                                <span class="<%= match.setsWonTeam2 > match.setsWonTeam1 ? 'font-bold text-green-400' : '' %>"><%= match.team2Name || 'Équipe à déterminer' %></span>
+                                                <% const team2Class = match.setsWonTeam2 > match.setsWonTeam1 ? 'font-bold text-green-400' : ''; %>
+                                                <span class="<%= team2Class %>"><%= match.team2Name || 'Équipe à déterminer' %></span>
                                             </p>
                                             <p class="text-center font-bold text-lg mt-1">
                                                 <% if (match.sets && match.sets.length > 0) { %>

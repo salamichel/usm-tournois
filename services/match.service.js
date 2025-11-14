@@ -351,17 +351,17 @@ async function updateMatchScoresAndStatus(matchRef, currentMatch, submittedSets,
 
     // Récupérer les noms des équipes pour les stocker avec le vainqueur/perdant
     // Utiliser les noms déjà présents dans le match si les IDs correspondent
-    const winnerName = winnerId === currentMatch.team1.id ? currentMatch.team1.name : (winnerId === currentMatch.team2.id ? currentMatch.team2.name : null);
-    const loserName = loserId === currentMatch.team1.id ? currentMatch.team1.name : (loserId === currentMatch.team2.id ? currentMatch.team2.name : null);
+    const winnerName = winnerId ? (winnerId === currentMatch.team1.id ? currentMatch.team1.name : currentMatch.team2.name) : null;
+    const loserName = loserId ? (loserId === currentMatch.team1.id ? currentMatch.team1.name : currentMatch.team2.name) : null;
 
     const updateData = {
         sets: parsedSets,
         setsWonTeam1: setsWonTeam1,
         setsWonTeam2: setsWonTeam2,
-        winnerId: winnerId,
-        winnerName: winnerName,
-        loserId: loserId,
-        loserName: loserName,
+        winnerId: winnerId || null, // S'assurer que c'est null et non undefined
+        winnerName: winnerName || null,
+        loserId: loserId || null,   // S'assurer que c'est null et non undefined
+        loserName: loserName || null,
         status: matchStatus,
         updatedAt: new Date()
     };

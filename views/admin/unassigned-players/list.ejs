@@ -1,7 +1,8 @@
 <h1 class="text-3xl font-bold mb-6"><%= pageTitle %></h1>
 
-<a href="/admin/tournaments/<%= eventId %>/teams" class="btn btn-secondary mb-4 inline-flex">Gérer les équipes de ce tournoi</a>
+<a href="/admin/tournaments/<%= tournamentId %>/teams" class="btn btn-secondary mb-4 inline-flex">Gérer les équipes de ce tournoi</a>
 <a href="/admin/tournaments" class="btn btn-secondary mb-4 inline-flex ml-2">Retour aux tournois</a>
+<a href="/admin/tournaments/<%= tournamentId %>/unassigned-players/add" class="btn btn-primary mb-4 inline-flex ml-2">Ajouter un joueur libre</a>
 
 <div class="overflow-x-auto">
     <table class="min-w-full bg-white shadow-md rounded-lg overflow-hidden">
@@ -23,7 +24,7 @@
                         <td class="py-3 px-4"><%= player.pseudo %></td>
                         <td class="py-3 px-4"><%= player.level %></td>
                         <td class="py-3 px-4 flex space-x-2">
-                            <form action="/admin/tournaments/<%= eventId %>/unassigned-players/<%= player.registrationId %>/delete" method="POST" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce joueur libre du tournoi ?');">
+                                <form action="/admin/tournaments/<%= tournamentId %>/unassigned-players/<%= player.id %>/delete" method="POST" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce joueur libre du tournoi ?');">
                                 <button type="submit" class="btn btn-danger py-1 px-3 text-sm">Supprimer</button>
                             </form>
                         </td>

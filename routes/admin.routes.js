@@ -9,6 +9,7 @@ const adminUserController = require('../controllers/admin/admin.user.controller'
 const adminDashboardController = require('../controllers/admin/admin.dashboard.controller');
 const adminUnassignedPlayerController = require('../controllers/admin/admin.unassignedPlayer.controller'); // Nouveau contrôleur
 const adminPoolController = require('../controllers/admin/admin.pool.controller'); // Nouveau contrôleur pour les poules
+const adminKingController = require('../controllers/admin/admin.king.controller'); // Contrôleur pour le mode King
 const upload = require('../middlewares/upload.middleware'); // Importer le middleware d'upload
 
 // Importer le middleware de gestion des tournois
@@ -28,21 +29,39 @@ router.get('/tournaments/:id/edit', adminTournamentController.showEditTournament
 router.post('/tournaments/:id', upload.single('coverImage'), adminTournamentController.updateTournament);
 router.post('/tournaments/:id/delete', adminTournamentController.deleteTournament); // Utilisation de POST pour la suppression via formulaire
 router.post('/tournaments/:id/clone', adminTournamentController.cloneTournament);
+router.post('/tournaments/:id/toggle-status', adminTournamentController.toggleTournamentStatus);
 router.get('/tournaments/:tournamentId/guaranteed-matches', getTournament, adminTournamentController.showGuaranteedMatches);
 
-// Routes pour la gestion des poules et matchs d'un tournoi
+// Route pour le tableau de bord du mode King
+router.get('/tournaments/:tournamentId/king', getTournament, adminKingController.showKingDashboard);
+router.post('/tournaments/:tournamentId/king/start-phase-1', getTournament, adminKingController.startKingPhase1);
+router.post('/tournaments/:tournamentId/king/start-phase-2', getTournament, adminKingController.startKingPhase2);
+router.post('/tournaments/:tournamentId/king/start-phase-3', getTournament, adminKingController.startKingPhase3);
+router.post('/tournaments/:tournamentId/king/matches/:matchId/record-result', getTournament, adminKingController.recordKingMatchResult);
+router.post('/tournaments/:tournamentId/king/reset-phase-1', getTournament, adminKingController.resetKingPhase1); // Route mise à jour
+router.post('/tournaments/:tournamentId/king/reset-phase-2', getTournament, adminKingController.resetKingPhase2);
+router.post('/tournaments/:tournamentId/king/reset-phase-3', getTournament, adminKingController.resetKingPhase3);
+router.post('/tournaments/:tournamentId/king/update-phase1-config', getTournament, adminKingController.updateKingPhase1Config);
+router.post('/tournaments/:tournamentId/king/update-team-name', getTournament, adminKingController.updateKingTeamName); // Nouvelle route pour modifier le nom d'équipe
+router.post('/tournaments/:tournamentId/king/set-all-matches-scores', getTournament, adminKingController.setAllKingMatchesScores); // Nouvelle route pour définir des scores aléatoires pour tous les matchs
+
+// Routes pour la gestion des poules et matchs d'un tournoi (ces routes devraient être révisées si les poules ne sont plus des sous-collections)
+// Pour l'instant, je les laisse mais elles pourraient devenir obsolètes ou nécessiter une refonte.
 router.get('/tournaments/:tournamentId/pools', getTournament, adminPoolController.showPoolsManagement);
 router.post('/tournaments/:tournamentId/pools', getTournament, adminPoolController.createPool);
-router.post('/tournaments/:tournamentId/pools/:poolId/update-name', getTournament, adminPoolController.updatePoolName); // Nouvelle route pour mettre à jour le nom de la poule
+router.post('/tournaments/:tournamentId/pools/:poolId/update-name', getTournament, adminPoolController.updatePoolName);
 router.post('/tournaments/:tournamentId/pools/:poolId/assign-teams', getTournament, adminPoolController.assignTeamsToPool);
 router.post('/tournaments/:tournamentId/pools/:poolId/generate-matches', getTournament, adminPoolController.generatePoolMatches);
 router.post('/tournaments/:tournamentId/pools/:poolId/matches/:matchId/update-score', getTournament, adminPoolController.updateMatchScore);
+router.post('/tournaments/:tournamentId/pools/:poolId/matches/:matchId/record-result', getTournament, adminPoolController.updateMatchScore);
 router.post('/tournaments/:tournamentId/pools/:poolId/delete', getTournament, adminPoolController.deletePool);
-router.post('/tournaments/:tournamentId/generate-elimination-matches', getTournament, adminPoolController.generateEliminationMatches); // Nouvelle route pour les matchs d'élimination
-router.get('/tournaments/:tournamentId/elimination', getTournament, adminTournamentController.showEliminationMatches); // Nouvelle route pour afficher les matchs à élimination
-router.get('/tournaments/:tournamentId/elimination/matches/:matchId', getTournament, adminTournamentController.showMatchSheet); // Nouvelle route pour la feuille de match
-router.post('/tournaments/:tournamentId/elimination-matches/:matchId/update-score', getTournament, adminPoolController.updateEliminationMatchScore); // Nouvelle route pour mettre à jour le score d'un match d'élimination
-router.post('/tournaments/:tournamentId/freeze-ranking', getTournament, adminTournamentController.freezeFinalRanking); // Nouvelle route pour figer le classement final
+// La route suivante est supprimée car updatePoolTeamName n'existe plus dans adminTournamentController
+// router.post('/tournaments/:tournamentId/pools/:poolId/teams/:teamId/update-name', getTournament, adminTournamentController.updatePoolTeamName);
+router.post('/tournaments/:tournamentId/generate-elimination-matches', getTournament, adminPoolController.generateEliminationMatches);
+router.get('/tournaments/:tournamentId/elimination', getTournament, adminTournamentController.showEliminationMatches);
+router.get('/tournaments/:tournamentId/elimination/matches/:matchId', getTournament, adminTournamentController.showMatchSheet);
+router.post('/tournaments/:tournamentId/elimination-matches/:matchId/update-score', getTournament, adminPoolController.updateEliminationMatchScore);
+router.post('/tournaments/:tournamentId/freeze-ranking', getTournament, adminTournamentController.freezeFinalRanking);
 
 // Nouvelle route pour configurer les équipes des tours d'élimination (Demi-finale, Finale)
 console.log('adminTournamentController.setupEliminationRound:', adminTournamentController.setupEliminationRound);
@@ -59,6 +78,8 @@ router.post('/tournaments/:tournamentId/teams/:teamId/delete', getTournament, ad
 
 // Routes CRUD pour les joueurs libres d'un tournoi spécifique
 router.get('/tournaments/:tournamentId/unassigned-players', getTournament, adminUnassignedPlayerController.listUnassignedPlayers);
+router.get('/tournaments/:tournamentId/unassigned-players/add', getTournament, adminUnassignedPlayerController.getAddUnassignedPlayerForm);
+router.post('/tournaments/:tournamentId/unassigned-players/add', getTournament, adminUnassignedPlayerController.postAddUnassignedPlayer);
 router.post('/tournaments/:tournamentId/unassigned-players/:registrationId/delete', getTournament, adminUnassignedPlayerController.deleteUnassignedPlayer);
 
 // Routes CRUD pour les équipes (globales, si toujours nécessaires)
