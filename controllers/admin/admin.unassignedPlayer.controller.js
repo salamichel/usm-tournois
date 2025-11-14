@@ -1,5 +1,5 @@
 const { adminDb } = require('../../services/firebase');
-const { getDocById, getAllUsers, getUserPseudo } = require('../../services/admin.firestore.utils');
+const { getDocById, getAllUsers, getUserDetails, addPlayerToCollection } = require('../../services/admin.firestore.utils'); // Mise à jour
 const { sendFlashAndRedirect } = require('../../services/response.utils');
 
 // Liste les joueurs libres pour un tournoi spécifique
@@ -15,29 +15,18 @@ exports.listUnassignedPlayers = async (req, res) => {
         // Récupérer tous les utilisateurs
         const allUsers = await getAllUsers();
 
-        // Récupérer les inscriptions au tournoi
-        const registrationsSnapshot = await adminDb.collection('events').doc(tournamentId).collection('registrations').get();
-        const registrations = registrationsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-        // Récupérer les équipes du tournoi et leurs membres
-        const teamsSnapshot = await adminDb.collection('events').doc(tournamentId).collection('teams').get();
-        let assignedPlayerIds = new Set();
-        teamsSnapshot.docs.forEach(teamDoc => {
-            const teamData = teamDoc.data();
-            if (teamData.members) {
-                // Assurez-vous que member.userId est utilisé ici
-                teamData.members.forEach(member => assignedPlayerIds.add(member.userId));
-            }
+        // Récupérer les joueurs libres directement de la sous-collection 'unassignedPlayers'
+        const unassignedPlayersSnapshot = await adminDb.collection('events').doc(tournamentId).collection('unassignedPlayers').get();
+        const unassignedPlayers = unassignedPlayersSnapshot.docs.map(doc => {
+            const data = doc.data();
+            // Utiliser les données stockées dans le document unassignedPlayer, qui incluent pseudo et level
+            return {
+                id: doc.id,
+                pseudo: data.pseudo || 'N/A', // Utiliser le pseudo stocké
+                level: data.level || 'N/A',   // Utiliser le level stocké
+                userId: data.userId
+            };
         });
-
-        // Filtrer les joueurs inscrits qui ne sont pas dans une équipe
-        const unassignedPlayers = registrations
-            .filter(reg => reg.type === 'player' && !assignedPlayerIds.has(reg.userId))
-            .map(reg => {
-                const user = getUserPseudo(reg.userId, allUsers); // Utiliser getUserPseudo
-                return user !== 'N/A' ? { id: reg.userId, pseudo: user, registrationId: reg.id } : null;
-            })
-            .filter(player => player !== null);
 
         res.render('admin/unassigned-players/list', {
             pageTitle: `Joueurs Libres du Tournoi: ${eventName}`,
@@ -53,12 +42,92 @@ exports.listUnassignedPlayers = async (req, res) => {
     }
 };
 
+// Affiche le formulaire pour ajouter un joueur libre à un tournoi
+exports.getAddUnassignedPlayerForm = async (req, res) => {
+    const { tournamentId } = req.params;
+    try {
+        const event = await getDocById('events', tournamentId);
+        if (!event) {
+            return sendFlashAndRedirect(req, res, 'error', 'Tournoi non trouvé.', '/admin/tournaments');
+        }
+        const eventName = event.name;
+
+        const allUsers = await getAllUsers(); // Récupérer tous les utilisateurs
+
+        res.render('admin/unassigned-players/add-form', {
+            pageTitle: `Ajouter un joueur libre au tournoi: ${eventName}`,
+            tournamentId,
+            eventName,
+            users: allUsers, // Passer tous les utilisateurs à la vue
+            title: `Ajouter un joueur libre au tournoi: ${eventName}`
+        });
+
+    } catch (error) {
+        console.error('Erreur lors de l\'affichage du formulaire d\'ajout de joueur libre:', error);
+        sendFlashAndRedirect(req, res, 'error', 'Erreur lors de l\'affichage du formulaire.', `/admin/tournaments/${tournamentId}/unassigned-players`);
+    }
+};
+
+// Ajoute un ou plusieurs joueurs libres à un tournoi
+exports.postAddUnassignedPlayer = async (req, res) => {
+    const { tournamentId } = req.params;
+    let { userIds } = req.body; // Tableau d'IDs d'utilisateurs sélectionnés depuis le formulaire
+
+    try {
+        if (!userIds || (Array.isArray(userIds) && userIds.length === 0)) {
+            return sendFlashAndRedirect(req, res, 'error', 'Veuillez sélectionner au moins un joueur.', `/admin/tournaments/${tournamentId}/unassigned-players/add`);
+        }
+
+        // S'assurer que userIds est toujours un tableau
+        if (!Array.isArray(userIds)) {
+            userIds = [userIds];
+        }
+
+        const eventRef = adminDb.collection('events').doc(tournamentId);
+        const unassignedPlayersRef = eventRef.collection('unassignedPlayers');
+        let addedCount = 0;
+        let alreadyExistsCount = 0;
+        const allUsers = await getAllUsers(); // Récupérer tous les utilisateurs une seule fois
+
+        for (const userId of userIds) {
+            const userDetails = getUserDetails(userId, allUsers);
+            if (userDetails) {
+                const { pseudo, level } = userDetails;
+                const added = await addPlayerToCollection(unassignedPlayersRef, userId, pseudo, level);
+                if (added) {
+                    addedCount++;
+                } else {
+                    alreadyExistsCount++;
+                }
+            } else {
+                console.warn(`postAddUnassignedPlayer: Utilisateur avec l'ID ${userId} non trouvé.`);
+                // Optionnel: ajouter un message d'erreur pour les utilisateurs non trouvés
+            }
+        }
+
+        let successMessage = '';
+        if (addedCount > 0) {
+            successMessage += `${addedCount} joueur(s) libre(s) ajouté(s) avec succès.`;
+        }
+        if (alreadyExistsCount > 0) {
+            if (successMessage) successMessage += ' ';
+            successMessage += `${alreadyExistsCount} joueur(s) déjà présent(s).`;
+        }
+
+        sendFlashAndRedirect(req, res, 'success', successMessage || 'Aucun joueur ajouté.', `/admin/tournaments/${tournamentId}/unassigned-players`);
+
+    } catch (error) {
+        console.error('Erreur lors de l\'ajout des joueurs libres:', error);
+        sendFlashAndRedirect(req, res, 'error', 'Erreur lors de l\'ajout des joueurs libres.', `/admin/tournaments/${tournamentId}/unassigned-players/add`);
+    }
+};
+
 // Supprime un joueur libre d'un tournoi
 exports.deleteUnassignedPlayer = async (req, res) => {
     const { tournamentId, registrationId } = req.params;
     try {
         const eventRef = adminDb.collection('events').doc(tournamentId);
-        await eventRef.collection('registrations').doc(registrationId).delete();
+        await eventRef.collection('unassignedPlayers').doc(registrationId).delete();
         sendFlashAndRedirect(req, res, 'success', 'Joueur libre supprimé avec succès du tournoi.', `/admin/tournaments/${tournamentId}/unassigned-players`);
     } catch (error) {
         console.error('Erreur lors de la suppression du joueur libre:', error);

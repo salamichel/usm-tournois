@@ -32,18 +32,18 @@ body {
     animation: fadeIn 0.5s ease-in-out;
 }
 /* Custom Buttons */
-.btn { @apply font-bold py-2 px-4 rounded-lg transition-all duration-300 flex items-center justify-center; }
+.btn { @apply font-bold py-2 px-4 rounded-lg transition-all duration-300 flex items-center justify-center shadow-md; }
 .btn-primary { 
     @apply bg-blue-600 text-white;
 }
 .btn-primary:hover { 
-    @apply bg-blue-700;
+    @apply bg-blue-700 shadow-lg;
 }
 .btn-secondary { 
-    @apply bg-gray-600 text-white border border-gray-700;
+    @apply bg-gray-700 text-white border border-gray-600;
 }
 .btn-secondary:hover { 
-    @apply bg-gray-700;
+    @apply bg-gray-800 shadow-lg;
 }
 .btn-danger { 
     @apply bg-red-600 text-white;

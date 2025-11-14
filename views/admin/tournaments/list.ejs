@@ -15,6 +15,8 @@
                     <th class="py-3 px-4 text-left text-sm font-semibold">Min Joueurs/Équipe</th>
                     <th class="py-3 px-4 text-left text-sm font-semibold">Max Joueurs/Équipe</th>
                     <th class="py-3 px-4 text-left text-sm font-semibold">Liste d'attente</th>
+                    <th class="py-3 px-4 text-center text-sm font-semibold">Actif</th>
+                    <th class="py-3 px-4 text-center text-sm font-semibold">Phase Élim.</th>
                     <th class="py-3 px-4 text-left text-sm font-semibold">Actions</th>
                     <th class="py-3 px-4 text-left text-sm font-semibold">Gestion</th>
                 </tr>
@@ -22,7 +24,7 @@
             <tbody class="text-gray-300">
                 <% if (tournaments.length === 0) { %>
                     <tr>
-                        <td colspan="8" class="py-3 px-4 text-center text-sm italic">Aucun tournoi trouvé.</td>
+                        <td colspan="10" class="py-3 px-4 text-center text-sm italic">Aucun tournoi trouvé.</td>
                     </tr>
                 <% } else { %>
                     <% tournaments.forEach(tournament => { %>
@@ -33,6 +35,22 @@
                             <td class="py-3 px-4 text-sm"><%= tournament.minPlayersPerTeam %></td>
                             <td class="py-3 px-4 text-sm"><%= tournament.playersPerTeam %></td>
                             <td class="py-3 px-4 text-sm"><%= tournament.waitingListSize !== undefined ? tournament.waitingListSize : 'N/A' %></td>
+                            <td class="py-3 px-4 text-center">
+                                <form action="/admin/tournaments/<%= tournament.id %>/toggle-status" method="POST" class="inline-block">
+                                    <input type="hidden" name="field" value="isActive">
+                                    <button type="submit" class="focus:outline-none">
+                                        <i class="fas fa-toggle-<%= tournament.isActive ? 'on text-green-500' : 'off text-gray-500' %> text-2xl"></i>
+                                    </button>
+                                </form>
+                            </td>
+                            <td class="py-3 px-4 text-center">
+                                <form action="/admin/tournaments/<%= tournament.id %>/toggle-status" method="POST" class="inline-block">
+                                    <input type="hidden" name="field" value="eliminationPhaseEnabled">
+                                    <button type="submit" class="focus:outline-none">
+                                        <i class="fas fa-toggle-<%= tournament.eliminationPhaseEnabled ? 'on text-green-500' : 'off text-gray-500' %> text-2xl"></i>
+                                    </button>
+                                </form>
+                            </td>
                             <td class="py-3 px-4">
                                 <div class="flex flex-wrap gap-2">
                                     <a href="/admin/tournaments/<%= tournament.id %>/edit" class="bg-yellow-600 hover:bg-yellow-700 text-white py-1 px-3 rounded-lg text-xs font-semibold transition-colors">Modifier</a>
@@ -50,6 +68,7 @@
                                     <a href="/admin/tournaments/<%= tournament.id %>/unassigned-players" class="bg-green-600 hover:bg-green-700 text-white py-1 px-3 rounded-lg text-xs font-semibold transition-colors">Joueurs Libres</a>
                                     <a href="/admin/tournaments/<%= tournament.id %>/pools" class="bg-green-600 hover:bg-green-700 text-white py-1 px-3 rounded-lg text-xs font-semibold transition-colors">Poules</a>
                                     <a href="/admin/tournaments/<%= tournament.id %>/elimination" class="bg-green-600 hover:bg-green-700 text-white py-1 px-3 rounded-lg text-xs font-semibold transition-colors">Élimination</a>
+                                    <a href="/admin/tournaments/<%= tournament.id %>/king" class="bg-purple-600 hover:bg-purple-700 text-white py-1 px-3 rounded-lg text-xs font-semibold transition-colors">King</a>
                                 </div>
                             </td>
                         </tr>

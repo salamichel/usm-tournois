@@ -10,13 +10,14 @@ function buildTournamentObject(body, file, isNew = true) {
     const {
         name, description, whatsappGroupLink, date, time, maxTeams, playersPerTeam, minPlayersPerTeam,
         location, type, fields, fee, mixity, requiresFemalePlayer, registrationsOpen,
-        registrationStartDate, registrationStartTime, isActive, waitingListSize,
+        registrationStartDate, registrationStartTime, registrationEndDate, registrationEndTime, isActive, waitingListSize,
         setsPerMatchPool, pointsPerSetPool, maxTeamsPerPool, teamsQualifiedPerPool, eliminationPhaseEnabled,
-        setsPerMatchElimination, pointsPerSetElimination, tieBreakEnabledPools, tieBreakEnabledElimination, matchFormat
+        setsPerMatchElimination, pointsPerSetElimination, tieBreakEnabledPools, tieBreakEnabledElimination, matchFormat, tournamentFormat
     } = body;
 
     const dateTimeString = `${date}T${time || '00:00'}`;
-    const registrationDateTimeString = `${registrationStartDate}T${registrationStartTime || '00:00'}`;
+    const registrationStartDateTimeString = `${registrationStartDate}T${registrationStartTime || '00:00'}`;
+    const registrationEndDateTimeString = `${registrationEndDate}T${registrationEndTime || '23:59'}`; // Ajout de la date et heure de fin d'inscription
 
     const parsedWaitingListSize = parseInt(waitingListSize) || 0;
     const isEliminationPhaseEnabled = eliminationPhaseEnabled === 'on';
@@ -34,7 +35,8 @@ function buildTournamentObject(body, file, isNew = true) {
         description,
         whatsappGroupLink: whatsappGroupLink || null,
         date: createValidDate(dateTimeString), // Utiliser la fonction de validation
-        registrationStartDateTime: createValidDate(registrationDateTimeString), // Utiliser la fonction de validation
+        registrationStartDateTime: createValidDate(registrationStartDateTimeString), // Utiliser la fonction de validation
+        registrationEndDateTime: createValidDate(registrationEndDateTimeString), // Ajout de la date de fin d'inscription
         maxTeams: parseInt(maxTeams),
         playersPerTeam: parseInt(playersPerTeam),
         minPlayersPerTeam: parseInt(minPlayersPerTeam),
@@ -59,6 +61,7 @@ function buildTournamentObject(body, file, isNew = true) {
         tieBreakEnabledPools: isTieBreakEnabledPools,
         tieBreakEnabledElimination: isTieBreakEnabledElimination,
         matchFormat: matchFormat || 'aller',
+        tournamentFormat: tournamentFormat || 'classic',
     };
 
     if (file) {

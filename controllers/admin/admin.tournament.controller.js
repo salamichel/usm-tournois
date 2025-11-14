@@ -4,6 +4,7 @@ const { getDocById, getTeamById, getTeamNameById, getAllUsers, getUserPseudo } =
 const { sendFlashAndRedirect } = require('../../services/response.utils');
 const { buildTournamentObject, calculateGuaranteedMatches } = require('../../services/tournament.service');
 const { calculateEliminationRanking } = require('../../services/match.service');
+const kingService = require('../../services/king.service');
 
 // Liste tous les tournois
 exports.listTournaments = async (req, res) => {
@@ -17,6 +18,9 @@ exports.listTournaments = async (req, res) => {
         sendFlashAndRedirect(req, res, 'error', 'Erreur lors de la récupération des tournois.', '/admin/dashboard');
     }
 };
+
+
+
 
 // Affiche la vue des matchs à élimination directe pour un tournoi
 exports.showEliminationMatches = async (req, res) => {
@@ -257,6 +261,12 @@ exports.showEditTournamentForm = async (req, res) => {
             tournament.registrationStartDate = fullRegistrationDate.toISOString().split('T')[0]; // YYYY-MM-DD
             tournament.registrationStartTime = fullRegistrationDate.toTimeString().split(' ')[0].substring(0, 5); // HH:MM
         }
+        // Formater la date et l'heure de fin des inscriptions
+        if (tournament.registrationEndDateTime && tournament.registrationEndDateTime.toDate) {
+            const fullRegistrationEndDate = tournament.registrationEndDateTime.toDate();
+            tournament.registrationEndDate = fullRegistrationEndDate.toISOString().split('T')[0]; // YYYY-MM-DD
+            tournament.registrationEndTime = fullRegistrationEndDate.toTimeString().split(' ')[0].substring(0, 5); // HH:MM
+        }
         res.render('admin/tournaments/form', { pageTitle: 'Modifier le Tournoi', tournament, title: 'Modifier le Tournoi' });
     } catch (error) {
         console.error('Erreur lors de la récupération du tournoi pour édition:', error);
@@ -307,6 +317,36 @@ exports.updateTournament = async (req, res) => {
     } catch (error) {
         console.error('Erreur lors de la mise à jour du tournoi:', error);
         sendFlashAndRedirect(req, res, 'error', 'Erreur lors de la mise à jour du tournoi.', `/admin/tournaments/${id}/edit`);
+    }
+};
+
+// Met à jour le statut d'un tournoi (actif/inactif, phase d'élimination activée/désactivée)
+exports.toggleTournamentStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { field } = req.body;
+
+        // Valider que le champ est bien l'un des champs autorisés
+        if (!['isActive', 'eliminationPhaseEnabled'].includes(field)) {
+            return sendFlashAndRedirect(req, res, 'error', 'Champ de mise à jour invalide.', '/admin/tournaments');
+        }
+
+        const tournamentRef = adminDb.collection('events').doc(id);
+        const tournamentDoc = await tournamentRef.get();
+
+        if (!tournamentDoc.exists) {
+            return sendFlashAndRedirect(req, res, 'error', 'Tournoi non trouvé.', '/admin/tournaments');
+        }
+
+        const currentValue = tournamentDoc.data()[field];
+        const newValue = !currentValue;
+
+        await tournamentRef.update({ [field]: newValue });
+
+        sendFlashAndRedirect(req, res, 'success', `Statut du tournoi mis à jour avec succès.`, '/admin/tournaments');
+    } catch (error) {
+        console.error('Erreur lors de la mise à jour du statut du tournoi:', error);
+        sendFlashAndRedirect(req, res, 'error', 'Erreur lors de la mise à jour du statut du tournoi.', '/admin/tournaments');
     }
 };
 
@@ -462,3 +502,5 @@ exports.freezeFinalRanking = async (req, res) => {
         res.status(500).json({ success: false, message: 'Erreur serveur lors du figement du classement final.' });
     }
 };
+
+

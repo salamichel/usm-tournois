@@ -1,5 +1,6 @@
 <!-- Main Content -->
 <main class="container mx-auto p-4 sm:p-6 lg:p-8" data-team-id="<%= team.id %>" data-tournament-id="<%= tournament.id %>">
+    <% const isEditable = tournament.tournamentStatus.status !== 'Terminé'; %>
 
     <!-- Page Header -->
     <div class="mb-10">
@@ -43,7 +44,7 @@
                                                 </p>
                                             </div>
                             </div>
-                            <% if (member.userId !==team.captainId) { %>
+                            <% if (member.userId !==team.captainId && isEditable) { %>
                                 <button class="remove-player-btn btn-danger text-white font-bold py-1 px-3 rounded-full text-sm"
                                     style="background-color: #dc3545 !important; color: white !important;"
                                     data-member-id="<%= member.userId %>"><i class="fas fa-user-minus mr-2"></i>Retirer</button>
@@ -61,7 +62,7 @@
                         <label for="team-name" class="block text-sm font-medium text-gray-300 mb-1">Nom de
                             l'équipe</label>
                         <input type="text" id="team-name" value="<%= team.name %>"
-                            class="w-full bg-gray-900 border border-gray-700 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500">
+                            class="w-full bg-gray-900 border border-gray-700 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500" <%= isEditable ? '' : 'disabled' %>>
                     </div>
                     <div class="flex items-center justify-between">
                         <span class="font-medium text-gray-300">Statut du recrutement</span>
@@ -72,14 +73,14 @@
                         <% } %>
                     </div>
                     <div class="flex justify-end">
-                        <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">Enregistrer les modifications</button>
+                        <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" <%= isEditable ? '' : 'disabled' %>>Enregistrer les modifications</button>
                     </div>
                 </form>
             </div>
         </div>
 
         <!-- Right Column: Recruitment -->
-        <div class="lg:col-span-3">
+        <div class="lg:col-span-3" <%= isEditable ? '' : 'style="display: none;"' %>>
             <div class="glass-card rounded-lg p-6">
                 <h2 class="text-2xl font-bold mb-6">Recrutement</h2>
 
@@ -90,24 +91,24 @@
                         <div>
                             <label for="virtual-player-pseudo" class="block text-sm font-medium text-gray-300 mb-1">Pseudo du joueur</label>
                             <input type="text" id="virtual-player-pseudo" name="pseudo" required
-                                class="w-full bg-gray-900 border border-gray-700 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500">
+                                class="w-full bg-gray-900 border border-gray-700 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500" <%= isEditable ? '' : 'disabled' %>>
                         </div>
                         <div>
                             <label for="virtual-player-email" class="block text-sm font-medium text-gray-300 mb-1">Email du joueur (facultatif)</label>
                             <input type="email" id="virtual-player-email" name="email"
-                                class="w-full bg-gray-900 border border-gray-700 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500">
+                                class="w-full bg-gray-900 border border-gray-700 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500" <%= isEditable ? '' : 'disabled' %>>
                         </div>
                         <div>
                             <label for="virtual-player-level" class="block text-sm font-medium text-gray-300 mb-1">Niveau du joueur</label>
                             <select id="virtual-player-level" name="level" required
-                                class="w-full bg-gray-900 border border-gray-700 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500 text-white">
+                                class="w-full bg-gray-900 border border-gray-700 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500 text-white" <%= isEditable ? '' : 'disabled' %>>
                                 <option value="Débutant">Débutant</option>
                                 <option value="Intermédiaire">Intermédiaire</option>
                                 <option value="Confirmé">Confirmé</option>
                             </select>
                         </div>
                         <div class="flex justify-end">
-                            <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">Ajouter ce joueur</button>
+                            <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" <%= isEditable ? '' : 'disabled' %>>Ajouter ce joueur</button>
                         </div>
                     </form>
                 </div>
@@ -130,7 +131,7 @@
                                     <button
                                         class="add-player-btn btn-success text-white font-bold py-1 px-3 rounded-full text-sm"
                                         style="background-color: #28a745 !important; color: white !important;"
-                                        data-agent-id="<%= agent.id %>"><i
+                                        data-agent-id="<%= agent.id %>" <%= isEditable ? '' : 'disabled' %>><i
                                             class="fas fa-user-plus mr-2"></i>Ajouter</button>
                                 </li>
                             <% }); %>
