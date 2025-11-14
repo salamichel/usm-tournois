@@ -52,7 +52,11 @@ const HomePage = () => {
                 <div className="space-y-2 text-sm text-gray-600">
                   <div className="flex items-center gap-2">
                     <Calendar size={16} />
-                    <span>{format(new Date(tournament.date), 'PPP', { locale: fr })}</span>
+                    <span>
+                      {tournament.date
+                        ? format(new Date(tournament.date), 'PPP', { locale: fr })
+                        : 'Date à confirmer'}
+                    </span>
                   </div>
 
                   <div className="flex items-center gap-2">

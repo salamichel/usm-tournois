@@ -132,9 +132,11 @@ const DashboardPage = () => {
                     <div className="flex items-center gap-2">
                       <Calendar size={16} />
                       <span>
-                        {format(new Date(tournament.date), 'PPP', {
-                          locale: fr,
-                        })}
+                        {tournament.date
+                          ? format(new Date(tournament.date), 'PPP', {
+                              locale: fr,
+                            })
+                          : 'Date à confirmer'}
                       </span>
                     </div>
 

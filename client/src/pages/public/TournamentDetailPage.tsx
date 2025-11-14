@@ -229,7 +229,9 @@ const TournamentDetailPage = () => {
             <div>
               <p className="text-sm text-gray-500">Date</p>
               <p className="font-semibold">
-                {format(new Date(tournament.date), 'PPP', { locale: fr })}
+                {tournament.date
+                  ? format(new Date(tournament.date), 'PPP', { locale: fr })
+                  : 'Date à confirmer'}
               </p>
             </div>
           </div>
