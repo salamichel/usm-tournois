@@ -1,8 +1,11 @@
 # 🐳 Instructions de Démarrage Docker - USM Tournois
 
-## Problème Résolu
+## Problèmes Résolus
 ✅ Vite configuré pour écouter sur toutes les interfaces (0.0.0.0) dans Docker
 ✅ Proxy API configuré pour utiliser le nom du service Docker
+✅ Domaine `usm-tournois.moka-web.net` autorisé
+✅ Serveur Express écoute sur 0.0.0.0 (accessible depuis l'extérieur)
+✅ Client utilise le proxy Vite (`/api`) au lieu de `localhost:3000`
 
 ## Démarrage Rapide
 
@@ -36,13 +39,15 @@ docker-compose logs -f
 
 ## Accès aux Services
 
-- **Frontend React**: http://localhost:5173
+- **Frontend React**: http://localhost:5173 ou http://usm-tournois.moka-web.net:5173
 - **API Backend**: http://localhost:3000
 - **API Health Check**: http://localhost:3000/api/health
 
+**Note**: Le client React utilise le proxy Vite pour accéder à l'API. Les requêtes à `/api/*` sont automatiquement redirigées vers le serveur Express.
+
 ## Changements Effectués
 
-### vite.config.ts
+### 1. client/vite.config.ts
 ```typescript
 server: {
   host: true, // ✅ Écoute sur 0.0.0.0 (accessible depuis l'hôte)
@@ -54,12 +59,32 @@ server: {
   },
   proxy: {
     '/api': {
-      target: 'http://server:3000', // ✅ Utilise le nom du service Docker
+      target: 'http://server:3000', // ✅ Utilise le nom du service Docker (réseau interne)
       changeOrigin: true,
     },
   },
 }
 ```
+
+### 2. docker-compose.yml
+```yaml
+environment:
+  - VITE_API_URL=/api  # ✅ Utilise le proxy Vite au lieu de localhost:3000
+```
+
+### 3. server/src/app.ts
+```typescript
+app.listen(PORT, '0.0.0.0', () => {  // ✅ Écoute sur toutes les interfaces
+  console.log(`🚀 Server running on http://0.0.0.0:${PORT}`);
+});
+```
+
+**Comment ça fonctionne:**
+1. Le navigateur accède au frontend via `http://usm-tournois.moka-web.net:5173`
+2. Le client React fait des requêtes à `/api/*` (chemin relatif)
+3. Le serveur Vite (dans le conteneur client) reçoit ces requêtes
+4. Le proxy Vite redirige vers `http://server:3000/api/*` (réseau Docker interne)
+5. Le serveur Express répond à la requête
 
 ## Dépannage
 
@@ -112,8 +137,8 @@ VITE v5.4.21  ready in XXX ms
 ### Serveur (Express)
 Le log devrait afficher:
 ```
-Server running on http://localhost:3000
-Environment: development
+🚀 Server running on http://0.0.0.0:3000
+📝 Environment: development
 ```
 
 ## Notes Importantes
