@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { adminDb, adminAuth } from '../config/firebase.config';
 import { AppError } from '../middlewares/error.middleware';
+import { convertTimestamps } from '../utils/firestore.utils';
 
 /**
  * Get team by ID
@@ -25,7 +26,7 @@ export const getTeamById = async (req: Request, res: Response) => {
       throw new AppError('Team not found', 404);
     }
 
-    const teamData = { id: teamDoc.id, ...teamDoc.data() };
+    const teamData = convertTimestamps({ id: teamDoc.id, ...teamDoc.data() });
 
     res.json({
       success: true,

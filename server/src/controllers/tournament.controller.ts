@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { adminDb } from '../config/firebase.config';
 import { AppError } from '../middlewares/error.middleware';
 import type { Tournament, UnassignedPlayer, Team, TeamMember } from '@shared/types';
+import { convertTimestamps } from '../utils/firestore.utils';
 
 /**
  * Get all active tournaments
@@ -13,10 +14,12 @@ export const getAllTournaments = async (req: Request, res: Response) => {
       .where('isActive', '==', true)
       .get();
 
-    const tournaments = tournamentsSnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    const tournaments = tournamentsSnapshot.docs.map((doc) =>
+      convertTimestamps({
+        id: doc.id,
+        ...doc.data(),
+      })
+    );
 
     res.json({
       success: true,
@@ -91,13 +94,13 @@ export const getTournamentById = async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      data: {
+      data: convertTimestamps({
         tournament: { id: tournamentDoc.id, ...tournamentDoc.data() },
         teams,
         unassignedPlayers,
         pools,
         eliminationMatches,
-      },
+      }),
     });
   } catch (error) {
     console.error('Error getting tournament:', error);
