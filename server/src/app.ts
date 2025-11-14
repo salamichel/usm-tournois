@@ -15,6 +15,7 @@ import teamRoutes from './routes/team.routes';
 import userRoutes from './routes/user.routes';
 import matchRoutes from './routes/match.routes';
 import adminRoutes from './routes/admin.routes';
+import kingRoutes from './routes/king.routes';
 
 // Middlewares
 import { errorHandler } from './middlewares/error.middleware';
@@ -87,6 +88,7 @@ app.use('/api/teams', teamRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/matches', matchRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/king', kingRoutes);
 
 // --- Error Handler ---
 app.use(errorHandler);

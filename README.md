@@ -193,6 +193,54 @@ npm run dev
 - `POST /api/admin/tournaments/:id/clone` - Cloner un tournoi
 - ... (voir server/src/routes/admin.routes.ts)
 
+### King Format (Nouveau !)
+- `GET /api/king/tournaments/:tournamentId/dashboard` - Dashboard King
+- `POST /api/king/tournaments/:tournamentId/phase1/start` - Démarrer Phase 1 (4v4)
+- `POST /api/king/tournaments/:tournamentId/phase2/start` - Démarrer Phase 2 (3v3)
+- `POST /api/king/tournaments/:tournamentId/phase3/start` - Démarrer Phase 3 (2v2 Finale)
+- `POST /api/king/matches/:matchId/result` - Enregistrer résultat de match
+- `POST /api/king/tournaments/:tournamentId/phase{1,2,3}/reset` - Réinitialiser une phase
+
+## 👑 Format King
+
+Le **format King** est un nouveau type de tournoi avec un système de phases progressives :
+
+### Structure du Tournoi King
+
+**Phase 1 - Filtrage (4v4)**
+- 36 joueurs divisés en 3 poules de 12
+- 3 tournées par poule
+- Équipes formées aléatoirement à chaque tournée
+- Top 4 de chaque poule se qualifient (12 qualifiés)
+
+**Phase 2 - Demi-finales (3v3)**
+- 12 qualifiés divisés en 2 poules de 6
+- Format King of the Beach (KOB) - 5 tours
+- Équipes formées pour maximiser la rotation
+- Top 4 de chaque poule se qualifient (8 finalistes)
+
+**Phase 3 - Finale (2v2)**
+- 8 finalistes en 1 poule unique
+- Format KOB - 7 tours
+- Chaque joueur joue avec chaque autre exactement 1 fois
+- 1 champion est couronné
+
+### Classement King
+
+Le classement est basé sur les performances individuelles :
+- Victoires / Défaites
+- Sets gagnés / perdus
+- Points marqués / encaissés
+- Différentiel de sets et points
+
+### API King TypeScript
+
+Tous les types pour le format King sont définis dans `shared/types/king.types.ts` :
+- `KingPhase` - Structure d'une phase
+- `KingMatch` - Match King avec équipes aléatoires
+- `KingPlayerRanking` - Classement individuel
+- `KingTournamentData` - Données complètes du tournoi
+
 ## 🎨 Composants principaux
 
 ### Context Providers

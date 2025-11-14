@@ -7,6 +7,8 @@ export type TournamentStatus = 'Ouvert' | 'Complet' | 'Liste d\'attente' | 'Term
 
 export type TournamentType = 'Beach Volleyball' | 'Indoor Volleyball' | 'Mixed';
 
+export type TournamentFormat = 'standard' | 'king';
+
 export type MixityType = 'Mixed' | 'Male Only' | 'Female Only';
 
 export interface Tournament {
@@ -46,6 +48,15 @@ export interface Tournament {
   // Waiting list configuration
   waitingListEnabled: boolean;
   waitingListSize: number;
+
+  // Tournament format
+  tournamentFormat?: TournamentFormat; // 'standard' or 'king'
+
+  // King format specific fields
+  king?: boolean; // Flag to indicate if this is a King tournament
+  currentKingPhase?: number; // 0, 1, 2, or 3
+  isKingPhaseCompleted?: boolean;
+  kingStatus?: string; // 'not-started', 'phase1-in-progress', etc.
 
   // Media
   coverImage?: string;

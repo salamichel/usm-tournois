@@ -20,3 +20,6 @@ export * from './match.types';
 
 // API types
 export * from './api.types';
+
+// King tournament types
+export * from './king.types';
