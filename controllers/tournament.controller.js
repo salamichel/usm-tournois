@@ -1,7 +1,8 @@
 // Ce fichier gère la logique métier liée aux tournois.
 const { db } = require('../services/firebase');
 const { collection, getDocs, query, doc, getDoc, where, writeBatch, setDoc, deleteDoc, arrayUnion, arrayRemove, orderBy, limit, updateDoc } = require('firebase/firestore');
-const { getTeamsAndPlayersCounts, getTournamentStatus, getUserRegistrationStatus, sendFlashAndRedirect } = require('../services/tournament.utils');
+const { getTeamsAndPlayersCounts, getUserRegistrationStatus, sendFlashAndRedirect } = require('../services/tournament.utils');
+const { getTournamentStatus } = require('../services/tournament.status.helper');
 const { updateMatchScoresAndStatus, propagateEliminationMatchResults } = require('../services/match.service'); // Importer les nouvelles fonctions mutualisées
 
 
@@ -29,7 +30,8 @@ exports.showAllTournaments = async (req, res) => {
             // Rendre registrationsOpen dynamique
             const now = new Date();
             const registrationStarts = event.registrationStartDateTime ? event.registrationStartDateTime.toDate() : new Date(0);
-            event.registrationsOpen = now >= registrationStarts; // Le tournoi est ouvert si la date de début est atteinte
+            const registrationEnds = event.registrationEndDateTime ? event.registrationEndDateTime.toDate() : new Date(8640000000000000); // Date très lointaine si non définie
+            event.registrationsOpen = now >= registrationStarts && now <= registrationEnds; // Les inscriptions sont ouvertes entre les dates de début et de fin
             console.log(`[showAllTournaments] Tournoi ${event.name} - Inscriptions ouvertes: ${event.registrationsOpen}`);
 
             const { completeTeamsCount, totalPlayersInTeams, teamsCount, unassignedPlayersCount, playersCount } = await getTeamsAndPlayersCounts(event.id, event);
@@ -42,7 +44,8 @@ exports.showAllTournaments = async (req, res) => {
             console.log(`[showAllTournaments] Tournoi ${event.name} - completeTeamsCount: ${event.completeTeamsCount}, maxTeams: ${event.maxTeams}`);
             console.log(`[showAllTournaments] Tournoi ${event.name} - totalTeamsCount: ${event.teamsCount}`);
 
-            event.status = getTournamentStatus(event, completeTeamsCount);
+            const tournamentOverallStatus = getTournamentStatus(event, { isRegistered: false, isOnWaitingList: false }, completeTeamsCount, event.teamsCount);
+            event.status = tournamentOverallStatus.status; // Utiliser le statut global pour l'affichage sur la page d'accueil
             console.log(`[showAllTournaments] Tournoi ${event.name} - Statut: ${event.status}`);
 
             if (userId) {
@@ -316,10 +319,15 @@ exports.showMyTournaments = async (req, res, title = 'Mon Compte - Mes Tournois'
                 event.completeTeamsCount = completeTeamsCount;
                 event.unassignedPlayersCount = unassignedPlayersCount;
                 event.playersCount = playersCount;
-                event.status = getTournamentStatus(event, completeTeamsCount);
 
-                event.registrationType = userRegistrationStatus.registrationType;
-                event.teamName = userRegistrationStatus.teamName;
+                // Utiliser le helper pour le statut du tournoi pour l'utilisateur
+                const userSpecificStatus = await getUserRegistrationStatus(event.id, userId);
+                const tournamentStatusDetails = getTournamentStatus(event, userSpecificStatus, completeTeamsCount, teamsCount);
+                event.status = tournamentStatusDetails.status; // Statut général du tournoi
+                event.userTournamentStatus = tournamentStatusDetails; // Détails du statut pour l'utilisateur
+
+                event.registrationType = userSpecificStatus.registrationType;
+                event.teamName = userSpecificStatus.teamName;
 
                 registeredEvents.push(event);
             }
@@ -342,30 +350,38 @@ exports.showMyTournaments = async (req, res, title = 'Mon Compte - Mes Tournois'
         userTeams = captainTeamsArrays.flat();
 
         const activeTournaments = [];
-        const now = new Date();
         for (const eventDoc of eventsSnapshot.docs) {
             const event = { id: eventDoc.id, ...eventDoc.data() };
-            const registrationStarts = event.registrationStartDateTime ? event.registrationStartDateTime.toDate() : new Date(0);
-
-            if (event.isActive && event.registrationsOpen && now >= registrationStarts) {
-                const { completeTeamsCount, teamsCount } = await getTeamsAndPlayersCounts(event.id, event);
+            const { completeTeamsCount, teamsCount } = await getTeamsAndPlayersCounts(event.id, event);
+            const tournamentOverallStatus = getTournamentStatus(event, { isRegistered: false, isOnWaitingList: false }, completeTeamsCount, teamsCount);
+            
+            // Seulement ajouter les tournois "actifs" pour la sélection d'équipe
+            if (event.isActive && tournamentOverallStatus.registrationsAreOpen) {
                 event.teamsCount = teamsCount;
                 event.completeTeamsCount = completeTeamsCount;
-                event.status = getTournamentStatus(event, completeTeamsCount);
+                event.status = tournamentOverallStatus.status; // Statut général du tournoi
                 activeTournaments.push(event);
             }
         }
 
         const teamsWithRegistrationStatus = await Promise.all(userTeams.map(async (team) => {
             const tournamentsStatus = await Promise.all(activeTournaments.map(async (tournament) => {
-                const teamRegistrationDoc = await getDoc(doc(db, `events/${tournament.id}/teams`, team.id));
-                const teamWaitingListDoc = await getDoc(doc(db, `events/${tournament.id}/waitingListTeams`, team.id));
+                const teamUserStatus = await getUserRegistrationStatus(tournament.id, userId); // Obtenir le statut de l'équipe pour ce tournoi
+                const teamTournamentStatus = getTournamentStatus(tournament, teamUserStatus, tournament.completeTeamsCount, tournament.teamsCount);
+                
                 return {
                     tournamentId: tournament.id,
                     tournamentName: tournament.name,
-                    isRegistered: teamRegistrationDoc.exists(),
-                    isOnWaitingList: teamWaitingListDoc.exists(),
-                    status: tournament.status
+                    isRegistered: teamUserStatus.isRegistered && teamUserStatus.teamId === team.id,
+                    isOnWaitingList: teamUserStatus.isOnWaitingList && teamUserStatus.teamId === team.id,
+                    status: teamTournamentStatus.status, // Statut du tournoi pour cette équipe
+                    message: teamTournamentStatus.message,
+                    showRegisterButton: teamTournamentStatus.showRegisterButton,
+                    showJoinWaitingListButton: teamTournamentStatus.showJoinWaitingListButton,
+                    showUnregisterButton: teamTournamentStatus.showUnregisterButton,
+                    showLeaveWaitingListButton: teamTournamentStatus.showLeaveWaitingListButton,
+                    registrationStarts: teamTournamentStatus.registrationStarts,
+                    registrationsAreOpen: teamTournamentStatus.registrationsAreOpen
                 };
             }));
             return {
@@ -415,17 +431,15 @@ exports.registerFreePlayer = async (req, res) => {
         }
         const eventData = eventDoc.data();
 
-        const now = new Date();
-        const registrationStarts = eventData.registrationStartDateTime ? eventData.registrationStartDateTime.toDate() : new Date(0);
+        const { completeTeamsCount, teamsCount } = await getTeamsAndPlayersCounts(eventId, eventData);
+        const tournamentStatusDetails = getTournamentStatus(eventData, { isRegistered: false, isOnWaitingList: false }, completeTeamsCount, teamsCount);
 
-        if (!eventData.registrationsOpen || now < registrationStarts) {
-            return sendFlashAndRedirect(req, res, 'error', "Les inscriptions pour ce tournoi ne sont pas encore ouvertes ou sont fermées.", '/mon-compte');
+        if (!tournamentStatusDetails.registrationsAreOpen) {
+            return sendFlashAndRedirect(req, res, 'error', tournamentStatusDetails.message, '/mon-compte');
         }
 
-        const { completeTeamsCount } = await getTeamsAndPlayersCounts(eventId, eventData);
-
-        if (completeTeamsCount >= eventData.maxTeams) {
-            return sendFlashAndRedirect(req, res, 'error', "Le tournoi est complet (nombre maximum d'équipes complètes atteint). Impossible de rejoindre une équipe.", '/mon-compte');
+        if (tournamentStatusDetails.isFullByCompleteTeams) {
+            return sendFlashAndRedirect(req, res, 'error', "Le tournoi est complet (nombre maximum d'équipes complètes atteint). Impossible de s'inscrire en joueur libre.", '/mon-compte');
         }
 
         const userDoc = await getDoc(doc(db, 'users', userId));
@@ -535,11 +549,11 @@ exports.joinTeam = async (req, res) => {
         }
         const eventData = eventDoc.data();
 
-        const now = new Date();
-        const registrationStarts = eventData.registrationStartDateTime ? eventData.registrationStartDateTime.toDate() : new Date(0);
+        const { completeTeamsCount, teamsCount } = await getTeamsAndPlayersCounts(eventId, eventData);
+        const tournamentStatusDetails = getTournamentStatus(eventData, { isRegistered: false, isOnWaitingList: false }, completeTeamsCount, teamsCount);
 
-        if (!eventData.registrationsOpen || now < registrationStarts) {
-            return res.status(400).json({ success: false, message: "Les inscriptions pour ce tournoi ne sont pas encore ouvertes ou sont fermées." });
+        if (!tournamentStatusDetails.registrationsAreOpen) {
+            return res.status(400).json({ success: false, message: tournamentStatusDetails.message });
         }
 
         // 2. Vérifier l'existence de l'équipe et si elle est dans ce tournoi
@@ -987,7 +1001,47 @@ exports.showTournamentDetails = async (req, res) => {
         // Rendre registrationsOpen dynamique
         const now = new Date();
         const registrationStarts = event.registrationStartDateTime ? event.registrationStartDateTime.toDate() : new Date(0);
-        event.registrationsOpen = now >= registrationStarts; // Le tournoi est ouvert si la date de début est atteinte
+        
+        let userStatus = {
+            isInTeam: false,
+            isUnassigned: false,
+            isCaptain: false,
+            isRegistered: false,
+            registrationType: null,
+            teamName: null,
+            teamId: null,
+            isOnWaitingList: false, // Ajout de isOnWaitingList
+        };
+
+        if (user) {
+            const userId = user.uid;
+            const registrationStatus = await getUserRegistrationStatus(eventId, userId);
+            userStatus.isRegistered = registrationStatus.isRegistered;
+            userStatus.registrationType = registrationStatus.registrationType;
+            userStatus.teamName = registrationStatus.teamName;
+            userStatus.teamId = registrationStatus.teamId;
+            userStatus.isOnWaitingList = registrationStatus.isOnWaitingList; // Assigner isOnWaitingList
+
+            if (registrationStatus.registrationType === 'team' && registrationStatus.teamId) {
+                const teamDoc = await getDoc(doc(db, `events/${eventId}/teams`, registrationStatus.teamId));
+                if (teamDoc.exists() && teamDoc.data().captainId === userId) {
+                    userStatus.isCaptain = true;
+                }
+            }
+            userStatus.isUnassigned = registrationStatus.registrationType === 'free-player';
+            userStatus.isInTeam = registrationStatus.registrationType === 'team';
+        }
+        console.log(`[Tournament Controller] User status:`, userStatus);
+
+        const { completeTeamsCount, teamsCount, unassignedPlayersCount, playersCount } = await getTeamsAndPlayersCounts(eventId, event);
+
+        // Calculer le statut du tournoi et les actions possibles
+        const tournamentStatusDetails = getTournamentStatus(event, userStatus, completeTeamsCount, teamsCount);
+
+        event.registrationsOpen = tournamentStatusDetails.registrationsAreOpen;
+        event.registrationEnds = tournamentStatusDetails.registrationEnds; // Rendre registrationEnds disponible dans la vue
+        event.registrationStarts = tournamentStatusDetails.registrationStarts; // Rendre registrationStarts disponible dans la vue
+        event.tournamentStatus = tournamentStatusDetails; // Passer tous les détails du statut à la vue
 
         // Assigner l'événement à res.locals pour qu'il soit disponible dans le layout
         res.locals.event = event;
@@ -1081,41 +1135,11 @@ exports.showTournamentDetails = async (req, res) => {
         const allUsersSnapshot = await getDocs(collection(db, 'users')); // Récupérer tous les utilisateurs
         console.log(`[Tournament Controller] Total users fetched: ${allUsersSnapshot.docs.length}`);
 
-        let userStatus = {
-            isInTeam: false,
-            isUnassigned: false,
-            isCaptain: false,
-            isRegistered: false,
-            registrationType: null,
-            teamName: null,
-            teamId: null,
-        };
-
-        if (user) {
-            const userId = user.uid;
-            const registrationStatus = await getUserRegistrationStatus(eventId, userId);
-            userStatus.isRegistered = registrationStatus.isRegistered;
-            userStatus.registrationType = registrationStatus.registrationType;
-            userStatus.teamName = registrationStatus.teamName;
-            userStatus.teamId = registrationStatus.teamId;
-
-            if (registrationStatus.registrationType === 'team' && registrationStatus.teamId) {
-                const teamDoc = await getDoc(doc(db, `events/${eventId}/teams`, registrationStatus.teamId));
-                if (teamDoc.exists() && teamDoc.data().captainId === userId) {
-                    userStatus.isCaptain = true;
-                }
-            }
-            userStatus.isUnassigned = registrationStatus.registrationType === 'free-player';
-            userStatus.isInTeam = registrationStatus.registrationType === 'team';
-        }
-        console.log(`[Tournament Controller] User status:`, userStatus);
-
         const availableTeams = teams.filter(team => 
             team.recruitmentOpen && (team.members?.length || 0) < event.playersPerTeam
         );
         console.log(`[Tournament Controller] Available teams to join:`, availableTeams.map(t => t.name));
 
-        const { completeTeamsCount, teamsCount, unassignedPlayersCount, playersCount } = await getTeamsAndPlayersCounts(eventId, event);
         const teamsMax = event.maxTeams;
         const playersMax = event.maxTeams * event.playersPerTeam;
 
