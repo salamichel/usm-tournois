@@ -22,8 +22,8 @@ class ApiService {
     this.client.interceptors.response.use(
       (response) => response,
       (error) => {
-        if (error.response?.status === 401) {
-          // Redirect to login on unauthorized
+        // Redirect to login on 401, but only if not already on login page (avoid infinite loop)
+        if (error.response?.status === 401 && window.location.pathname !== '/login') {
           window.location.href = '/login';
         }
         return Promise.reject(error);
