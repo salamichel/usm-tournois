@@ -20,10 +20,15 @@ export default defineConfig({
     },
   },
   server: {
+    host: true, // Listen on all addresses (0.0.0.0) for Docker
     port: 5173,
+    strictPort: true,
+    watch: {
+      usePolling: true, // Necessary for Docker on some systems
+    },
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'http://server:3000', // Use service name instead of localhost
         changeOrigin: true,
       },
     },
