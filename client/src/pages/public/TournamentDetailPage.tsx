@@ -630,20 +630,28 @@ const TournamentDetailPage = () => {
                 <div>
                   {tournament.teams && tournament.teams.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {tournament.teams.map((team) => (
-                        <div key={team.id} className="card">
+                      {tournament.teams.map((team) => {
+                        const teamComplete = isTeamComplete(team);
+                        return (
+                        <div
+                          key={team.id}
+                          className={`card ${teamComplete ? 'border-2 border-green-500 bg-green-50' : 'border border-gray-200'}`}
+                        >
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex items-center gap-2">
                               <h3 className="text-lg font-bold text-gray-900">
                                 {team.name}
                               </h3>
-                              {isTeamComplete(team) ? (
-                                <CheckCircle className="text-green-500" size={18} />
+                              {teamComplete ? (
+                                <div className="flex items-center gap-1">
+                                  <CheckCircle className="text-green-600" size={20} />
+                                  <span className="text-xs font-semibold text-green-700">Complète</span>
+                                </div>
                               ) : (
                                 <XCircle className="text-gray-400" size={18} />
                               )}
                             </div>
-                            {team.recruitmentOpen && !isTeamComplete(team) && (
+                            {team.recruitmentOpen && !teamComplete && (
                               <span className="badge badge-success text-xs">Recrute</span>
                             )}
                           </div>
@@ -678,7 +686,8 @@ const TournamentDetailPage = () => {
                               )}
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <p className="text-gray-500">Aucune équipe inscrite pour le moment</p>

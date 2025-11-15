@@ -34,6 +34,7 @@ services:
     volumes:
       - ./server:/app
       - ./shared:/shared
+      - ./public:/app/public
       - ./serviceAccountKey.json:/app/serviceAccountKey.json:ro
       - /app/node_modules
     env_file:

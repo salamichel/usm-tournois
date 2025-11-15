@@ -60,8 +60,9 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'une-cle-secrete-a-changer',
   resave: false,
   saveUninitialized: false,
+  rolling: true, // Reset maxAge on every response
   cookie: {
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days (increased from 24h)
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
@@ -69,7 +70,12 @@ app.use(session({
 }));
 
 // --- Static Files (for uploads) ---
-app.use('/uploads', express.static(path.join(__dirname, '../../public/uploads')));
+// Path works both in development and Docker:
+// Dev: __dirname = /app/server/src → ../public/uploads = /app/public/uploads
+// Docker: __dirname = /app/dist → ../public/uploads = /app/public/uploads
+const uploadsPath = path.join(__dirname, '../public/uploads');
+console.log(`📁 Serving static uploads from: ${uploadsPath}`);
+app.use('/uploads', express.static(uploadsPath));
 
 // --- Request Logging ---
 if (process.env.NODE_ENV !== 'production') {
