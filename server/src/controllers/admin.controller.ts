@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { adminDb } from '../config/firebase';
+import { adminDb } from '../config/firebase.config';
 import { AppError } from '../middlewares/error.middleware';
 import { convertTimestamps } from '../utils/firestore.utils';
 
