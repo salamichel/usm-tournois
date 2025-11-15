@@ -157,7 +157,7 @@ const TournamentBracket: React.FC<TournamentBracketProps> = ({ matches }) => {
   return (
     <div className="overflow-x-auto pb-4">
       <div className="flex gap-6 min-w-max">
-        {existingRounds.map((round) => (
+        {[...existingRounds].reverse().map((round) => (
           <div key={round} className="flex-shrink-0" style={{ minWidth: '280px' }}>
             <h3 className="text-lg font-bold text-center mb-4 px-4 py-2 bg-primary-100 text-primary-800 rounded-lg">
               {round}

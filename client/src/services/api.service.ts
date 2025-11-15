@@ -8,6 +8,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
 
 class ApiService {
   private client: AxiosInstance;
+  private isRedirecting: boolean = false;
 
   constructor() {
     this.client = axios.create({
@@ -26,8 +27,14 @@ class ApiService {
         const isAuthCheckEndpoint = error.config?.url?.includes('/auth/me');
         const isLoginPage = window.location.pathname === '/login';
 
-        if (error.response?.status === 401 && !isAuthCheckEndpoint && !isLoginPage) {
-          window.location.href = '/login';
+        if (error.response?.status === 401 && !isAuthCheckEndpoint && !isLoginPage && !this.isRedirecting) {
+          this.isRedirecting = true;
+          console.log('Session expired, redirecting to login...');
+
+          // Clear any pending requests
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 100);
         }
         return Promise.reject(error);
       }
