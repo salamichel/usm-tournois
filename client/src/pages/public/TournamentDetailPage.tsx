@@ -259,7 +259,112 @@ const TournamentDetailPage = () => {
   };
 
   const isTeamComplete = (team: Team): boolean => {
-    return (team.members?.length || 0) === tournament?.playersPerTeam;
+    // A team is complete if it has at least minPlayersPerTeam members
+    const minPlayers = tournament?.minPlayersPerTeam || tournament?.playersPerTeam;
+    return (team.members?.length || 0) >= minPlayers;
+  };
+
+  // Calculate if tournament is full based on complete teams
+  const isFullByCompleteTeams = (): boolean => {
+    if (!tournament) return false;
+    return getCompleteTeamsCount() >= tournament.maxTeams;
+  };
+
+  // Calculate if tournament is full based on total teams (for waiting list)
+  const isFullByTotalTeams = (): boolean => {
+    if (!tournament) return false;
+    return (tournament.teams?.length || 0) >= tournament.maxTeams;
+  };
+
+  // Check if registrations are open based on date windows
+  const areRegistrationsOpen = (): boolean => {
+    if (!tournament) return false;
+    const now = new Date();
+    const registrationStarts = tournament.registrationStartDateTime
+      ? new Date(tournament.registrationStartDateTime)
+      : new Date(0);
+    const registrationEnds = tournament.registrationEndDateTime
+      ? new Date(tournament.registrationEndDateTime)
+      : new Date(8640000000000000);
+    return now >= registrationStarts && now <= registrationEnds;
+  };
+
+  // Determine what buttons to show based on tournament state
+  const getRegistrationButtons = () => {
+    if (!tournament || !user) return { showRegister: false, showWaitingList: false };
+
+    const registrationsOpen = areRegistrationsOpen();
+    const fullByComplete = isFullByCompleteTeams();
+    const fullByTotal = isFullByTotalTeams();
+
+    // If user is already registered or on waiting list, don't show registration buttons
+    if (isUserRegistered()) {
+      return { showRegister: false, showWaitingList: false };
+    }
+
+    // If registrations are not open, don't show any buttons
+    if (!registrationsOpen) {
+      return { showRegister: false, showWaitingList: false };
+    }
+
+    // If full by complete teams, check if waiting list is available
+    if (fullByComplete) {
+      const showWaitingList = tournament.waitingListEnabled &&
+                              (tournament.waitingListSize || 0) > 0 &&
+                              !fullByTotal;
+      return { showRegister: false, showWaitingList };
+    }
+
+    // Otherwise, show registration buttons
+    return { showRegister: true, showWaitingList: false };
+  };
+
+  // Get registration status message for display
+  const getRegistrationStatusMessage = (): { message: string; type: 'info' | 'warning' | 'error' } | null => {
+    if (!tournament) return null;
+
+    const now = new Date();
+    const registrationStarts = tournament.registrationStartDateTime
+      ? new Date(tournament.registrationStartDateTime)
+      : new Date(0);
+    const registrationEnds = tournament.registrationEndDateTime
+      ? new Date(tournament.registrationEndDateTime)
+      : new Date(8640000000000000);
+    const tournamentDate = tournament.date ? new Date(tournament.date) : null;
+
+    // Check if tournament is finished
+    if (tournamentDate && now > tournamentDate) {
+      return {
+        message: 'Ce tournoi est terminé.',
+        type: 'info'
+      };
+    }
+
+    // Check if registrations haven't started yet
+    if (now < registrationStarts) {
+      return {
+        message: `Les inscriptions ouvriront le ${format(registrationStarts, 'PPP', { locale: fr })} à ${format(registrationStarts, 'HH:mm', { locale: fr })}`,
+        type: 'info'
+      };
+    }
+
+    // Check if registrations are closed
+    if (now > registrationEnds) {
+      return {
+        message: `Les inscriptions pour ce tournoi sont fermées depuis le ${format(registrationEnds, 'PPP', { locale: fr })} à ${format(registrationEnds, 'HH:mm', { locale: fr })}`,
+        type: 'warning'
+      };
+    }
+
+    // Check if tournament is completely full (no waiting list available)
+    if (isFullByCompleteTeams() && !registrationButtons.showWaitingList) {
+      return {
+        message: 'Le tournoi est complet.',
+        type: 'warning'
+      };
+    }
+
+    return null;
   };
 
   // Calculate match winner based on sets
@@ -327,6 +432,8 @@ const TournamentDetailPage = () => {
   const totalPlayers = getTotalPlayersCount();
   const maxPlayers = tournament.maxTeams * tournament.playersPerTeam;
   const availableTeams = getAvailableTeams();
+  const registrationButtons = getRegistrationButtons();
+  const registrationStatusMessage = getRegistrationStatusMessage();
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -484,8 +591,41 @@ const TournamentDetailPage = () => {
               </div>
             )}
 
+            {/* Login Prompt for Non-Authenticated Users */}
+            {!isAuthenticated && areRegistrationsOpen() && !isFullByCompleteTeams() && (
+              <div className="card bg-gray-50 border-2 border-gray-300">
+                <p className="text-gray-700 mb-4 text-center">
+                  Vous devez être connecté pour vous inscrire à ce tournoi
+                </p>
+                <button
+                  onClick={() => navigate('/login')}
+                  className="btn-primary w-full"
+                >
+                  Se connecter
+                </button>
+              </div>
+            )}
+
+            {/* Registration Status Message */}
+            {!isRegistered && registrationStatusMessage && (
+              <div className={`card ${
+                registrationStatusMessage.type === 'info' ? 'bg-blue-50 border-2 border-blue-200' :
+                registrationStatusMessage.type === 'warning' ? 'bg-yellow-50 border-2 border-yellow-200' :
+                'bg-red-50 border-2 border-red-200'
+              }`}>
+                <div className="flex items-start gap-3">
+                  <AlertCircle className={
+                    registrationStatusMessage.type === 'info' ? 'text-blue-600' :
+                    registrationStatusMessage.type === 'warning' ? 'text-yellow-600' :
+                    'text-red-600'
+                  } size={24} />
+                  <p className="text-gray-700">{registrationStatusMessage.message}</p>
+                </div>
+              </div>
+            )}
+
             {/* Registration Section */}
-            {!isRegistered && tournament.status === 'Ouvert' && (
+            {registrationButtons.showRegister && (
               <div className="card bg-primary-50 border-2 border-primary-200">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">
                   S'inscrire au tournoi
@@ -570,14 +710,14 @@ const TournamentDetailPage = () => {
               </div>
             )}
 
-            {/* Tournament Full */}
-            {tournament.status === 'Complet' && !isRegistered && (
+            {/* Tournament Full - Show waiting list option */}
+            {registrationButtons.showWaitingList && (
               <div className="card bg-yellow-50 border-2 border-yellow-200">
                 <h3 className="text-lg font-bold text-gray-900 mb-2">
                   Tournoi complet
                 </h3>
                 <p className="text-gray-600 mb-4">
-                  Ce tournoi est complet. Vous pouvez vous inscrire sur la liste d'attente.
+                  Le tournoi est complet (nombre maximum d'équipes complètes atteint), mais vous pouvez rejoindre la liste d'attente.
                 </p>
                 <button
                   onClick={handleJoinWaitingList}
@@ -673,7 +813,7 @@ const TournamentDetailPage = () => {
                               {team.members?.length || 0} / {tournament.playersPerTeam}{' '}
                               joueurs
                             </div>
-                            {!isRegistered &&
+                            {registrationButtons.showRegister &&
                               team.recruitmentOpen &&
                               (team.members?.length || 0) < tournament.playersPerTeam && (
                                 <button
