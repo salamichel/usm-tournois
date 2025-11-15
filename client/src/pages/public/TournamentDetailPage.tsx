@@ -51,7 +51,17 @@ const TournamentDetailPage = () => {
       setIsLoading(true);
       const response = await tournamentService.getTournamentById(id);
       if (response.success && response.data) {
-        setTournament(response.data.tournament);
+        // Merge tournament data with additional arrays
+        const tournamentData: any = {
+          ...response.data.tournament,
+          teams: response.data.teams || [],
+          unassignedPlayers: response.data.unassignedPlayers || [],
+          waitingList: response.data.waitingList || [],
+          pools: response.data.pools || [],
+          eliminationMatches: response.data.eliminationMatches || [],
+          finalRanking: response.data.finalRanking || [],
+        };
+        setTournament(tournamentData);
       }
     } catch (error: any) {
       toast.error('Erreur lors du chargement du tournoi');
@@ -424,7 +434,7 @@ const TournamentDetailPage = () => {
             {tournament.description && (
               <div className="card">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">Description</h2>
-                <div className="prose prose-sm max-w-none text-gray-600">
+                <div className="markdown-content">
                   <ReactMarkdown>{tournament.description}</ReactMarkdown>
                 </div>
               </div>

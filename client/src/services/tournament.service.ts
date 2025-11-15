@@ -18,7 +18,15 @@ class TournamentService {
    * Get tournament by ID
    */
   async getTournamentById(id: string) {
-    return apiService.get<{ tournament: TournamentDetails }>(`/tournaments/${id}`);
+    return apiService.get<{
+      tournament: any;
+      teams: any[];
+      unassignedPlayers: any[];
+      waitingList?: any[];
+      pools: any[];
+      eliminationMatches: any[];
+      finalRanking?: any[];
+    }>(`/tournaments/${id}`);
   }
 
   /**

@@ -22,8 +22,11 @@ class ApiService {
     this.client.interceptors.response.use(
       (response) => response,
       (error) => {
-        // Redirect to login on 401, but only if not already on login page (avoid infinite loop)
-        if (error.response?.status === 401 && window.location.pathname !== '/login') {
+        // Don't redirect on 401 for auth check endpoint or if already on login page
+        const isAuthCheckEndpoint = error.config?.url?.includes('/auth/me');
+        const isLoginPage = window.location.pathname === '/login';
+
+        if (error.response?.status === 401 && !isAuthCheckEndpoint && !isLoginPage) {
           window.location.href = '/login';
         }
         return Promise.reject(error);
