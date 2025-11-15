@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@contexts/AuthContext';
 import tournamentService from '@services/tournament.service';
@@ -39,13 +39,7 @@ const TournamentDetailPage = () => {
   const [activeView, setActiveView] = useState<ViewType>('detail');
   const [activeResultsTab, setActiveResultsTab] = useState<ResultsTabType>('pools');
 
-  useEffect(() => {
-    if (id) {
-      fetchTournament();
-    }
-  }, [id]);
-
-  const fetchTournament = async () => {
+  const fetchTournament = useCallback(async () => {
     if (!id) return;
     try {
       setIsLoading(true);
@@ -68,7 +62,13 @@ const TournamentDetailPage = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    if (id) {
+      fetchTournament();
+    }
+  }, [id, fetchTournament]);
 
   const handleRegisterAsPlayer = async () => {
     if (!id || !isAuthenticated) {
@@ -229,9 +229,11 @@ const TournamentDetailPage = () => {
 
   const getCompleteTeamsCount = (): number => {
     if (!tournament) return 0;
+    // A team is complete if it has at least minPlayersPerTeam members
+    const minPlayers = tournament.minPlayersPerTeam || tournament.playersPerTeam;
     return (
       tournament.teams?.filter(
-        (team) => (team.members?.length || 0) === tournament.playersPerTeam
+        (team) => (team.members?.length || 0) >= minPlayers
       ).length || 0
     );
   };
@@ -257,6 +259,47 @@ const TournamentDetailPage = () => {
 
   const isTeamComplete = (team: Team): boolean => {
     return (team.members?.length || 0) === tournament?.playersPerTeam;
+  };
+
+  // Calculate match winner based on sets
+  const getMatchWinner = (match: any): { winner: string | null; team1Wins: number; team2Wins: number } => {
+    if (!match.sets || match.sets.length === 0) {
+      return { winner: null, team1Wins: 0, team2Wins: 0 };
+    }
+
+    let team1Wins = 0;
+    let team2Wins = 0;
+
+    match.sets.forEach((set: any) => {
+      if (set.score1 !== null && set.score2 !== null) {
+        if (set.score1 > set.score2) {
+          team1Wins++;
+        } else if (set.score2 > set.score1) {
+          team2Wins++;
+        }
+      }
+    });
+
+    let winner = null;
+    if (match.status === 'completed') {
+      if (team1Wins > team2Wins) {
+        winner = match.team1Name || match.team1?.name;
+      } else if (team2Wins > team1Wins) {
+        winner = match.team2Name || match.team2?.name;
+      }
+    }
+
+    return { winner, team1Wins, team2Wins };
+  };
+
+  // Format match sets score
+  const formatSetsScore = (match: any): string => {
+    if (!match.sets || match.sets.length === 0) return 'N/A';
+
+    return match.sets
+      .filter((set: any) => set.score1 !== null && set.score2 !== null)
+      .map((set: any) => `${set.score1}-${set.score2}`)
+      .join(', ');
   };
 
   if (isLoading) {
@@ -490,28 +533,25 @@ const TournamentDetailPage = () => {
                     )}
 
                     {/* WhatsApp QR Code for registered users */}
-                    {tournament.whatsappGroupUrl && (
+                    {tournament.whatsappGroupLink && (
                       <div className="mt-4 p-4 bg-white rounded-lg border border-green-300">
                         <h4 className="font-semibold text-gray-900 mb-2">
-                          Groupe WhatsApp du tournoi
+                          Rejoindre le groupe WhatsApp
                         </h4>
                         <p className="text-sm text-gray-600 mb-3">
-                          Scannez ce QR code pour rejoindre le groupe WhatsApp
+                          Scannez ou cliquez sur le QR code pour rejoindre le groupe du tournoi :
                         </p>
-                        <div className="bg-white p-2 inline-block rounded">
-                          <img
-                            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(tournament.whatsappGroupUrl)}`}
-                            alt="QR Code WhatsApp"
-                            className="w-32 h-32"
-                          />
-                        </div>
                         <a
-                          href={tournament.whatsappGroupUrl}
+                          href={tournament.whatsappGroupLink}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="btn-secondary mt-3 inline-block text-sm"
+                          className="inline-block p-2 bg-white rounded-lg"
                         >
-                          Ou cliquez ici pour rejoindre
+                          <img
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(tournament.whatsappGroupLink)}`}
+                            alt="QR Code Groupe WhatsApp"
+                            className="w-36 h-36"
+                          />
                         </a>
                       </div>
                     )}
@@ -842,104 +882,180 @@ const TournamentDetailPage = () => {
           {/* Results Content */}
           <div className="min-h-[400px]">
             {activeResultsTab === 'pools' && (
-              <div className="card">
-                <h3 className="text-xl font-bold text-gray-900 mb-4">Phase de poules</h3>
+              <div>
                 {tournament.pools && tournament.pools.length > 0 ? (
-                  <div className="space-y-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     {tournament.pools.map((pool: any) => (
-                      <div key={pool.id}>
-                        <h4 className="font-semibold text-gray-900 mb-3">{pool.name}</h4>
+                      <div key={pool.id} className="card">
+                        <h3 className="text-2xl font-bold text-center mb-4">{pool.name}</h3>
+
+                        {pool.teams && pool.teams.length > 0 && (
+                          <div className="mb-6">
+                            <h4 className="font-bold mb-3">Équipes:</h4>
+                            <ul className="list-disc list-inside text-sm text-gray-600 ml-4">
+                              {pool.teams.map((team: any, idx: number) => (
+                                <li key={idx}>{team.name}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
                         {pool.matches && pool.matches.length > 0 ? (
-                          <div className="space-y-2">
-                            {pool.matches.map((match: any, idx: number) => (
-                              <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded">
-                                <span className="font-medium">{match.team1?.name || 'TBD'}</span>
-                                <span className="text-gray-500 mx-4">vs</span>
-                                <span className="font-medium">{match.team2?.name || 'TBD'}</span>
-                                {match.score && (
-                                  <span className="ml-4 font-bold">{match.score}</span>
-                                )}
-                              </div>
-                            ))}
+                          <div className="mb-6">
+                            <h4 className="font-bold mb-3">Matchs</h4>
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-sm">
+                                <thead className="bg-gray-100">
+                                  <tr>
+                                    <th className="p-3 text-left rounded-l-lg">Match</th>
+                                    <th className="p-3 text-center">Score</th>
+                                    <th className="p-3 text-center">Statut</th>
+                                    <th className="p-3 text-center rounded-r-lg">Gagnant</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="text-gray-700">
+                                  {pool.matches.map((match: any, idx: number) => {
+                                    const { winner } = getMatchWinner(match);
+                                    const score = formatSetsScore(match);
+
+                                    return (
+                                      <tr key={idx} className="border-b border-gray-200">
+                                        <td className="p-3 text-sm">
+                                          {match.team1Name || match.team1?.name || 'TBD'} vs {match.team2Name || match.team2?.name || 'TBD'}
+                                        </td>
+                                        <td className="text-center">
+                                          <span className="font-bold">{score}</span>
+                                        </td>
+                                        <td className="text-center">
+                                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                            match.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                            match.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
+                                            'bg-gray-100 text-gray-800'
+                                          }`}>
+                                            {match.status}
+                                          </span>
+                                        </td>
+                                        <td className="p-3 text-sm text-center">
+                                          {winner ? (
+                                            <span className="font-bold text-green-600">{winner}</span>
+                                          ) : match.status === 'completed' ? (
+                                            <span>Match nul</span>
+                                          ) : (
+                                            <span>N/A</span>
+                                          )}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
                           </div>
                         ) : (
-                          <p className="text-gray-500 text-sm">Aucun match planifié</p>
+                          <p className="text-gray-500 text-sm italic">Aucun match généré pour cette poule.</p>
                         )}
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-gray-500">Les poules ne sont pas encore disponibles</p>
+                  <p className="text-gray-500 text-center">Aucune poule configurée pour ce tournoi.</p>
                 )}
               </div>
             )}
 
             {activeResultsTab === 'finals' && (
               <div className="card">
-                <h3 className="text-xl font-bold text-gray-900 mb-4">Phase finale</h3>
+                <h2 className="text-2xl font-bold text-gray-900 mb-4 text-center">Phase d'Élimination</h2>
                 {tournament.eliminationMatches && tournament.eliminationMatches.length > 0 ? (
-                  <div className="space-y-4">
-                    {tournament.eliminationMatches.map((match: any, idx: number) => (
-                      <div key={idx} className="p-4 bg-gray-50 rounded">
-                        <div className="text-sm text-gray-500 mb-2">{match.round}</div>
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium">{match.team1?.name || 'TBD'}</span>
-                          <span className="text-gray-500 mx-4">vs</span>
-                          <span className="font-medium">{match.team2?.name || 'TBD'}</span>
-                          {match.score && (
-                            <span className="ml-4 font-bold">{match.score}</span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-100">
+                        <tr>
+                          <th className="p-3 text-left rounded-l-lg">Tour</th>
+                          <th className="p-3 text-left">Match</th>
+                          <th className="p-3 text-center">Score</th>
+                          <th className="p-3 text-center">Statut</th>
+                          <th className="p-3 text-center rounded-r-lg">Gagnant</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-gray-700">
+                        {tournament.eliminationMatches.map((match: any, idx: number) => {
+                          const { winner } = getMatchWinner(match);
+                          const score = formatSetsScore(match);
+
+                          return (
+                            <tr key={idx} className="border-b border-gray-200">
+                              <td className="p-3 text-sm font-medium">{match.round}</td>
+                              <td className="p-3 text-sm">
+                                {match.team1Name || match.team1?.name || 'TBD'} vs {match.team2Name || match.team2?.name || 'TBD'}
+                              </td>
+                              <td className="text-center">
+                                <span className="font-bold">{score}</span>
+                              </td>
+                              <td className="text-center">
+                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                  match.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                  match.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {match.status}
+                                </span>
+                              </td>
+                              <td className="p-3 text-sm text-center">
+                                {winner ? (
+                                  <span className="font-bold text-green-600">{winner}</span>
+                                ) : match.status === 'completed' ? (
+                                  <span>Match nul</span>
+                                ) : (
+                                  <span>N/A</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 ) : (
-                  <p className="text-gray-500">La phase finale n'est pas encore disponible</p>
+                  <p className="text-gray-500 text-center">Aucune phase d'élimination configurée pour ce tournoi.</p>
                 )}
               </div>
             )}
 
             {activeResultsTab === 'ranking' && (
-              <div className="card">
-                <h3 className="text-xl font-bold text-gray-900 mb-4">Classement final</h3>
+              <div className="card max-w-lg mx-auto">
+                <h3 className="text-2xl font-bold mb-6 text-center">Classement Final</h3>
                 {tournament.finalRanking && tournament.finalRanking.length > 0 ? (
-                  <div className="space-y-2">
-                    {tournament.finalRanking.map((team: any, idx: number) => (
-                      <div
-                        key={team.id}
-                        className={`flex items-center gap-4 p-3 rounded ${
-                          idx === 0 ? 'bg-yellow-50 border border-yellow-200' :
-                          idx === 1 ? 'bg-gray-50 border border-gray-200' :
-                          idx === 2 ? 'bg-orange-50 border border-orange-200' :
-                          'bg-white border border-gray-100'
-                        }`}
+                  <ol className="space-y-3">
+                    {tournament.finalRanking.map((team: any, index: number) => (
+                      <li
+                        key={team.id || index}
+                        className="card p-4 flex flex-col items-start bg-white border border-gray-200 hover:shadow-md transition-shadow"
                       >
-                        <div className={`text-2xl font-bold ${
-                          idx === 0 ? 'text-yellow-600' :
-                          idx === 1 ? 'text-gray-600' :
-                          idx === 2 ? 'text-orange-600' :
-                          'text-gray-400'
-                        }`}>
-                          {idx + 1}
+                        <div className="flex items-center w-full mb-2">
+                          <span className="text-3xl mr-4 min-w-[40px] text-center">
+                            {index === 0 ? (
+                              <Trophy className="text-yellow-400 inline" size={32} />
+                            ) : index === 1 ? (
+                              <Trophy className="text-gray-300 inline" size={28} />
+                            ) : index === 2 ? (
+                              <Trophy className="text-orange-400 inline" size={28} />
+                            ) : (
+                              <span className="font-bold text-gray-400">{index + 1}.</span>
+                            )}
+                          </span>
+                          <span className="flex-grow font-bold text-lg text-gray-900">
+                            {team.teamName || team.name}
+                          </span>
+                          <span className="text-xl font-bold text-primary-600 ml-auto">
+                            {team.points || 0} pts
+                          </span>
                         </div>
-                        <div className="flex-1">
-                          <div className="font-semibold text-gray-900">{team.name}</div>
-                          {team.points !== undefined && (
-                            <div className="text-sm text-gray-500">{team.points} points</div>
-                          )}
-                        </div>
-                        {idx < 3 && (
-                          <Trophy className={
-                            idx === 0 ? 'text-yellow-500' :
-                            idx === 1 ? 'text-gray-400' :
-                            'text-orange-400'
-                          } size={24} />
-                        )}
-                      </div>
+                      </li>
                     ))}
-                  </div>
+                  </ol>
                 ) : (
-                  <p className="text-gray-500">Le classement n'est pas encore disponible</p>
+                  <p className="text-gray-500 text-center">Aucun classement final disponible pour le moment.</p>
                 )}
               </div>
             )}
