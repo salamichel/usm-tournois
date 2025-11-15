@@ -5,6 +5,7 @@ import tournamentService from '@services/tournament.service';
 import type { TournamentDetails, Team } from '@shared/types';
 import toast from 'react-hot-toast';
 import ReactMarkdown from 'react-markdown';
+import TournamentBracket from '@components/TournamentBracket';
 import {
   Calendar,
   MapPin,
@@ -965,59 +966,11 @@ const TournamentDetailPage = () => {
 
             {activeResultsTab === 'finals' && (
               <div className="card">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4 text-center">Phase d'Élimination</h2>
+                <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">Phase d'Élimination</h2>
                 {tournament.eliminationMatches && tournament.eliminationMatches.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-100">
-                        <tr>
-                          <th className="p-3 text-left rounded-l-lg">Tour</th>
-                          <th className="p-3 text-left">Match</th>
-                          <th className="p-3 text-center">Score</th>
-                          <th className="p-3 text-center">Statut</th>
-                          <th className="p-3 text-center rounded-r-lg">Gagnant</th>
-                        </tr>
-                      </thead>
-                      <tbody className="text-gray-700">
-                        {tournament.eliminationMatches.map((match: any, idx: number) => {
-                          const { winner } = getMatchWinner(match);
-                          const score = formatSetsScore(match);
-
-                          return (
-                            <tr key={idx} className="border-b border-gray-200">
-                              <td className="p-3 text-sm font-medium">{match.round}</td>
-                              <td className="p-3 text-sm">
-                                {match.team1Name || match.team1?.name || 'TBD'} vs {match.team2Name || match.team2?.name || 'TBD'}
-                              </td>
-                              <td className="text-center">
-                                <span className="font-bold">{score}</span>
-                              </td>
-                              <td className="text-center">
-                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                                  match.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                  match.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
-                                  'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {match.status}
-                                </span>
-                              </td>
-                              <td className="p-3 text-sm text-center">
-                                {winner ? (
-                                  <span className="font-bold text-green-600">{winner}</span>
-                                ) : match.status === 'completed' ? (
-                                  <span>Match nul</span>
-                                ) : (
-                                  <span>N/A</span>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                  <TournamentBracket matches={tournament.eliminationMatches} />
                 ) : (
-                  <p className="text-gray-500 text-center">Aucune phase d'élimination configurée pour ce tournoi.</p>
+                  <p className="text-gray-500 text-center py-8">Aucune phase d'élimination configurée pour ce tournoi.</p>
                 )}
               </div>
             )}

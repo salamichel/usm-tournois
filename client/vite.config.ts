@@ -32,6 +32,10 @@ export default defineConfig({
         target: 'http://server:3000', // Use service name instead of localhost
         changeOrigin: true,
       },
+      '/uploads': {
+        target: 'http://server:3000', // Proxy uploads to Express server
+        changeOrigin: true,
+      },
     },
   },
 });

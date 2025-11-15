@@ -14,10 +14,22 @@ export const getAllTournaments = async (req: Request, res: Response) => {
       .where('isActive', '==', true)
       .get();
 
-    const tournaments = tournamentsSnapshot.docs.map((doc) =>
-      convertTimestamps({
-        id: doc.id,
-        ...doc.data(),
+    const tournaments = await Promise.all(
+      tournamentsSnapshot.docs.map(async (doc) => {
+        const tournamentData: any = doc.data();
+
+        // Count registered teams
+        const teamsSnapshot = await adminDb
+          .collection('events')
+          .doc(doc.id)
+          .collection('teams')
+          .get();
+
+        return convertTimestamps({
+          id: doc.id,
+          ...tournamentData,
+          registeredTeamsCount: teamsSnapshot.size,
+        });
       })
     );
 
@@ -92,6 +104,29 @@ export const getTournamentById = async (req: Request, res: Response) => {
       type: 'elimination',
     }));
 
+    // Get final ranking
+    const finalRankingSnapshot = await adminDb
+      .collection('events')
+      .doc(id)
+      .collection('finalRanking')
+      .orderBy('rank')
+      .get();
+    const finalRanking = finalRankingSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    // Get waiting list
+    const waitingListSnapshot = await adminDb
+      .collection('events')
+      .doc(id)
+      .collection('waitingListPlayers')
+      .get();
+    const waitingList = waitingListSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
     res.json({
       success: true,
       data: convertTimestamps({
@@ -100,6 +135,8 @@ export const getTournamentById = async (req: Request, res: Response) => {
         unassignedPlayers,
         pools,
         eliminationMatches,
+        finalRanking,
+        waitingList,
       }),
     });
   } catch (error) {

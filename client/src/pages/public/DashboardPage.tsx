@@ -12,7 +12,7 @@ const DashboardPage = () => {
 
   useEffect(() => {
     fetchTournaments();
-  }, []);
+  }, [fetchTournaments]);
 
   if (!user) return null;
 
