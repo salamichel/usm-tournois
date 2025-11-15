@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { asyncHandler } from '../middlewares/error.middleware';
 import { isAdmin } from '../middlewares/auth.middleware';
 import * as adminController from '../controllers/admin.controller';
+import * as kingController from '../controllers/king.controller';
 
 const router = Router();
 
@@ -60,5 +61,17 @@ router.delete('/tournaments/:tournamentId/unassigned-players/:userId', asyncHand
  * Dashboard
  */
 router.get('/dashboard', asyncHandler(adminController.getDashboard));
+
+/**
+ * King Mode Management
+ */
+router.get('/tournaments/:tournamentId/king', asyncHandler(kingController.getKingDashboard));
+router.post('/tournaments/:tournamentId/king/start-phase-1', asyncHandler(kingController.startPhase1));
+router.post('/tournaments/:tournamentId/king/start-phase-2', asyncHandler(kingController.startPhase2));
+router.post('/tournaments/:tournamentId/king/start-phase-3', asyncHandler(kingController.startPhase3));
+router.post('/tournaments/:tournamentId/king/matches/:matchId/record-result', asyncHandler(kingController.recordMatchResult));
+router.post('/tournaments/:tournamentId/king/reset-phase-1', asyncHandler(kingController.resetPhase1));
+router.post('/tournaments/:tournamentId/king/reset-phase-2', asyncHandler(kingController.resetPhase2));
+router.post('/tournaments/:tournamentId/king/reset-phase-3', asyncHandler(kingController.resetPhase3));
 
 export default router;
