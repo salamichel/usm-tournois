@@ -26,18 +26,38 @@ const TournamentBracket: React.FC<TournamentBracketProps> = ({ matches }) => {
     groupedMatches[match.round].push(match);
   });
 
-  // Define round order
-  const roundOrder = [
-    'Tours Préliminaires',
-    'Huitièmes de Finale',
-    'Quarts de Finale',
-    'Demi-Finales',
-    'Petite Finale',
-    'Finale',
-  ];
+  // Define round order - including common variations
+  const roundOrderMap: Record<string, number> = {
+    'Tours Préliminaires': 1,
+    'Preliminary Round': 1,
+    'Huitièmes de Finale': 2,
+    'Huitièmes de finale': 2,
+    'Round of 16': 2,
+    'Quarts de Finale': 3,
+    'Quarts de finale': 3,
+    'Quarterfinals': 3,
+    'Quarter-finals': 3,
+    'Demi-Finales': 4,
+    'Demi-finales': 4,
+    'Semifinals': 4,
+    'Semi-finals': 4,
+    'Petite Finale': 5,
+    'Petite finale': 5,
+    'Third Place': 5,
+    'Finale': 6,
+    'Final': 6,
+  };
 
-  // Filter rounds that exist in the matches
-  const existingRounds = roundOrder.filter((round) => groupedMatches[round]);
+  // Get all existing rounds and sort them
+  const existingRounds = Object.keys(groupedMatches).sort((a, b) => {
+    const orderA = roundOrderMap[a] || 999;
+    const orderB = roundOrderMap[b] || 999;
+    if (orderA !== orderB) {
+      return orderA - orderB;
+    }
+    // If not in map, sort alphabetically
+    return a.localeCompare(b);
+  });
 
   // Calculate winner from sets
   const getWinner = (match: Match): string | null => {
