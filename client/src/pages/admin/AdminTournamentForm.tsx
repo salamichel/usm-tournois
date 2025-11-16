@@ -58,7 +58,11 @@ const AdminTournamentForm = () => {
     try {
       setLoadingData(true);
       const response = await adminService.getTournamentById(id!);
-      const tournament = response.tournament;
+      const tournament = response.data?.tournament;
+
+      if (!tournament) {
+        throw new Error('Tournoi non trouvé');
+      }
 
       setFormData({
         name: tournament.name || '',
