@@ -40,15 +40,181 @@ export const getAllTournaments = async (req: Request, res: Response) => {
 };
 
 export const createTournament = async (req: Request, res: Response) => {
-  res.json({ success: true, message: 'Create tournament - TODO' });
+  try {
+    const {
+      name,
+      description,
+      date,
+      location,
+      maxTeams,
+      playersPerTeam,
+      minPlayersPerTeam,
+      setsPerMatchPool,
+      pointsPerSetPool,
+      tieBreakEnabledPools,
+      matchFormat,
+      eliminationPhaseEnabled,
+      setsPerMatchElimination,
+      pointsPerSetElimination,
+      tieBreakEnabledElimination,
+      teamsQualifiedPerPool,
+      maxTeamsPerPool,
+      registrationStartDateTime,
+      registrationEndDateTime,
+      isActive,
+      waitingListEnabled,
+      waitingListSize,
+      whatsappGroupLink,
+    } = req.body;
+
+    // Validate required fields
+    if (!name || name.trim() === '') {
+      throw new AppError('Tournament name is required', 400);
+    }
+
+    const tournamentData: any = {
+      name: name.trim(),
+      description: description?.trim() || '',
+      date: date ? new Date(date) : new Date(),
+      location: location?.trim() || '',
+      maxTeams: maxTeams ? parseInt(maxTeams) : 8,
+      playersPerTeam: playersPerTeam ? parseInt(playersPerTeam) : 2,
+      minPlayersPerTeam: minPlayersPerTeam ? parseInt(minPlayersPerTeam) : 2,
+      setsPerMatchPool: setsPerMatchPool ? parseInt(setsPerMatchPool) : 1,
+      pointsPerSetPool: pointsPerSetPool ? parseInt(pointsPerSetPool) : 21,
+      tieBreakEnabledPools: tieBreakEnabledPools === true || tieBreakEnabledPools === 'true' || false,
+      matchFormat: matchFormat || 'aller',
+      eliminationPhaseEnabled: eliminationPhaseEnabled === true || eliminationPhaseEnabled === 'true' || false,
+      setsPerMatchElimination: setsPerMatchElimination ? parseInt(setsPerMatchElimination) : 3,
+      pointsPerSetElimination: pointsPerSetElimination ? parseInt(pointsPerSetElimination) : 21,
+      tieBreakEnabledElimination: tieBreakEnabledElimination === true || tieBreakEnabledElimination === 'true' || false,
+      teamsQualifiedPerPool: teamsQualifiedPerPool ? parseInt(teamsQualifiedPerPool) : 2,
+      maxTeamsPerPool: maxTeamsPerPool ? parseInt(maxTeamsPerPool) : 4,
+      registrationStartDateTime: registrationStartDateTime ? new Date(registrationStartDateTime) : new Date(),
+      registrationEndDateTime: registrationEndDateTime ? new Date(registrationEndDateTime) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      isActive: isActive === true || isActive === 'true' || false,
+      waitingListEnabled: waitingListEnabled === true || waitingListEnabled === 'true' || false,
+      waitingListSize: waitingListSize ? parseInt(waitingListSize) : 0,
+      whatsappGroupLink: whatsappGroupLink?.trim() || '',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const tournamentRef = await adminDb.collection('events').add(tournamentData);
+
+    res.json({
+      success: true,
+      message: 'Tournament created successfully',
+      data: { id: tournamentRef.id },
+    });
+  } catch (error: any) {
+    console.error('Error creating tournament:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error creating tournament', 500);
+  }
 };
 
 export const getTournamentById = async (req: Request, res: Response) => {
-  res.json({ success: true, message: 'Get tournament by ID - TODO' });
+  try {
+    const { id } = req.params;
+
+    const tournamentDoc = await adminDb.collection('events').doc(id).get();
+
+    if (!tournamentDoc.exists) {
+      throw new AppError('Tournament not found', 404);
+    }
+
+    const tournament = convertTimestamps({
+      id: tournamentDoc.id,
+      ...tournamentDoc.data(),
+    });
+
+    res.json({
+      success: true,
+      data: { tournament },
+    });
+  } catch (error: any) {
+    console.error('Error getting tournament by ID:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error retrieving tournament', 500);
+  }
 };
 
 export const updateTournament = async (req: Request, res: Response) => {
-  res.json({ success: true, message: 'Update tournament - TODO' });
+  try {
+    const { id } = req.params;
+    const {
+      name,
+      description,
+      date,
+      location,
+      maxTeams,
+      playersPerTeam,
+      minPlayersPerTeam,
+      setsPerMatchPool,
+      pointsPerSetPool,
+      tieBreakEnabledPools,
+      matchFormat,
+      eliminationPhaseEnabled,
+      setsPerMatchElimination,
+      pointsPerSetElimination,
+      tieBreakEnabledElimination,
+      teamsQualifiedPerPool,
+      maxTeamsPerPool,
+      registrationStartDateTime,
+      registrationEndDateTime,
+      isActive,
+      waitingListEnabled,
+      waitingListSize,
+      whatsappGroupLink,
+    } = req.body;
+
+    const tournamentDoc = await adminDb.collection('events').doc(id).get();
+
+    if (!tournamentDoc.exists) {
+      throw new AppError('Tournament not found', 404);
+    }
+
+    const updateData: any = {
+      updatedAt: new Date(),
+    };
+
+    // Only add defined values to avoid Firestore undefined errors
+    if (name !== undefined && name !== null) updateData.name = name.trim();
+    if (description !== undefined && description !== null) updateData.description = description.trim();
+    if (date !== undefined && date !== null) updateData.date = new Date(date);
+    if (location !== undefined && location !== null) updateData.location = location.trim();
+    if (maxTeams !== undefined && maxTeams !== null) updateData.maxTeams = parseInt(maxTeams);
+    if (playersPerTeam !== undefined && playersPerTeam !== null) updateData.playersPerTeam = parseInt(playersPerTeam);
+    if (minPlayersPerTeam !== undefined && minPlayersPerTeam !== null) updateData.minPlayersPerTeam = parseInt(minPlayersPerTeam);
+    if (setsPerMatchPool !== undefined && setsPerMatchPool !== null) updateData.setsPerMatchPool = parseInt(setsPerMatchPool);
+    if (pointsPerSetPool !== undefined && pointsPerSetPool !== null) updateData.pointsPerSetPool = parseInt(pointsPerSetPool);
+    if (tieBreakEnabledPools !== undefined && tieBreakEnabledPools !== null) updateData.tieBreakEnabledPools = tieBreakEnabledPools === true || tieBreakEnabledPools === 'true';
+    if (matchFormat !== undefined && matchFormat !== null) updateData.matchFormat = matchFormat;
+    if (eliminationPhaseEnabled !== undefined && eliminationPhaseEnabled !== null) updateData.eliminationPhaseEnabled = eliminationPhaseEnabled === true || eliminationPhaseEnabled === 'true';
+    if (setsPerMatchElimination !== undefined && setsPerMatchElimination !== null) updateData.setsPerMatchElimination = parseInt(setsPerMatchElimination);
+    if (pointsPerSetElimination !== undefined && pointsPerSetElimination !== null) updateData.pointsPerSetElimination = parseInt(pointsPerSetElimination);
+    if (tieBreakEnabledElimination !== undefined && tieBreakEnabledElimination !== null) updateData.tieBreakEnabledElimination = tieBreakEnabledElimination === true || tieBreakEnabledElimination === 'true';
+    if (teamsQualifiedPerPool !== undefined && teamsQualifiedPerPool !== null) updateData.teamsQualifiedPerPool = parseInt(teamsQualifiedPerPool);
+    if (maxTeamsPerPool !== undefined && maxTeamsPerPool !== null) updateData.maxTeamsPerPool = parseInt(maxTeamsPerPool);
+    if (registrationStartDateTime !== undefined && registrationStartDateTime !== null) updateData.registrationStartDateTime = new Date(registrationStartDateTime);
+    if (registrationEndDateTime !== undefined && registrationEndDateTime !== null) updateData.registrationEndDateTime = new Date(registrationEndDateTime);
+    if (isActive !== undefined && isActive !== null) updateData.isActive = isActive === true || isActive === 'true';
+    if (waitingListEnabled !== undefined && waitingListEnabled !== null) updateData.waitingListEnabled = waitingListEnabled === true || waitingListEnabled === 'true';
+    if (waitingListSize !== undefined && waitingListSize !== null) updateData.waitingListSize = parseInt(waitingListSize);
+    if (whatsappGroupLink !== undefined && whatsappGroupLink !== null) updateData.whatsappGroupLink = whatsappGroupLink.trim();
+
+    await adminDb.collection('events').doc(id).update(updateData);
+
+    res.json({
+      success: true,
+      message: 'Tournament updated successfully',
+    });
+  } catch (error: any) {
+    console.error('Error updating tournament:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error updating tournament', 500);
+  }
 };
 
 export const deleteTournament = async (req: Request, res: Response) => {
@@ -138,47 +304,764 @@ export const cloneTournament = async (req: Request, res: Response) => {
 };
 
 export const getPools = async (req: Request, res: Response) => {
-  res.json({ success: true, message: 'Get pools - TODO' });
+  try {
+    const { tournamentId } = req.params;
+
+    const poolsSnapshot = await adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('pools')
+      .get();
+
+    const pools = await Promise.all(
+      poolsSnapshot.docs.map(async (poolDoc) => {
+        const poolData = poolDoc.data();
+
+        // Get matches for this pool
+        const matchesSnapshot = await adminDb
+          .collection('events')
+          .doc(tournamentId)
+          .collection('pools')
+          .doc(poolDoc.id)
+          .collection('matches')
+          .orderBy('matchNumber')
+          .get();
+
+        const matches = matchesSnapshot.docs.map((matchDoc) =>
+          convertTimestamps({
+            id: matchDoc.id,
+            ...matchDoc.data(),
+          })
+        );
+
+        return convertTimestamps({
+          id: poolDoc.id,
+          ...poolData,
+          matches,
+        });
+      })
+    );
+
+    res.json({
+      success: true,
+      data: { pools },
+    });
+  } catch (error) {
+    console.error('Error getting pools:', error);
+    throw new AppError('Error retrieving pools', 500);
+  }
 };
 
 export const createPool = async (req: Request, res: Response) => {
-  res.json({ success: true, message: 'Create pool - TODO' });
+  try {
+    const { tournamentId } = req.params;
+    const { name } = req.body;
+
+    if (!name) {
+      throw new AppError('Pool name is required', 400);
+    }
+
+    const poolData = {
+      name,
+      teams: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const poolRef = await adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('pools')
+      .add(poolData);
+
+    res.json({
+      success: true,
+      message: 'Pool created successfully',
+      data: { id: poolRef.id },
+    });
+  } catch (error: any) {
+    console.error('Error creating pool:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error creating pool', 500);
+  }
 };
 
 export const assignTeamsToPool = async (req: Request, res: Response) => {
-  res.json({ success: true, message: 'Assign teams to pool - TODO' });
+  try {
+    const { tournamentId, poolId } = req.params;
+    const { teamIds } = req.body;
+
+    if (!Array.isArray(teamIds)) {
+      throw new AppError('teamIds must be an array', 400);
+    }
+
+    // Get tournament to check maxTeamsPerPool
+    const tournamentDoc = await adminDb.collection('events').doc(tournamentId).get();
+    if (!tournamentDoc.exists) {
+      throw new AppError('Tournament not found', 404);
+    }
+
+    const tournament = tournamentDoc.data();
+    const maxTeamsPerPool = tournament?.maxTeamsPerPool || 4;
+
+    if (teamIds.length > maxTeamsPerPool) {
+      throw new AppError(`Cannot assign more than ${maxTeamsPerPool} teams to a pool`, 400);
+    }
+
+    // Get pool
+    const poolRef = adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('pools')
+      .doc(poolId);
+
+    const poolDoc = await poolRef.get();
+    if (!poolDoc.exists) {
+      throw new AppError('Pool not found', 404);
+    }
+
+    // Get team details
+    const teams = [];
+    for (const teamId of teamIds) {
+      const teamDoc = await adminDb
+        .collection('events')
+        .doc(tournamentId)
+        .collection('teams')
+        .doc(teamId)
+        .get();
+
+      if (teamDoc.exists) {
+        teams.push({
+          id: teamDoc.id,
+          name: teamDoc.data()?.name || 'Unknown Team',
+        });
+      }
+    }
+
+    await poolRef.update({
+      teams,
+      updatedAt: new Date(),
+    });
+
+    res.json({
+      success: true,
+      message: 'Teams assigned to pool successfully',
+    });
+  } catch (error: any) {
+    console.error('Error assigning teams to pool:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error assigning teams to pool', 500);
+  }
 };
 
 export const generatePoolMatches = async (req: Request, res: Response) => {
-  res.json({ success: true, message: 'Generate pool matches - TODO' });
+  try {
+    const { tournamentId, poolId } = req.params;
+
+    // Get tournament configuration
+    const tournamentDoc = await adminDb.collection('events').doc(tournamentId).get();
+    if (!tournamentDoc.exists) {
+      throw new AppError('Tournament not found', 404);
+    }
+
+    const tournament = tournamentDoc.data();
+    const setsPerMatchPool = tournament?.setsPerMatchPool || 1;
+    const pointsPerSetPool = tournament?.pointsPerSetPool || 21;
+    const matchFormat = tournament?.matchFormat || 'aller';
+    const tieBreakEnabledPools = tournament?.tieBreakEnabledPools || false;
+
+    // Get pool
+    const poolRef = adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('pools')
+      .doc(poolId);
+
+    const poolDoc = await poolRef.get();
+    if (!poolDoc.exists) {
+      throw new AppError('Pool not found', 404);
+    }
+
+    const poolData = poolDoc.data();
+    const teams = poolData?.teams || [];
+
+    if (teams.length < 2) {
+      throw new AppError('At least 2 teams are required to generate matches', 400);
+    }
+
+    const batch = adminDb.batch();
+    const matchesCollectionRef = poolRef.collection('matches');
+
+    // Delete old matches
+    const oldMatchesSnapshot = await matchesCollectionRef.get();
+    oldMatchesSnapshot.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+
+    // Generate matches
+    let matchNumber = 1;
+    for (let i = 0; i < teams.length; i++) {
+      for (let j = i + 1; j < teams.length; j++) {
+        const team1 = teams[i];
+        const team2 = teams[j];
+
+        const initialSets = Array.from({ length: setsPerMatchPool }, () => ({
+          score1: null,
+          score2: null,
+        }));
+
+        // Match aller
+        batch.set(matchesCollectionRef.doc(), {
+          matchNumber: matchNumber++,
+          team1: { id: team1.id, name: team1.name },
+          team2: { id: team2.id, name: team2.name },
+          sets: initialSets,
+          status: 'scheduled',
+          type: 'pool',
+          setsToWin: setsPerMatchPool,
+          pointsPerSet: pointsPerSetPool,
+          tieBreakEnabled: tieBreakEnabledPools,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+
+        // Match retour (if aller_retour format)
+        if (matchFormat === 'aller_retour') {
+          batch.set(matchesCollectionRef.doc(), {
+            matchNumber: matchNumber++,
+            team1: { id: team2.id, name: team2.name },
+            team2: { id: team1.id, name: team1.name },
+            sets: initialSets,
+            status: 'scheduled',
+            type: 'pool',
+            setsToWin: setsPerMatchPool,
+            pointsPerSet: pointsPerSetPool,
+            tieBreakEnabled: tieBreakEnabledPools,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          });
+        }
+      }
+    }
+
+    await batch.commit();
+
+    res.json({
+      success: true,
+      message: 'Pool matches generated successfully',
+    });
+  } catch (error: any) {
+    console.error('Error generating pool matches:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error generating pool matches', 500);
+  }
 };
 
 export const getEliminationMatches = async (req: Request, res: Response) => {
-  res.json({ success: true, message: 'Get elimination matches - TODO' });
+  try {
+    const { tournamentId } = req.params;
+
+    const eliminationMatchesSnapshot = await adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('eliminationMatches')
+      .orderBy('round')
+      .orderBy('matchNumber')
+      .get();
+
+    const eliminationMatches = eliminationMatchesSnapshot.docs.map((doc) =>
+      convertTimestamps({
+        id: doc.id,
+        ...doc.data(),
+      })
+    );
+
+    res.json({
+      success: true,
+      data: { eliminationMatches },
+    });
+  } catch (error) {
+    console.error('Error getting elimination matches:', error);
+    throw new AppError('Error retrieving elimination matches', 500);
+  }
 };
 
 export const generateEliminationBracket = async (req: Request, res: Response) => {
-  res.json({ success: true, message: 'Generate elimination bracket - TODO' });
+  try {
+    const { tournamentId } = req.params;
+
+    // Get tournament configuration
+    const tournamentDoc = await adminDb.collection('events').doc(tournamentId).get();
+    if (!tournamentDoc.exists) {
+      throw new AppError('Tournament not found', 404);
+    }
+
+    const tournament = tournamentDoc.data();
+
+    if (!tournament?.eliminationPhaseEnabled) {
+      throw new AppError('Elimination phase is not enabled for this tournament', 400);
+    }
+
+    const teamsQualifiedPerPool = tournament.teamsQualifiedPerPool || 2;
+
+    // Get all pools and their rankings
+    const poolsSnapshot = await adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('pools')
+      .get();
+
+    const qualifiedTeams: any[] = [];
+
+    for (const poolDoc of poolsSnapshot.docs) {
+      const poolData = poolDoc.data();
+      const poolTeams = poolData.teams || [];
+
+      // Get matches for ranking calculation
+      const matchesSnapshot = await adminDb
+        .collection('events')
+        .doc(tournamentId)
+        .collection('pools')
+        .doc(poolDoc.id)
+        .collection('matches')
+        .get();
+
+      const matches = matchesSnapshot.docs.map((doc) => doc.data());
+
+      // Simple ranking calculation (you may want to use a service for this)
+      const teamStats: any = {};
+      poolTeams.forEach((team: any) => {
+        teamStats[team.id] = {
+          id: team.id,
+          name: team.name,
+          poolName: poolData.name,
+          wins: 0,
+          points: 0,
+          setsWon: 0,
+          setsLost: 0,
+        };
+      });
+
+      matches.forEach((match: any) => {
+        if (match.status === 'completed') {
+          const team1Id = match.team1?.id;
+          const team2Id = match.team2?.id;
+          const setsWonTeam1 = match.setsWonTeam1 || 0;
+          const setsWonTeam2 = match.setsWonTeam2 || 0;
+
+          if (team1Id && teamStats[team1Id]) {
+            teamStats[team1Id].setsWon += setsWonTeam1;
+            teamStats[team1Id].setsLost += setsWonTeam2;
+            if (setsWonTeam1 > setsWonTeam2) {
+              teamStats[team1Id].wins++;
+              teamStats[team1Id].points += 3;
+            }
+          }
+
+          if (team2Id && teamStats[team2Id]) {
+            teamStats[team2Id].setsWon += setsWonTeam2;
+            teamStats[team2Id].setsLost += setsWonTeam1;
+            if (setsWonTeam2 > setsWonTeam1) {
+              teamStats[team2Id].wins++;
+              teamStats[team2Id].points += 3;
+            }
+          }
+        }
+      });
+
+      // Sort teams by ranking
+      const rankedTeams = Object.values(teamStats).sort((a: any, b: any) => {
+        if (b.points !== a.points) return b.points - a.points;
+        if (b.setsWon !== a.setsWon) return b.setsWon - a.setsWon;
+        return a.setsLost - b.setsLost;
+      });
+
+      // Take top teams
+      const topTeams = rankedTeams.slice(0, teamsQualifiedPerPool);
+      qualifiedTeams.push(...topTeams);
+    }
+
+    if (qualifiedTeams.length < 2) {
+      throw new AppError('At least 2 qualified teams are required to generate elimination bracket', 400);
+    }
+
+    // Sort all qualified teams
+    qualifiedTeams.sort((a, b) => {
+      if (b.points !== a.points) return b.points - a.points;
+      if (b.setsWon !== a.setsWon) return b.setsWon - a.setsWon;
+      return a.setsLost - b.setsLost;
+    });
+
+    // Generate bracket structure (simplified version)
+    const batch = adminDb.batch();
+    const eliminationMatchesRef = adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('eliminationMatches');
+
+    // Delete old elimination matches
+    const oldMatchesSnapshot = await eliminationMatchesRef.get();
+    oldMatchesSnapshot.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+
+    const setsPerMatchElimination = tournament.setsPerMatchElimination || 3;
+    const pointsPerSetElimination = tournament.pointsPerSetElimination || 21;
+    const tieBreakEnabledElimination = tournament.tieBreakEnabledElimination || false;
+
+    // Create matches based on number of teams (simplified for common cases)
+    const numTeams = qualifiedTeams.length;
+    let matchNumber = 1;
+
+    if (numTeams === 2) {
+      // Direct final
+      const matchData = {
+        matchNumber: matchNumber++,
+        round: 'Finale',
+        team1: { id: qualifiedTeams[0].id, name: qualifiedTeams[0].name },
+        team2: { id: qualifiedTeams[1].id, name: qualifiedTeams[1].name },
+        sets: Array.from({ length: setsPerMatchElimination }, () => ({ score1: null, score2: null })),
+        status: 'scheduled',
+        type: 'elimination',
+        setsToWin: setsPerMatchElimination,
+        pointsPerSet: pointsPerSetElimination,
+        tieBreakEnabled: tieBreakEnabledElimination,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      batch.set(eliminationMatchesRef.doc(), matchData);
+    } else if (numTeams === 4) {
+      // Semi-finals
+      for (let i = 0; i < 2; i++) {
+        const matchData = {
+          matchNumber: matchNumber++,
+          round: 'Demi-finale',
+          team1: { id: qualifiedTeams[i * 2].id, name: qualifiedTeams[i * 2].name },
+          team2: { id: qualifiedTeams[i * 2 + 1].id, name: qualifiedTeams[i * 2 + 1].name },
+          sets: Array.from({ length: setsPerMatchElimination }, () => ({ score1: null, score2: null })),
+          status: 'scheduled',
+          type: 'elimination',
+          setsToWin: setsPerMatchElimination,
+          pointsPerSet: pointsPerSetElimination,
+          tieBreakEnabled: tieBreakEnabledElimination,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        batch.set(eliminationMatchesRef.doc(), matchData);
+      }
+
+      // 3rd place match and final (to be determined from semi-finals)
+      const m3pMatchData = {
+        matchNumber: matchNumber++,
+        round: 'Match 3ème place',
+        team1: { name: 'À déterminer' },
+        team2: { name: 'À déterminer' },
+        sets: Array.from({ length: setsPerMatchElimination }, () => ({ score1: null, score2: null })),
+        status: 'scheduled',
+        type: 'elimination',
+        setsToWin: setsPerMatchElimination,
+        pointsPerSet: pointsPerSetElimination,
+        tieBreakEnabled: tieBreakEnabledElimination,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      batch.set(eliminationMatchesRef.doc(), m3pMatchData);
+
+      const finalMatchData = {
+        matchNumber: matchNumber++,
+        round: 'Finale',
+        team1: { name: 'À déterminer' },
+        team2: { name: 'À déterminer' },
+        sets: Array.from({ length: setsPerMatchElimination }, () => ({ score1: null, score2: null })),
+        status: 'scheduled',
+        type: 'elimination',
+        setsToWin: setsPerMatchElimination,
+        pointsPerSet: pointsPerSetElimination,
+        tieBreakEnabled: tieBreakEnabledElimination,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      batch.set(eliminationMatchesRef.doc(), finalMatchData);
+    } else if (numTeams === 8) {
+      // Quarter-finals
+      for (let i = 0; i < 4; i++) {
+        const matchData = {
+          matchNumber: matchNumber++,
+          round: 'Quart de finale',
+          team1: { id: qualifiedTeams[i * 2].id, name: qualifiedTeams[i * 2].name },
+          team2: { id: qualifiedTeams[i * 2 + 1].id, name: qualifiedTeams[i * 2 + 1].name },
+          sets: Array.from({ length: setsPerMatchElimination }, () => ({ score1: null, score2: null })),
+          status: 'scheduled',
+          type: 'elimination',
+          setsToWin: setsPerMatchElimination,
+          pointsPerSet: pointsPerSetElimination,
+          tieBreakEnabled: tieBreakEnabledElimination,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        batch.set(eliminationMatchesRef.doc(), matchData);
+      }
+
+      // Semi-finals, 3rd place, and final (to be determined)
+      for (let i = 0; i < 2; i++) {
+        const matchData = {
+          matchNumber: matchNumber++,
+          round: 'Demi-finale',
+          team1: { name: 'À déterminer' },
+          team2: { name: 'À déterminer' },
+          sets: Array.from({ length: setsPerMatchElimination }, () => ({ score1: null, score2: null })),
+          status: 'scheduled',
+          type: 'elimination',
+          setsToWin: setsPerMatchElimination,
+          pointsPerSet: pointsPerSetElimination,
+          tieBreakEnabled: tieBreakEnabledElimination,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        batch.set(eliminationMatchesRef.doc(), matchData);
+      }
+
+      const m3pMatchData = {
+        matchNumber: matchNumber++,
+        round: 'Match 3ème place',
+        team1: { name: 'À déterminer' },
+        team2: { name: 'À déterminer' },
+        sets: Array.from({ length: setsPerMatchElimination }, () => ({ score1: null, score2: null })),
+        status: 'scheduled',
+        type: 'elimination',
+        setsToWin: setsPerMatchElimination,
+        pointsPerSet: pointsPerSetElimination,
+        tieBreakEnabled: tieBreakEnabledElimination,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      batch.set(eliminationMatchesRef.doc(), m3pMatchData);
+
+      const finalMatchData = {
+        matchNumber: matchNumber++,
+        round: 'Finale',
+        team1: { name: 'À déterminer' },
+        team2: { name: 'À déterminer' },
+        sets: Array.from({ length: setsPerMatchElimination }, () => ({ score1: null, score2: null })),
+        status: 'scheduled',
+        type: 'elimination',
+        setsToWin: setsPerMatchElimination,
+        pointsPerSet: pointsPerSetElimination,
+        tieBreakEnabled: tieBreakEnabledElimination,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      batch.set(eliminationMatchesRef.doc(), finalMatchData);
+    }
+
+    await batch.commit();
+
+    res.json({
+      success: true,
+      message: 'Elimination bracket generated successfully',
+    });
+  } catch (error: any) {
+    console.error('Error generating elimination bracket:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error generating elimination bracket', 500);
+  }
 };
 
 export const freezeRanking = async (req: Request, res: Response) => {
-  res.json({ success: true, message: 'Freeze ranking - TODO' });
+  try {
+    const { tournamentId } = req.params;
+    const { finalRanking } = req.body;
+
+    if (!finalRanking || !Array.isArray(finalRanking)) {
+      throw new AppError('Invalid final ranking data', 400);
+    }
+
+    const batch = adminDb.batch();
+    const finalRankingCollectionRef = adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('finalRanking');
+
+    // Delete old ranking
+    const existingRankingSnapshot = await finalRankingCollectionRef.get();
+    existingRankingSnapshot.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+
+    // Add new ranking
+    finalRanking.forEach((teamEntry: any, index: number) => {
+      const teamName = teamEntry[0];
+      const stats = teamEntry[1];
+
+      const rankData = {
+        rank: index + 1,
+        teamName,
+        teamData: stats.team || {},
+        matchesPlayed: stats.matchesPlayed || 0,
+        wins: stats.wins || 0,
+        losses: stats.losses || 0,
+        setsWon: stats.setsWon || 0,
+        setsLost: stats.setsLost || 0,
+        pointsScored: stats.pointsScored || 0,
+        pointsConceded: stats.pointsConceded || 0,
+        pointsRatio:
+          stats.pointsConceded > 0
+            ? (stats.pointsScored / stats.pointsConceded).toFixed(2)
+            : stats.pointsScored > 0
+            ? 'Inf.'
+            : '0.00',
+        bonusPoints: stats.bonusPoints || 0,
+        points: stats.points || 0,
+        frozenAt: new Date(),
+      };
+
+      batch.set(finalRankingCollectionRef.doc(), rankData);
+    });
+
+    await batch.commit();
+
+    res.json({
+      success: true,
+      message: 'Final ranking frozen successfully',
+    });
+  } catch (error: any) {
+    console.error('Error freezing ranking:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error freezing ranking', 500);
+  }
 };
 
 export const getTeams = async (req: Request, res: Response) => {
-  res.json({ success: true, message: 'Get teams - TODO' });
+  try {
+    const { tournamentId } = req.params;
+
+    const teamsSnapshot = await adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('teams')
+      .get();
+
+    const teams = teamsSnapshot.docs.map((doc) =>
+      convertTimestamps({
+        id: doc.id,
+        ...doc.data(),
+      })
+    );
+
+    res.json({
+      success: true,
+      data: { teams },
+    });
+  } catch (error) {
+    console.error('Error getting teams:', error);
+    throw new AppError('Error retrieving teams', 500);
+  }
 };
 
 export const createTeam = async (req: Request, res: Response) => {
-  res.json({ success: true, message: 'Create team - TODO' });
+  try {
+    const { tournamentId } = req.params;
+    const { name, captainId, members } = req.body;
+
+    if (!name) {
+      throw new AppError('Team name is required', 400);
+    }
+
+    if (!captainId) {
+      throw new AppError('Captain ID is required', 400);
+    }
+
+    const teamData: any = {
+      name,
+      captainId,
+      members: members || [],
+      recruitmentOpen: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const teamRef = await adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('teams')
+      .add(teamData);
+
+    res.json({
+      success: true,
+      message: 'Team created successfully',
+      data: { id: teamRef.id },
+    });
+  } catch (error: any) {
+    console.error('Error creating team:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error creating team', 500);
+  }
 };
 
 export const updateTeam = async (req: Request, res: Response) => {
-  res.json({ success: true, message: 'Update team - TODO' });
+  try {
+    const { tournamentId, teamId } = req.params;
+    const { name, captainId, members, recruitmentOpen } = req.body;
+
+    const teamRef = adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('teams')
+      .doc(teamId);
+
+    const teamDoc = await teamRef.get();
+    if (!teamDoc.exists) {
+      throw new AppError('Team not found', 404);
+    }
+
+    const updateData: any = {
+      updatedAt: new Date(),
+    };
+
+    if (name !== undefined && name !== null) updateData.name = name;
+    if (captainId !== undefined && captainId !== null) updateData.captainId = captainId;
+    if (members !== undefined && members !== null) updateData.members = members;
+    if (recruitmentOpen !== undefined && recruitmentOpen !== null) updateData.recruitmentOpen = recruitmentOpen === true || recruitmentOpen === 'true';
+
+    await teamRef.update(updateData);
+
+    res.json({
+      success: true,
+      message: 'Team updated successfully',
+    });
+  } catch (error: any) {
+    console.error('Error updating team:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error updating team', 500);
+  }
 };
 
 export const deleteTeam = async (req: Request, res: Response) => {
-  res.json({ success: true, message: 'Delete team - TODO' });
+  try {
+    const { tournamentId, teamId } = req.params;
+
+    const teamRef = adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('teams')
+      .doc(teamId);
+
+    const teamDoc = await teamRef.get();
+    if (!teamDoc.exists) {
+      throw new AppError('Team not found', 404);
+    }
+
+    await teamRef.delete();
+
+    res.json({
+      success: true,
+      message: 'Team deleted successfully',
+    });
+  } catch (error: any) {
+    console.error('Error deleting team:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error deleting team', 500);
+  }
 };
 
 /**
@@ -204,15 +1087,96 @@ export const getAllUsers = async (req: Request, res: Response) => {
 };
 
 export const createUser = async (req: Request, res: Response) => {
-  res.json({ success: true, message: 'Create user - TODO' });
+  try {
+    const { email, pseudo, level, role } = req.body;
+
+    if (!email) {
+      throw new AppError('Email is required', 400);
+    }
+
+    if (!pseudo) {
+      throw new AppError('Pseudo is required', 400);
+    }
+
+    const userData: any = {
+      email,
+      pseudo,
+      level: level || 'Débutant',
+      role: role || 'user',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const userRef = await adminDb.collection('users').add(userData);
+
+    res.json({
+      success: true,
+      message: 'User created successfully',
+      data: { id: userRef.id },
+    });
+  } catch (error: any) {
+    console.error('Error creating user:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error creating user', 500);
+  }
 };
 
 export const getUserById = async (req: Request, res: Response) => {
-  res.json({ success: true, message: 'Get user by ID - TODO' });
+  try {
+    const { id } = req.params;
+
+    const userDoc = await adminDb.collection('users').doc(id).get();
+
+    if (!userDoc.exists) {
+      throw new AppError('User not found', 404);
+    }
+
+    const user = convertTimestamps({
+      id: userDoc.id,
+      ...userDoc.data(),
+    });
+
+    res.json({
+      success: true,
+      data: { user },
+    });
+  } catch (error: any) {
+    console.error('Error getting user by ID:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error retrieving user', 500);
+  }
 };
 
 export const updateUser = async (req: Request, res: Response) => {
-  res.json({ success: true, message: 'Update user - TODO' });
+  try {
+    const { id } = req.params;
+    const { email, pseudo, level, role } = req.body;
+
+    const userDoc = await adminDb.collection('users').doc(id).get();
+    if (!userDoc.exists) {
+      throw new AppError('User not found', 404);
+    }
+
+    const updateData: any = {
+      updatedAt: new Date(),
+    };
+
+    if (email !== undefined && email !== null) updateData.email = email;
+    if (pseudo !== undefined && pseudo !== null) updateData.pseudo = pseudo;
+    if (level !== undefined && level !== null) updateData.level = level;
+    if (role !== undefined && role !== null) updateData.role = role;
+
+    await adminDb.collection('users').doc(id).update(updateData);
+
+    res.json({
+      success: true,
+      message: 'User updated successfully',
+    });
+  } catch (error: any) {
+    console.error('Error updating user:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error updating user', 500);
+  }
 };
 
 export const deleteUser = async (req: Request, res: Response) => {
@@ -247,11 +1211,58 @@ export const deleteUser = async (req: Request, res: Response) => {
 };
 
 export const getUnassignedPlayers = async (req: Request, res: Response) => {
-  res.json({ success: true, message: 'Get unassigned players - TODO' });
+  try {
+    const { tournamentId } = req.params;
+
+    const unassignedPlayersSnapshot = await adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('unassignedPlayers')
+      .get();
+
+    const unassignedPlayers = unassignedPlayersSnapshot.docs.map((doc) =>
+      convertTimestamps({
+        id: doc.id,
+        ...doc.data(),
+      })
+    );
+
+    res.json({
+      success: true,
+      data: { unassignedPlayers },
+    });
+  } catch (error) {
+    console.error('Error getting unassigned players:', error);
+    throw new AppError('Error retrieving unassigned players', 500);
+  }
 };
 
 export const removeUnassignedPlayer = async (req: Request, res: Response) => {
-  res.json({ success: true, message: 'Remove unassigned player - TODO' });
+  try {
+    const { tournamentId, playerId } = req.params;
+
+    const playerRef = adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('unassignedPlayers')
+      .doc(playerId);
+
+    const playerDoc = await playerRef.get();
+    if (!playerDoc.exists) {
+      throw new AppError('Unassigned player not found', 404);
+    }
+
+    await playerRef.delete();
+
+    res.json({
+      success: true,
+      message: 'Unassigned player removed successfully',
+    });
+  } catch (error: any) {
+    console.error('Error removing unassigned player:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error removing unassigned player', 500);
+  }
 };
 
 /**
