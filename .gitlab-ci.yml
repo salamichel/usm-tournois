@@ -1,0 +1,269 @@
+# GitLab CI/CD Pipeline for USM Tournois
+# Application de gestion de tournois avec React (client) et Node.js/Express (serveur)
+
+# Définition des stages du pipeline
+stages:
+  - test
+  - build
+  - docker
+  - deploy
+
+# Variables globales
+variables:
+  # Docker
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: "/certs"
+  # Images Docker (à adapter selon votre registry)
+  CLIENT_IMAGE: $CI_REGISTRY_IMAGE/client
+  SERVER_IMAGE: $CI_REGISTRY_IMAGE/server
+  # Node.js
+  NODE_VERSION: "18"
+  NPM_CONFIG_CACHE: "$CI_PROJECT_DIR/.npm"
+
+# Cache pour accélérer les builds
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - .npm/
+    - client/node_modules/
+    - server/node_modules/
+
+# ============================================
+# STAGE: TEST
+# ============================================
+
+# Client: Lint (vérification du code)
+client:lint:
+  stage: test
+  image: node:${NODE_VERSION}-alpine
+  before_script:
+    - cd client
+    - npm ci --cache .npm --prefer-offline
+  script:
+    - npm run lint
+  only:
+    - merge_requests
+    - main
+    - develop
+  cache:
+    key: client-${CI_COMMIT_REF_SLUG}
+    paths:
+      - client/node_modules/
+      - .npm/
+
+# Client: Type checking (TypeScript)
+client:type-check:
+  stage: test
+  image: node:${NODE_VERSION}-alpine
+  before_script:
+    - cd client
+    - npm ci --cache .npm --prefer-offline
+  script:
+    - npm run type-check
+  only:
+    - merge_requests
+    - main
+    - develop
+  cache:
+    key: client-${CI_COMMIT_REF_SLUG}
+    paths:
+      - client/node_modules/
+      - .npm/
+
+# Serveur: Tests (si présents)
+server:test:
+  stage: test
+  image: node:${NODE_VERSION}-alpine
+  before_script:
+    - cd server
+    - npm ci --cache .npm --prefer-offline
+  script:
+    - echo "Running server tests..."
+    # Décommenter si vous avez des tests
+    # - npm test
+    - echo "No tests configured yet"
+  only:
+    - merge_requests
+    - main
+    - develop
+  cache:
+    key: server-${CI_COMMIT_REF_SLUG}
+    paths:
+      - server/node_modules/
+      - .npm/
+
+# ============================================
+# STAGE: BUILD
+# ============================================
+
+# Client: Build de production
+client:build:
+  stage: build
+  image: node:${NODE_VERSION}-alpine
+  before_script:
+    - cd client
+    - npm ci --cache .npm --prefer-offline
+  script:
+    - npm run build
+  artifacts:
+    paths:
+      - client/dist/
+    expire_in: 1 hour
+  only:
+    - main
+    - develop
+    - tags
+  cache:
+    key: client-${CI_COMMIT_REF_SLUG}
+    paths:
+      - client/node_modules/
+      - .npm/
+
+# Serveur: Validation des dépendances
+server:build:
+  stage: build
+  image: node:${NODE_VERSION}-alpine
+  before_script:
+    - cd server
+    - npm ci --cache .npm --prefer-offline
+  script:
+    - echo "Server dependencies installed successfully"
+    - node --version
+    - npm --version
+  only:
+    - main
+    - develop
+    - tags
+  cache:
+    key: server-${CI_COMMIT_REF_SLUG}
+    paths:
+      - server/node_modules/
+      - .npm/
+
+# ============================================
+# STAGE: DOCKER
+# ============================================
+
+# Build de l'image Docker du client
+docker:client:
+  stage: docker
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - cd client
+    - docker build -t $CLIENT_IMAGE:$CI_COMMIT_SHA -t $CLIENT_IMAGE:latest .
+    - docker push $CLIENT_IMAGE:$CI_COMMIT_SHA
+    - docker push $CLIENT_IMAGE:latest
+  only:
+    - main
+    - develop
+    - tags
+  dependencies:
+    - client:build
+
+# Build de l'image Docker du serveur
+docker:server:
+  stage: docker
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - cd server
+    - docker build -t $SERVER_IMAGE:$CI_COMMIT_SHA -t $SERVER_IMAGE:latest .
+    - docker push $SERVER_IMAGE:$CI_COMMIT_SHA
+    - docker push $SERVER_IMAGE:latest
+  only:
+    - main
+    - develop
+    - tags
+  dependencies:
+    - server:build
+
+# ============================================
+# STAGE: DEPLOY
+# ============================================
+
+# Déploiement en staging (automatique sur develop)
+deploy:staging:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache openssh-client
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - ssh-keyscan $STAGING_SERVER >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+  script:
+    - echo "Deploying to staging environment..."
+    - |
+      ssh $STAGING_USER@$STAGING_SERVER << 'EOF'
+        cd /path/to/staging/usm-tournois
+        git pull origin develop
+        docker-compose pull
+        docker-compose up -d --build
+        docker-compose logs --tail=50
+      EOF
+    - echo "Staging deployment completed!"
+  environment:
+    name: staging
+    url: https://staging.usm-tournois.example.com
+  only:
+    - develop
+  when: manual
+
+# Déploiement en production (manuel sur main ou tags)
+deploy:production:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache openssh-client
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - ssh-keyscan $PROD_SERVER >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+  script:
+    - echo "Deploying to production environment..."
+    - |
+      ssh $PROD_USER@$PROD_SERVER << 'EOF'
+        cd /path/to/production/usm-tournois
+        git pull origin main
+        docker-compose pull
+        docker-compose up -d --build
+        docker-compose logs --tail=50
+      EOF
+    - echo "Production deployment completed!"
+  environment:
+    name: production
+    url: https://usm-tournois.example.com
+  only:
+    - main
+    - tags
+  when: manual
+
+# ============================================
+# JOB OPTIONNEL: Security Scan
+# ============================================
+
+# Scan de sécurité des dépendances npm
+security:npm-audit:
+  stage: test
+  image: node:${NODE_VERSION}-alpine
+  script:
+    - echo "Scanning client dependencies..."
+    - cd client && npm audit --audit-level=moderate || true
+    - echo "Scanning server dependencies..."
+    - cd ../server && npm audit --audit-level=moderate || true
+  allow_failure: true
+  only:
+    - merge_requests
+    - main
+    - develop
