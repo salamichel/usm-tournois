@@ -67,30 +67,35 @@ export const createTournament = async (req: Request, res: Response) => {
       whatsappGroupLink,
     } = req.body;
 
+    // Validate required fields
+    if (!name || name.trim() === '') {
+      throw new AppError('Tournament name is required', 400);
+    }
+
     const tournamentData: any = {
-      name,
-      description: description || '',
+      name: name.trim(),
+      description: description?.trim() || '',
       date: date ? new Date(date) : new Date(),
-      location: location || '',
-      maxTeams: parseInt(maxTeams) || 8,
-      playersPerTeam: parseInt(playersPerTeam) || 2,
-      minPlayersPerTeam: parseInt(minPlayersPerTeam) || 2,
-      setsPerMatchPool: parseInt(setsPerMatchPool) || 1,
-      pointsPerSetPool: parseInt(pointsPerSetPool) || 21,
-      tieBreakEnabledPools: tieBreakEnabledPools === true || tieBreakEnabledPools === 'true',
+      location: location?.trim() || '',
+      maxTeams: maxTeams ? parseInt(maxTeams) : 8,
+      playersPerTeam: playersPerTeam ? parseInt(playersPerTeam) : 2,
+      minPlayersPerTeam: minPlayersPerTeam ? parseInt(minPlayersPerTeam) : 2,
+      setsPerMatchPool: setsPerMatchPool ? parseInt(setsPerMatchPool) : 1,
+      pointsPerSetPool: pointsPerSetPool ? parseInt(pointsPerSetPool) : 21,
+      tieBreakEnabledPools: tieBreakEnabledPools === true || tieBreakEnabledPools === 'true' || false,
       matchFormat: matchFormat || 'aller',
-      eliminationPhaseEnabled: eliminationPhaseEnabled === true || eliminationPhaseEnabled === 'true',
-      setsPerMatchElimination: parseInt(setsPerMatchElimination) || 3,
-      pointsPerSetElimination: parseInt(pointsPerSetElimination) || 21,
-      tieBreakEnabledElimination: tieBreakEnabledElimination === true || tieBreakEnabledElimination === 'true',
-      teamsQualifiedPerPool: parseInt(teamsQualifiedPerPool) || 2,
-      maxTeamsPerPool: parseInt(maxTeamsPerPool) || 4,
+      eliminationPhaseEnabled: eliminationPhaseEnabled === true || eliminationPhaseEnabled === 'true' || false,
+      setsPerMatchElimination: setsPerMatchElimination ? parseInt(setsPerMatchElimination) : 3,
+      pointsPerSetElimination: pointsPerSetElimination ? parseInt(pointsPerSetElimination) : 21,
+      tieBreakEnabledElimination: tieBreakEnabledElimination === true || tieBreakEnabledElimination === 'true' || false,
+      teamsQualifiedPerPool: teamsQualifiedPerPool ? parseInt(teamsQualifiedPerPool) : 2,
+      maxTeamsPerPool: maxTeamsPerPool ? parseInt(maxTeamsPerPool) : 4,
       registrationStartDateTime: registrationStartDateTime ? new Date(registrationStartDateTime) : new Date(),
       registrationEndDateTime: registrationEndDateTime ? new Date(registrationEndDateTime) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      isActive: isActive === true || isActive === 'true',
-      waitingListEnabled: waitingListEnabled === true || waitingListEnabled === 'true',
-      waitingListSize: parseInt(waitingListSize) || 0,
-      whatsappGroupLink: whatsappGroupLink || '',
+      isActive: isActive === true || isActive === 'true' || false,
+      waitingListEnabled: waitingListEnabled === true || waitingListEnabled === 'true' || false,
+      waitingListSize: waitingListSize ? parseInt(waitingListSize) : 0,
+      whatsappGroupLink: whatsappGroupLink?.trim() || '',
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -102,8 +107,9 @@ export const createTournament = async (req: Request, res: Response) => {
       message: 'Tournament created successfully',
       data: { id: tournamentRef.id },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating tournament:', error);
+    if (error instanceof AppError) throw error;
     throw new AppError('Error creating tournament', 500);
   }
 };
@@ -173,29 +179,30 @@ export const updateTournament = async (req: Request, res: Response) => {
       updatedAt: new Date(),
     };
 
-    if (name !== undefined) updateData.name = name;
-    if (description !== undefined) updateData.description = description;
-    if (date !== undefined) updateData.date = new Date(date);
-    if (location !== undefined) updateData.location = location;
-    if (maxTeams !== undefined) updateData.maxTeams = parseInt(maxTeams);
-    if (playersPerTeam !== undefined) updateData.playersPerTeam = parseInt(playersPerTeam);
-    if (minPlayersPerTeam !== undefined) updateData.minPlayersPerTeam = parseInt(minPlayersPerTeam);
-    if (setsPerMatchPool !== undefined) updateData.setsPerMatchPool = parseInt(setsPerMatchPool);
-    if (pointsPerSetPool !== undefined) updateData.pointsPerSetPool = parseInt(pointsPerSetPool);
-    if (tieBreakEnabledPools !== undefined) updateData.tieBreakEnabledPools = tieBreakEnabledPools === true || tieBreakEnabledPools === 'true';
-    if (matchFormat !== undefined) updateData.matchFormat = matchFormat;
-    if (eliminationPhaseEnabled !== undefined) updateData.eliminationPhaseEnabled = eliminationPhaseEnabled === true || eliminationPhaseEnabled === 'true';
-    if (setsPerMatchElimination !== undefined) updateData.setsPerMatchElimination = parseInt(setsPerMatchElimination);
-    if (pointsPerSetElimination !== undefined) updateData.pointsPerSetElimination = parseInt(pointsPerSetElimination);
-    if (tieBreakEnabledElimination !== undefined) updateData.tieBreakEnabledElimination = tieBreakEnabledElimination === true || tieBreakEnabledElimination === 'true';
-    if (teamsQualifiedPerPool !== undefined) updateData.teamsQualifiedPerPool = parseInt(teamsQualifiedPerPool);
-    if (maxTeamsPerPool !== undefined) updateData.maxTeamsPerPool = parseInt(maxTeamsPerPool);
-    if (registrationStartDateTime !== undefined) updateData.registrationStartDateTime = new Date(registrationStartDateTime);
-    if (registrationEndDateTime !== undefined) updateData.registrationEndDateTime = new Date(registrationEndDateTime);
-    if (isActive !== undefined) updateData.isActive = isActive === true || isActive === 'true';
-    if (waitingListEnabled !== undefined) updateData.waitingListEnabled = waitingListEnabled === true || waitingListEnabled === 'true';
-    if (waitingListSize !== undefined) updateData.waitingListSize = parseInt(waitingListSize);
-    if (whatsappGroupLink !== undefined) updateData.whatsappGroupLink = whatsappGroupLink;
+    // Only add defined values to avoid Firestore undefined errors
+    if (name !== undefined && name !== null) updateData.name = name.trim();
+    if (description !== undefined && description !== null) updateData.description = description.trim();
+    if (date !== undefined && date !== null) updateData.date = new Date(date);
+    if (location !== undefined && location !== null) updateData.location = location.trim();
+    if (maxTeams !== undefined && maxTeams !== null) updateData.maxTeams = parseInt(maxTeams);
+    if (playersPerTeam !== undefined && playersPerTeam !== null) updateData.playersPerTeam = parseInt(playersPerTeam);
+    if (minPlayersPerTeam !== undefined && minPlayersPerTeam !== null) updateData.minPlayersPerTeam = parseInt(minPlayersPerTeam);
+    if (setsPerMatchPool !== undefined && setsPerMatchPool !== null) updateData.setsPerMatchPool = parseInt(setsPerMatchPool);
+    if (pointsPerSetPool !== undefined && pointsPerSetPool !== null) updateData.pointsPerSetPool = parseInt(pointsPerSetPool);
+    if (tieBreakEnabledPools !== undefined && tieBreakEnabledPools !== null) updateData.tieBreakEnabledPools = tieBreakEnabledPools === true || tieBreakEnabledPools === 'true';
+    if (matchFormat !== undefined && matchFormat !== null) updateData.matchFormat = matchFormat;
+    if (eliminationPhaseEnabled !== undefined && eliminationPhaseEnabled !== null) updateData.eliminationPhaseEnabled = eliminationPhaseEnabled === true || eliminationPhaseEnabled === 'true';
+    if (setsPerMatchElimination !== undefined && setsPerMatchElimination !== null) updateData.setsPerMatchElimination = parseInt(setsPerMatchElimination);
+    if (pointsPerSetElimination !== undefined && pointsPerSetElimination !== null) updateData.pointsPerSetElimination = parseInt(pointsPerSetElimination);
+    if (tieBreakEnabledElimination !== undefined && tieBreakEnabledElimination !== null) updateData.tieBreakEnabledElimination = tieBreakEnabledElimination === true || tieBreakEnabledElimination === 'true';
+    if (teamsQualifiedPerPool !== undefined && teamsQualifiedPerPool !== null) updateData.teamsQualifiedPerPool = parseInt(teamsQualifiedPerPool);
+    if (maxTeamsPerPool !== undefined && maxTeamsPerPool !== null) updateData.maxTeamsPerPool = parseInt(maxTeamsPerPool);
+    if (registrationStartDateTime !== undefined && registrationStartDateTime !== null) updateData.registrationStartDateTime = new Date(registrationStartDateTime);
+    if (registrationEndDateTime !== undefined && registrationEndDateTime !== null) updateData.registrationEndDateTime = new Date(registrationEndDateTime);
+    if (isActive !== undefined && isActive !== null) updateData.isActive = isActive === true || isActive === 'true';
+    if (waitingListEnabled !== undefined && waitingListEnabled !== null) updateData.waitingListEnabled = waitingListEnabled === true || waitingListEnabled === 'true';
+    if (waitingListSize !== undefined && waitingListSize !== null) updateData.waitingListSize = parseInt(waitingListSize);
+    if (whatsappGroupLink !== undefined && whatsappGroupLink !== null) updateData.whatsappGroupLink = whatsappGroupLink.trim();
 
     await adminDb.collection('events').doc(id).update(updateData);
 
@@ -1011,10 +1018,10 @@ export const updateTeam = async (req: Request, res: Response) => {
       updatedAt: new Date(),
     };
 
-    if (name !== undefined) updateData.name = name;
-    if (captainId !== undefined) updateData.captainId = captainId;
-    if (members !== undefined) updateData.members = members;
-    if (recruitmentOpen !== undefined) updateData.recruitmentOpen = recruitmentOpen === true || recruitmentOpen === 'true';
+    if (name !== undefined && name !== null) updateData.name = name;
+    if (captainId !== undefined && captainId !== null) updateData.captainId = captainId;
+    if (members !== undefined && members !== null) updateData.members = members;
+    if (recruitmentOpen !== undefined && recruitmentOpen !== null) updateData.recruitmentOpen = recruitmentOpen === true || recruitmentOpen === 'true';
 
     await teamRef.update(updateData);
 
@@ -1154,10 +1161,10 @@ export const updateUser = async (req: Request, res: Response) => {
       updatedAt: new Date(),
     };
 
-    if (email !== undefined) updateData.email = email;
-    if (pseudo !== undefined) updateData.pseudo = pseudo;
-    if (level !== undefined) updateData.level = level;
-    if (role !== undefined) updateData.role = role;
+    if (email !== undefined && email !== null) updateData.email = email;
+    if (pseudo !== undefined && pseudo !== null) updateData.pseudo = pseudo;
+    if (level !== undefined && level !== null) updateData.level = level;
+    if (role !== undefined && role !== null) updateData.role = role;
 
     await adminDb.collection('users').doc(id).update(updateData);
 

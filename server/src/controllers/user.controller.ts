@@ -136,9 +136,9 @@ export const updateUserProfile = async (req: Request, res: Response) => {
       updatedAt: new Date(),
     };
 
-    if (pseudo !== undefined) updateData.pseudo = pseudo;
-    if (level !== undefined) updateData.level = level;
-    if (email !== undefined) updateData.email = email;
+    if (pseudo !== undefined && pseudo !== null) updateData.pseudo = pseudo;
+    if (level !== undefined && level !== null) updateData.level = level;
+    if (email !== undefined && email !== null) updateData.email = email;
 
     await adminDb.collection('users').doc(userId).update(updateData);
 
