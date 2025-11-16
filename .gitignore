@@ -40,3 +40,6 @@ lerna-debug.log*
 tmp/
 temp/
 *.tmp
+
+# Generated TypeScript files
+shared/types/*.js

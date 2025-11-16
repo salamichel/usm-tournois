@@ -3,12 +3,13 @@ import { useParams, Link } from 'react-router-dom';
 import AdminLayout from '@components/AdminLayout';
 import kingService from '@services/king.service';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Play, RotateCcw, Trophy } from 'lucide-react';
+import { ArrowLeft, Play, RotateCcw, Trophy, Users, Target, Award, TrendingUp } from 'lucide-react';
 
 const AdminKingDashboard = () => {
   const { tournamentId } = useParams<{ tournamentId: string }>();
   const [data, setData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedPhaseNumber, setSelectedPhaseNumber] = useState<number | null>(null);
 
   useEffect(() => {
     if (tournamentId) {
@@ -24,6 +25,10 @@ const AdminKingDashboard = () => {
       const response = await kingService.getKingDashboard(tournamentId);
       if (response.success && response.data) {
         setData(response.data);
+        // Auto-select current phase by default
+        if (response.data.tournament.currentKingPhase > 0) {
+          setSelectedPhaseNumber(response.data.tournament.currentKingPhase);
+        }
       }
     } catch (error: any) {
       toast.error('Erreur lors du chargement du dashboard King');
@@ -170,8 +175,11 @@ const AdminKingDashboard = () => {
     );
   }
 
-  const { tournament, kingData, currentPhase } = data;
+  const { tournament, kingData, allPhases, stats } = data;
   const currentKingPhase = tournament.currentKingPhase || 0;
+
+  // Get the selected phase to display
+  const displayPhase = allPhases?.find((p: any) => p.phaseNumber === selectedPhaseNumber);
 
   return (
     <AdminLayout>
@@ -213,6 +221,62 @@ const AdminKingDashboard = () => {
             </div>
           </div>
         </div>
+
+        {/* Statistics Card */}
+        {stats && (
+          <div className="card">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <TrendingUp className="text-blue-500" size={24} />
+              Statistiques Globales
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg border border-blue-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <Target className="text-blue-600" size={18} />
+                  <p className="text-xs text-blue-600 font-medium">Total Matchs</p>
+                </div>
+                <p className="text-2xl font-bold text-blue-700">{stats.totalMatches}</p>
+              </div>
+              <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg border border-green-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <Award className="text-green-600" size={18} />
+                  <p className="text-xs text-green-600 font-medium">Complétés</p>
+                </div>
+                <p className="text-2xl font-bold text-green-700">{stats.completedMatches}</p>
+              </div>
+              <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-lg border border-orange-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <Target className="text-orange-600" size={18} />
+                  <p className="text-xs text-orange-600 font-medium">En Attente</p>
+                </div>
+                <p className="text-2xl font-bold text-orange-700">{stats.pendingMatches}</p>
+              </div>
+              <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-lg border border-purple-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <Users className="text-purple-600" size={18} />
+                  <p className="text-xs text-purple-600 font-medium">Poules</p>
+                </div>
+                <p className="text-2xl font-bold text-purple-700">{stats.totalPools}</p>
+              </div>
+              <div className="bg-gradient-to-br from-pink-50 to-pink-100 p-4 rounded-lg border border-pink-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <Trophy className="text-pink-600" size={18} />
+                  <p className="text-xs text-pink-600 font-medium">Tournées</p>
+                </div>
+                <p className="text-2xl font-bold text-pink-700">{stats.totalRounds}</p>
+              </div>
+              <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 p-4 rounded-lg border border-indigo-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <TrendingUp className="text-indigo-600" size={18} />
+                  <p className="text-xs text-indigo-600 font-medium">Progression</p>
+                </div>
+                <p className="text-2xl font-bold text-indigo-700">
+                  {stats.totalMatches > 0 ? Math.round((stats.completedMatches / stats.totalMatches) * 100) : 0}%
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Phase Controls */}
         <div className="card">
@@ -295,17 +359,44 @@ const AdminKingDashboard = () => {
           )}
         </div>
 
-        {/* Current Phase Details */}
-        {currentPhase && (
+        {/* Phase Selector */}
+        {allPhases && allPhases.length > 0 && (
+          <div className="card">
+            <h2 className="text-xl font-bold mb-4">Sélectionner une Phase</h2>
+            <div className="flex flex-wrap gap-2">
+              {allPhases.map((phase: any) => (
+                <button
+                  key={phase.phaseNumber}
+                  onClick={() => setSelectedPhaseNumber(phase.phaseNumber)}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    selectedPhaseNumber === phase.phaseNumber
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Phase {phase.phaseNumber}
+                  {phase.phaseNumber === currentKingPhase && (
+                    <span className="ml-2 text-xs bg-white text-primary-600 px-2 py-0.5 rounded-full">
+                      En cours
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Phase Details */}
+        {displayPhase && (
           <div className="card">
             <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
               <Trophy className="text-yellow-500" />
-              Phase {currentPhase.phaseNumber} - {currentPhase.description}
+              Phase {displayPhase.phaseNumber} - {displayPhase.description}
             </h2>
 
-            {currentPhase.pools && currentPhase.pools.length > 0 ? (
+            {displayPhase.pools && displayPhase.pools.length > 0 ? (
               <div className="space-y-6">
-                {currentPhase.pools.map((pool: any) => (
+                {displayPhase.pools.map((pool: any) => (
                   <div key={pool.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                     <h3 className="text-lg font-bold mb-4 text-primary-600">{pool.name}</h3>
 
@@ -323,56 +414,100 @@ const AdminKingDashboard = () => {
                       </div>
                     )}
 
-                    {pool.matches && pool.matches.length > 0 ? (
-                      <div className="overflow-x-auto">
-                        <table className="w-full">
-                          <thead className="bg-white border-b">
-                            <tr>
-                              <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">Match</th>
-                              <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">Équipe 1</th>
-                              <th className="px-4 py-2 text-center text-sm font-medium text-gray-500">Score</th>
-                              <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">Équipe 2</th>
-                              <th className="px-4 py-2 text-center text-sm font-medium text-gray-500">Statut</th>
-                              <th className="px-4 py-2 text-right text-sm font-medium text-gray-500">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y">
-                            {pool.matches.map((match: any) => (
-                              <tr key={match.id} className="hover:bg-white">
-                                <td className="px-4 py-3 text-sm text-gray-600">{match.roundName || match.roundId}</td>
-                                <td className="px-4 py-3 text-sm font-medium">{match.team1?.name || 'TBD'}</td>
-                                <td className="px-4 py-3 text-center text-sm font-bold">
-                                  {match.status === 'completed' ? (
-                                    <span className="text-primary-600">
-                                      {match.setsWonTeam1 || 0} - {match.setsWonTeam2 || 0}
-                                    </span>
-                                  ) : (
-                                    <span className="text-gray-400">- -</span>
-                                  )}
-                                </td>
-                                <td className="px-4 py-3 text-sm font-medium">{match.team2?.name || 'TBD'}</td>
-                                <td className="px-4 py-3 text-center">
-                                  {match.status === 'completed' ? (
-                                    <span className="badge badge-success text-xs">Terminé</span>
-                                  ) : (
-                                    <span className="badge badge-warning text-xs">En attente</span>
-                                  )}
-                                </td>
-                                <td className="px-4 py-3 text-right">
-                                  <button
-                                    onClick={() => handleRecordMatchResult(match.id)}
-                                    className="btn-primary text-xs"
-                                  >
-                                    {match.status === 'completed' ? 'Modifier' : 'Enregistrer'}
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                    {/* Rounds with Matches */}
+                    {pool.rounds && pool.rounds.length > 0 ? (
+                      <div className="space-y-4">
+                        {pool.rounds.map((round: any) => (
+                          <div key={round.id} className="bg-white rounded-lg border border-gray-300 p-4">
+                            <h4 className="text-md font-bold text-gray-800 mb-3 flex items-center gap-2">
+                              <span className="bg-primary-100 text-primary-700 px-3 py-1 rounded-full text-sm">
+                                {round.name}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                ({round.matches.filter((m: any) => m.status === 'completed').length}/{round.matches.length} complétés)
+                              </span>
+                            </h4>
+
+                            <div className="space-y-3">
+                              {round.matches.map((match: any) => (
+                                <div key={match.id} className="border border-gray-200 rounded-lg p-3 bg-gray-50 hover:bg-gray-100 transition">
+                                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+                                    {/* Team 1 */}
+                                    <div className="md:col-span-5">
+                                      <div className="font-medium text-gray-900 mb-1">{match.team1?.name || 'TBD'}</div>
+                                      {match.team1?.members && (
+                                        <div className="flex flex-wrap gap-1">
+                                          {match.team1.members.map((player: any, idx: number) => (
+                                            <span key={idx} className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                                              {player.pseudo || player.name}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* Score */}
+                                    <div className="md:col-span-2 text-center">
+                                      {match.status === 'completed' ? (
+                                        <div className="flex items-center justify-center gap-2">
+                                          <span className={`text-lg font-bold ${
+                                            (match.setsWonTeam1 || 0) > (match.setsWonTeam2 || 0) ? 'text-green-600' : 'text-gray-600'
+                                          }`}>
+                                            {match.setsWonTeam1 || 0}
+                                          </span>
+                                          <span className="text-gray-400">-</span>
+                                          <span className={`text-lg font-bold ${
+                                            (match.setsWonTeam2 || 0) > (match.setsWonTeam1 || 0) ? 'text-green-600' : 'text-gray-600'
+                                          }`}>
+                                            {match.setsWonTeam2 || 0}
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <span className="text-gray-400">vs</span>
+                                      )}
+                                    </div>
+
+                                    {/* Team 2 */}
+                                    <div className="md:col-span-5">
+                                      <div className="font-medium text-gray-900 mb-1">{match.team2?.name || 'TBD'}</div>
+                                      {match.team2?.members && (
+                                        <div className="flex flex-wrap gap-1">
+                                          {match.team2.members.map((player: any, idx: number) => (
+                                            <span key={idx} className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
+                                              {player.pseudo || player.name}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Actions */}
+                                  <div className="mt-3 flex items-center justify-between">
+                                    <div>
+                                      {match.status === 'completed' ? (
+                                        <span className="badge badge-success text-xs">Terminé</span>
+                                      ) : (
+                                        <span className="badge badge-warning text-xs">En attente</span>
+                                      )}
+                                    </div>
+                                    {displayPhase.phaseNumber === currentKingPhase && (
+                                      <button
+                                        onClick={() => handleRecordMatchResult(match.id)}
+                                        className="btn-primary text-xs px-3 py-1"
+                                      >
+                                        {match.status === 'completed' ? 'Modifier' : 'Enregistrer'}
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     ) : (
-                      <p className="text-gray-500 text-center py-8">Aucun match dans cette poule</p>
+                      <p className="text-gray-500 text-center py-8">Aucune tournée dans cette poule</p>
                     )}
                   </div>
                 ))}
@@ -386,7 +521,13 @@ const AdminKingDashboard = () => {
         {/* Global Ranking */}
         {kingData && kingData.ranking && kingData.ranking.length > 0 && (
           <div className="card">
-            <h2 className="text-xl font-bold mb-4">Classement Global</h2>
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <Award className="text-yellow-500" />
+              Classement Global
+              {currentKingPhase === 3 && tournament.isKingPhaseCompleted && (
+                <span className="ml-2 text-lg">👑 KING</span>
+              )}
+            </h2>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b">
@@ -394,28 +535,37 @@ const AdminKingDashboard = () => {
                     <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">Rang</th>
                     <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">Joueur</th>
                     <th className="px-4 py-2 text-center text-sm font-medium text-gray-500">Victoires</th>
+                    <th className="px-4 py-2 text-center text-sm font-medium text-gray-500">Défaites</th>
                     <th className="px-4 py-2 text-center text-sm font-medium text-gray-500">Sets +</th>
                     <th className="px-4 py-2 text-center text-sm font-medium text-gray-500">Sets -</th>
                     <th className="px-4 py-2 text-center text-sm font-medium text-gray-500">Diff</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {kingData.ranking.slice(0, 10).map((player: any, index: number) => (
-                    <tr key={index} className={index < 3 ? 'bg-yellow-50' : ''}>
+                  {kingData.ranking.map((player: any, index: number) => (
+                    <tr
+                      key={player.playerId || index}
+                      className={`${index === 0 ? 'bg-yellow-50 border-2 border-yellow-400' : index < 3 ? 'bg-yellow-50' : ''}`}
+                    >
                       <td className="px-4 py-3 text-sm font-bold">
+                        {index === 0 && <span className="text-2xl">👑</span>}
+                        {index === 0 && ' '}
                         {index === 0 && '🥇'}
                         {index === 1 && '🥈'}
                         {index === 2 && '🥉'}
-                        {index > 2 && index + 1}
+                        {index > 2 && (index + 1)}
                       </td>
-                      <td className="px-4 py-3 text-sm font-medium">{player.pseudo || player.name}</td>
-                      <td className="px-4 py-3 text-sm text-center">{player.wins || 0}</td>
+                      <td className="px-4 py-3 text-sm font-medium">
+                        {player.playerPseudo || player.pseudo || player.name || `Joueur ${player.playerId}`}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-center font-bold text-green-600">{player.wins || 0}</td>
+                      <td className="px-4 py-3 text-sm text-center text-red-600">{player.losses || 0}</td>
                       <td className="px-4 py-3 text-sm text-center">{player.setsWon || 0}</td>
                       <td className="px-4 py-3 text-sm text-center">{player.setsLost || 0}</td>
                       <td className={`px-4 py-3 text-sm text-center font-bold ${
-                        (player.setsWon - player.setsLost) > 0 ? 'text-green-600' : 'text-red-600'
+                        ((player.setsWon || 0) - (player.setsLost || 0)) > 0 ? 'text-green-600' : 'text-red-600'
                       }`}>
-                        {(player.setsWon || 0) - (player.setsLost || 0) > 0 ? '+' : ''}
+                        {((player.setsWon || 0) - (player.setsLost || 0)) > 0 ? '+' : ''}
                         {(player.setsWon || 0) - (player.setsLost || 0)}
                       </td>
                     </tr>
