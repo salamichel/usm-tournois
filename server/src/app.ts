@@ -9,17 +9,17 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 // Routes
-import authRoutes from './routes/auth.routes.ts';
-import tournamentRoutes from './routes/tournament.routes.ts';
-import teamRoutes from './routes/team.routes.ts';
-import userRoutes from './routes/user.routes.ts';
-import matchRoutes from './routes/match.routes.ts';
-import adminRoutes from './routes/admin.routes.ts';
-import kingRoutes from './routes/king.routes.ts';
+import authRoutes from './routes/auth.routes';
+import tournamentRoutes from './routes/tournament.routes';
+import teamRoutes from './routes/team.routes';
+import userRoutes from './routes/user.routes';
+import matchRoutes from './routes/match.routes';
+import adminRoutes from './routes/admin.routes';
+import kingRoutes from './routes/king.routes';
 
 // Middlewares
-import { errorHandler } from './middlewares/error.middleware.ts';
-import { requestLogger } from './middlewares/logger.middleware.ts';
+import { errorHandler } from './middlewares/error.middleware';
+import { requestLogger } from './middlewares/logger.middleware';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

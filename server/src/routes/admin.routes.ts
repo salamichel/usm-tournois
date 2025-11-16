@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { asyncHandler } from '../middlewares/error.middleware.ts';
-import { isAdmin } from '../middlewares/auth.middleware.ts';
-import * as adminController from '../controllers/admin.controller.ts';
-import * as kingController from '../controllers/king.controller.ts';
+import { asyncHandler } from '../middlewares/error.middleware';
+import { isAdmin } from '../middlewares/auth.middleware';
+import * as adminController from '../controllers/admin.controller';
+import * as kingController from '../controllers/king.controller';
 
 const router = Router();
 

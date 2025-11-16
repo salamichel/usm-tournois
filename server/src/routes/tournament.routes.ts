@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { asyncHandler } from '../middlewares/error.middleware.ts';
-import { isAuthenticated, optionalAuth } from '../middlewares/auth.middleware.ts';
-import * as tournamentController from '../controllers/tournament.controller.ts';
+import { asyncHandler } from '../middlewares/error.middleware';
+import { isAuthenticated, optionalAuth } from '../middlewares/auth.middleware';
+import * as tournamentController from '../controllers/tournament.controller';
 
 const router = Router();
 

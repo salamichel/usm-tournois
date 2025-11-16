@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
-import { adminDb } from '../config/firebase.config.ts';
-import { AppError } from '../middlewares/error.middleware.ts';
-import { convertTimestamps } from '../utils/firestore.utils.ts';
+import { adminDb } from '../config/firebase.config';
+import { AppError } from '../middlewares/error.middleware';
+import { convertTimestamps } from '../utils/firestore.utils';
 
 export const getUserDashboard = async (req: Request, res: Response) => {
   try {

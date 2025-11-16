@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { adminDb } from '../config/firebase.config.ts';
-import * as kingService from '../services/king.service.ts';
+import { adminDb } from '../config/firebase.config';
+import * as kingService from '../services/king.service';
 import type { KingMatch, KingPool } from '@shared/types';
 
 /**
