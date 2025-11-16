@@ -5,6 +5,30 @@ import adminService from '@services/admin.service';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Save, Calendar, Users, MapPin, DollarSign, Settings } from 'lucide-react';
 
+// Helper function to format ISO date string to YYYY-MM-DD
+const formatDateForInput = (isoString: string | undefined | null): string => {
+  if (!isoString) return '';
+  try {
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) return '';
+    return date.toISOString().split('T')[0];
+  } catch {
+    return '';
+  }
+};
+
+// Helper function to format ISO date string to HH:MM
+const formatTimeForInput = (isoString: string | undefined | null): string => {
+  if (!isoString) return '';
+  try {
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) return '';
+    return date.toISOString().split('T')[1].substring(0, 5);
+  } catch {
+    return '';
+  }
+};
+
 const AdminTournamentForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -69,12 +93,12 @@ const AdminTournamentForm = () => {
         description: tournament.description || '',
         whatsappGroupLink: tournament.whatsappGroupLink || '',
         isActive: tournament.isActive ?? true,
-        date: tournament.date || '',
-        time: tournament.time || '',
-        registrationStartDate: tournament.registrationStartDate || '',
-        registrationStartTime: tournament.registrationStartTime || '',
-        registrationEndDate: tournament.registrationEndDate || '',
-        registrationEndTime: tournament.registrationEndTime || '',
+        date: formatDateForInput(tournament.date),
+        time: formatTimeForInput(tournament.date),
+        registrationStartDate: formatDateForInput(tournament.registrationStartDateTime),
+        registrationStartTime: formatTimeForInput(tournament.registrationStartDateTime),
+        registrationEndDate: formatDateForInput(tournament.registrationEndDateTime),
+        registrationEndTime: formatTimeForInput(tournament.registrationEndDateTime),
         maxTeams: tournament.maxTeams || 16,
         minPlayersPerTeam: tournament.minPlayersPerTeam || 2,
         playersPerTeam: tournament.playersPerTeam || 4,
@@ -136,8 +160,34 @@ const AdminTournamentForm = () => {
 
       const formDataToSend = new FormData();
 
-      // Append all form fields
+      // Combine date and time fields into ISO datetime strings
+      const combineDateAndTime = (dateStr: string, timeStr: string): string => {
+        if (!dateStr) return '';
+        const dateTime = timeStr ? `${dateStr}T${timeStr}:00` : `${dateStr}T00:00:00`;
+        return new Date(dateTime).toISOString();
+      };
+
+      // Add combined datetime fields
+      if (formData.date) {
+        formDataToSend.append('date', combineDateAndTime(formData.date, formData.time));
+      }
+      if (formData.registrationStartDate) {
+        formDataToSend.append('registrationStartDateTime',
+          combineDateAndTime(formData.registrationStartDate, formData.registrationStartTime));
+      }
+      if (formData.registrationEndDate) {
+        formDataToSend.append('registrationEndDateTime',
+          combineDateAndTime(formData.registrationEndDate, formData.registrationEndTime));
+      }
+
+      // Append all other form fields (excluding date/time pairs)
       Object.entries(formData).forEach(([key, value]) => {
+        // Skip the individual date/time fields as we've already combined them
+        if (['date', 'time', 'registrationStartDate', 'registrationStartTime',
+             'registrationEndDate', 'registrationEndTime'].includes(key)) {
+          return;
+        }
+
         if (typeof value === 'boolean') {
           formDataToSend.append(key, value ? 'true' : 'false');
         } else {
