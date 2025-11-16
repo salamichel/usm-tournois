@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { asyncHandler } from '../middlewares/error.middleware';
 import { isAdmin } from '../middlewares/auth.middleware';
 import { getTournament } from '../middlewares/tournament.middleware';
+import { uploadCoverImage } from '../middlewares/upload.middleware';
 import * as adminController from '../controllers/admin.controller';
 import * as kingController from '../controllers/king.controller';
 
@@ -14,9 +15,9 @@ router.use(isAdmin);
  * Tournament Management
  */
 router.get('/tournaments', asyncHandler(adminController.getAllTournaments));
-router.post('/tournaments', asyncHandler(adminController.createTournament));
+router.post('/tournaments', uploadCoverImage, asyncHandler(adminController.createTournament));
 router.get('/tournaments/:id', asyncHandler(adminController.getTournamentById));
-router.put('/tournaments/:id', asyncHandler(adminController.updateTournament));
+router.put('/tournaments/:id', uploadCoverImage, asyncHandler(adminController.updateTournament));
 router.delete('/tournaments/:id', asyncHandler(adminController.deleteTournament));
 router.post('/tournaments/:id/clone', asyncHandler(adminController.cloneTournament));
 
