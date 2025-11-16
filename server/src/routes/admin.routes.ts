@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { asyncHandler } from '../middlewares/error.middleware';
 import { isAdmin } from '../middlewares/auth.middleware';
+import { getTournament } from '../middlewares/tournament.middleware';
 import { uploadCoverImage } from '../middlewares/upload.middleware';
 import * as adminController from '../controllers/admin.controller';
 import * as kingController from '../controllers/king.controller';
@@ -66,13 +67,14 @@ router.get('/dashboard', asyncHandler(adminController.getDashboard));
 /**
  * King Mode Management
  */
-router.get('/tournaments/:tournamentId/king', asyncHandler(kingController.getKingDashboard));
-router.post('/tournaments/:tournamentId/king/start-phase-1', asyncHandler(kingController.startPhase1));
-router.post('/tournaments/:tournamentId/king/start-phase-2', asyncHandler(kingController.startPhase2));
-router.post('/tournaments/:tournamentId/king/start-phase-3', asyncHandler(kingController.startPhase3));
-router.post('/tournaments/:tournamentId/king/matches/:matchId/record-result', asyncHandler(kingController.recordMatchResult));
-router.post('/tournaments/:tournamentId/king/reset-phase-1', asyncHandler(kingController.resetPhase1));
-router.post('/tournaments/:tournamentId/king/reset-phase-2', asyncHandler(kingController.resetPhase2));
-router.post('/tournaments/:tournamentId/king/reset-phase-3', asyncHandler(kingController.resetPhase3));
+router.get('/tournaments/:tournamentId/king', asyncHandler(getTournament), asyncHandler(kingController.getKingDashboard));
+router.post('/tournaments/:tournamentId/king/start-phase-1', asyncHandler(getTournament), asyncHandler(kingController.startKingPhase1));
+router.post('/tournaments/:tournamentId/king/start-phase-2', asyncHandler(getTournament), asyncHandler(kingController.startKingPhase2));
+router.post('/tournaments/:tournamentId/king/start-phase-3', asyncHandler(getTournament), asyncHandler(kingController.startKingPhase3));
+router.post('/tournaments/:tournamentId/king/matches/:matchId/record-result', asyncHandler(getTournament), asyncHandler(kingController.recordKingMatchResult));
+router.post('/tournaments/:tournamentId/king/reset-phase-1', asyncHandler(getTournament), asyncHandler(kingController.resetKingPhase1));
+router.post('/tournaments/:tournamentId/king/reset-phase-2', asyncHandler(getTournament), asyncHandler(kingController.resetKingPhase2));
+router.post('/tournaments/:tournamentId/king/reset-phase-3', asyncHandler(getTournament), asyncHandler(kingController.resetKingPhase3));
+router.post('/tournaments/:tournamentId/king/set-all-matches-scores', asyncHandler(getTournament), asyncHandler(kingController.setAllKingMatchesScores));
 
 export default router;

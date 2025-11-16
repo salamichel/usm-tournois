@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import AdminLayout from '@components/AdminLayout';
 import adminService from '@services/admin.service';
 import toast from 'react-hot-toast';
 import { Plus, Edit, Trash2, Shield, User } from 'lucide-react';
 
 const AdminUsersList = () => {
+  const navigate = useNavigate();
   const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -62,7 +64,10 @@ const AdminUsersList = () => {
             <h1 className="text-3xl font-bold text-gray-900">Gestion des Utilisateurs</h1>
             <p className="text-gray-600 mt-2">Gérer les comptes utilisateurs</p>
           </div>
-          <button className="btn-primary" disabled>
+          <button
+            className="btn-primary"
+            onClick={() => navigate('/admin/users/new')}
+          >
             <Plus size={20} className="mr-2" />
             Nouvel Utilisateur
           </button>
@@ -105,9 +110,9 @@ const AdminUsersList = () => {
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button
-                          disabled
-                          className="text-blue-600 hover:text-blue-900 disabled:opacity-50"
-                          title="Modifier (bientôt disponible)"
+                          onClick={() => navigate(`/admin/users/${user.id}/edit`)}
+                          className="text-blue-600 hover:text-blue-900 transition-colors"
+                          title="Modifier l'utilisateur"
                         >
                           <Edit size={18} />
                         </button>

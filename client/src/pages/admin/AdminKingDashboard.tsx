@@ -133,6 +133,23 @@ const AdminKingDashboard = () => {
     }
   };
 
+  const handleSetRandomScores = async () => {
+    if (!tournamentId) return;
+    if (!confirm('Voulez-vous définir des scores aléatoires pour tous les matchs non complétés de la phase actuelle ?')) return;
+
+    try {
+      const response = await kingService.setAllMatchesScores(tournamentId);
+      if (response.success) {
+        toast.success(response.message || 'Scores aléatoires définis !');
+        loadDashboard();
+      } else {
+        toast.error(response.message || 'Erreur');
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Erreur lors de la définition des scores');
+    }
+  };
+
   if (isLoading) {
     return (
       <AdminLayout>
@@ -261,6 +278,21 @@ const AdminKingDashboard = () => {
               )}
             </div>
           </div>
+
+          {/* Random Scores Button */}
+          {currentKingPhase >= 1 && (
+            <div className="mt-4">
+              <button
+                onClick={handleSetRandomScores}
+                className="btn-secondary w-full md:w-auto flex items-center justify-center gap-2"
+              >
+                🎲 Scores Aléatoires (Test)
+              </button>
+              <p className="text-xs text-gray-500 mt-1">
+                Définir des scores aléatoires pour tous les matchs non complétés de la phase actuelle
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Current Phase Details */}
@@ -276,6 +308,21 @@ const AdminKingDashboard = () => {
                 {currentPhase.pools.map((pool: any) => (
                   <div key={pool.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                     <h3 className="text-lg font-bold mb-4 text-primary-600">{pool.name}</h3>
+
+                    {/* Players in Pool */}
+                    {pool.players && pool.players.length > 0 && (
+                      <div className="mb-4 p-3 bg-white rounded-lg border border-gray-200">
+                        <h4 className="text-sm font-bold text-gray-700 mb-2">👥 Joueurs de la Poule ({pool.players.length})</h4>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                          {pool.players.map((player: any, index: number) => (
+                            <div key={player.id || index} className="bg-gray-50 p-2 rounded border-l-2 border-primary-500">
+                              <p className="text-xs text-gray-700 truncate">{index + 1}. {player.pseudo || player.name}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {pool.matches && pool.matches.length > 0 ? (
                       <div className="overflow-x-auto">
                         <table className="w-full">
@@ -361,7 +408,7 @@ const AdminKingDashboard = () => {
                         {index === 2 && '🥉'}
                         {index > 2 && index + 1}
                       </td>
-                      <td className="px-4 py-3 text-sm font-medium">{player.pseudo}</td>
+                      <td className="px-4 py-3 text-sm font-medium">{player.pseudo || player.name}</td>
                       <td className="px-4 py-3 text-sm text-center">{player.wins || 0}</td>
                       <td className="px-4 py-3 text-sm text-center">{player.setsWon || 0}</td>
                       <td className="px-4 py-3 text-sm text-center">{player.setsLost || 0}</td>
