@@ -628,14 +628,15 @@ export const startKingPhase3 = async (req: Request, res: Response) => {
 export const recordKingMatchResult = async (req: Request, res: Response) => {
   try {
     const { matchId } = req.params;
-    const { tournamentId, setsWonTeam1, setsWonTeam2 } = req.body;
-
-    console.log(`[recordKingMatchResult] Received for tournamentId: ${tournamentId}, matchId: ${matchId}`);
+    const { setsWonTeam1, setsWonTeam2 } = req.body;
 
     const tournament = (req as any).tournament;
     if (!tournament) {
       return res.status(404).json({ success: false, message: 'Tournament not found in request.' });
     }
+
+    const tournamentId = tournament.id;
+    console.log(`[recordKingMatchResult] Received for tournamentId: ${tournamentId}, matchId: ${matchId}`);
 
     const tournamentRef = adminDb.collection('events').doc(tournamentId);
     const kingDocRef = tournamentRef.collection('king').doc('mainKingData');
