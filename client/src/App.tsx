@@ -29,6 +29,9 @@ import AdminUsersList from '@pages/admin/AdminUsersList';
 import AdminUserForm from '@pages/admin/AdminUserForm';
 import AdminUnassignedPlayers from '@pages/admin/AdminUnassignedPlayers';
 
+// Demo pages
+import KingConfigDemo from '@pages/KingConfigDemo';
+
 function App() {
   return (
     <AuthProvider>
@@ -187,6 +190,9 @@ function App() {
                 </AdminRoute>
               }
             />
+
+            {/* Demo pages */}
+            <Route path="/demo/king-config" element={<KingConfigDemo />} />
 
             {/* 404 */}
             <Route path="*" element={<NotFoundPage />} />
