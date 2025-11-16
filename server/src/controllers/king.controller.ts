@@ -99,32 +99,104 @@ export const getKingDashboard = async (req: Request, res: Response) => {
 
     const kingData = kingDoc.exists ? kingDoc.data() : null;
 
-    // Get current phase data if exists
-    let currentPhase = null;
-    if (tournament.currentKingPhase && kingDoc.exists) {
-      const phaseDocRef = kingDocRef.collection('phases').doc(`phase-${tournament.currentKingPhase}`);
+    // Helper function to load phase data
+    const loadPhaseData = async (phaseNumber: number) => {
+      const phaseDocRef = kingDocRef.collection('phases').doc(`phase-${phaseNumber}`);
       const phaseDoc = await phaseDocRef.get();
-      if (phaseDoc.exists) {
-        currentPhase = { id: phaseDoc.id, ...phaseDoc.data() };
+      if (!phaseDoc.exists) return null;
 
-        // Get pools and matches for current phase
-        const poolsSnapshot = await phaseDocRef.collection('pools').get();
-        const pools = [];
+      const phase = { id: phaseDoc.id, ...phaseDoc.data() };
 
-        for (const poolDoc of poolsSnapshot.docs) {
-          const matchesSnapshot = await poolDoc.ref.collection('matches').get();
-          const matches = matchesSnapshot.docs.map((m) => ({ id: m.id, ...m.data() }));
+      // Get pools and matches for this phase
+      const poolsSnapshot = await phaseDocRef.collection('pools').get();
+      const pools = [];
 
-          pools.push({
-            id: poolDoc.id,
-            ...poolDoc.data(),
-            matches,
-          });
+      for (const poolDoc of poolsSnapshot.docs) {
+        const poolData = poolDoc.data();
+        const matchesSnapshot = await poolDoc.ref.collection('matches').get();
+        const matches = matchesSnapshot.docs.map((m) => ({ id: m.id, ...m.data() }));
+
+        // Group matches by round
+        const matchesByRound = new Map<string, any[]>();
+        matches.forEach((match) => {
+          const roundId = match.roundId || 'unknown';
+          if (!matchesByRound.has(roundId)) {
+            matchesByRound.set(roundId, []);
+          }
+          matchesByRound.get(roundId)!.push(match);
+        });
+
+        const rounds = Array.from(matchesByRound.entries()).map(([roundId, matches]) => ({
+          id: roundId,
+          name: matches[0]?.roundName || roundId,
+          matches: matches.sort((a, b) => (a.matchNumber || 0) - (b.matchNumber || 0)),
+        }));
+
+        pools.push({
+          id: poolDoc.id,
+          name: poolData.name,
+          playerCount: poolData.playerCount,
+          ...poolData,
+          matches,
+          rounds: rounds.sort((a, b) => {
+            const aNum = parseInt(a.id.split('-').pop() || '0');
+            const bNum = parseInt(b.id.split('-').pop() || '0');
+            return aNum - bNum;
+          }),
+        });
+      }
+
+      phase.pools = pools;
+      return phase;
+    };
+
+    // Get all phases (not just current)
+    const allPhases: any[] = [];
+    let currentPhase = null;
+
+    if (kingDoc.exists) {
+      // Load all existing phases
+      for (let phaseNum = 1; phaseNum <= 3; phaseNum++) {
+        const phase = await loadPhaseData(phaseNum);
+        if (phase) {
+          allPhases.push(phase);
+          if (phaseNum === tournament.currentKingPhase) {
+            currentPhase = phase;
+          }
         }
-
-        currentPhase.pools = pools;
       }
     }
+
+    // Calculate statistics
+    const stats = {
+      totalPlayers: 0,
+      totalMatches: 0,
+      completedMatches: 0,
+      pendingMatches: 0,
+      totalPools: 0,
+      totalRounds: 0,
+    };
+
+    allPhases.forEach((phase) => {
+      if (phase.pools) {
+        stats.totalPools += phase.pools.length;
+        phase.pools.forEach((pool: any) => {
+          if (pool.rounds) {
+            stats.totalRounds += pool.rounds.length;
+          }
+          if (pool.matches) {
+            stats.totalMatches += pool.matches.length;
+            pool.matches.forEach((match: any) => {
+              if (match.status === 'completed') {
+                stats.completedMatches++;
+              } else {
+                stats.pendingMatches++;
+              }
+            });
+          }
+        });
+      }
+    });
 
     res.json({
       success: true,
@@ -132,6 +204,8 @@ export const getKingDashboard = async (req: Request, res: Response) => {
         tournament,
         kingData,
         currentPhase,
+        allPhases,
+        stats,
       },
     });
   } catch (error: any) {
