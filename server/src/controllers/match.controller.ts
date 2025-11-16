@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { adminDb } from '../config/firebase.config';
-import { AppError } from '../middlewares/error.middleware';
+import { adminDb } from '../config/firebase.config.ts';
+import { AppError } from '../middlewares/error.middleware.ts';
 
 export const submitScores = async (req: Request, res: Response) => {
   try {

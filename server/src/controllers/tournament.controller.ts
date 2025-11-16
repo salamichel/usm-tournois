@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
-import { adminDb } from '../config/firebase.config';
-import { AppError } from '../middlewares/error.middleware';
+import { adminDb } from '../config/firebase.config.ts';
+import { AppError } from '../middlewares/error.middleware.ts';
 import type { Tournament, UnassignedPlayer, Team, TeamMember } from '@shared/types';
-import { convertTimestamps } from '../utils/firestore.utils';
+import { convertTimestamps } from '../utils/firestore.utils.ts';
 
 /**
  * Get all active tournaments

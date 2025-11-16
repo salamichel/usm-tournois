@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
-import { adminDb, adminAuth } from '../config/firebase.config';
-import { AppError } from '../middlewares/error.middleware';
-import { convertTimestamps } from '../utils/firestore.utils';
+import { adminDb, adminAuth } from '../config/firebase.config.ts';
+import { AppError } from '../middlewares/error.middleware.ts';
+import { convertTimestamps } from '../utils/firestore.utils.ts';
 
 /**
  * Get team by ID

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { getAuth } from 'firebase-admin/auth';
-import { adminAuth, adminDb } from '../config/firebase.config';
-import { AppError } from '../middlewares/error.middleware';
+import { adminAuth, adminDb } from '../config/firebase.config.ts';
+import { AppError } from '../middlewares/error.middleware.ts';
 import type {
   CreateUserDto,
   LoginCredentials,
