@@ -955,7 +955,7 @@ export const setAllKingMatchesScores = async (req: Request, res: Response) => {
     await batch.commit();
 
     // Recalculate rankings
-    const allMatchesCompleted = await kingService.isPhaseCompleted(kingDocRef, currentPhaseNumber);
+    const allMatchesCompleted = await isPhaseCompleted(kingDocRef, currentPhaseNumber);
     const finalBatch = adminDb.batch();
     await recalculateRankingAndUpdateTournament(finalBatch, tournamentRef, kingDocRef, allMatchesCompleted, currentPhaseNumber, currentPhaseNumber);
     await finalBatch.commit();
