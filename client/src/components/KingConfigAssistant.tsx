@@ -4,7 +4,8 @@ import {
   PhaseConfig,
   suggestKingConfigurations,
   validateKingConfiguration,
-  GameMode
+  GameMode,
+  enrichPhaseWithTimings
 } from '@utils/kingConfigSuggestions';
 import {
   Users,
@@ -15,7 +16,9 @@ import {
   CheckCircle,
   Edit2,
   Plus,
-  Trash2
+  Trash2,
+  Trophy,
+  Clock
 } from 'lucide-react';
 
 interface KingConfigAssistantProps {
@@ -69,7 +72,12 @@ const KingConfigAssistant: React.FC<KingConfigAssistantProps> = ({
 
     const newConfig = { ...selectedConfig };
     newConfig.phases = [...newConfig.phases];
-    newConfig.phases[phaseIndex] = { ...newConfig.phases[phaseIndex], [field]: value };
+
+    // Mettre à jour le champ modifié
+    const updatedPhase = { ...newConfig.phases[phaseIndex], [field]: value };
+
+    // Recalculer les valeurs dépendantes
+    newConfig.phases[phaseIndex] = enrichPhaseWithTimings(updatedPhase);
 
     setSelectedConfig(newConfig);
     setCustomConfig(newConfig);
@@ -79,7 +87,7 @@ const KingConfigAssistant: React.FC<KingConfigAssistantProps> = ({
     if (!selectedConfig) return;
 
     const lastPhase = selectedConfig.phases[selectedConfig.phases.length - 1];
-    const newPhase: PhaseConfig = {
+    const newPhase = enrichPhaseWithTimings({
       phaseNumber: selectedConfig.phases.length + 1,
       gameMode: '2v2',
       playersPerTeam: 2,
@@ -93,7 +101,7 @@ const KingConfigAssistant: React.FC<KingConfigAssistantProps> = ({
       setsPerMatch: 3,
       pointsPerSet: 21,
       tieBreakEnabled: true,
-    };
+    });
 
     const newConfig = { ...selectedConfig };
     newConfig.phases = [...newConfig.phases, newPhase];
@@ -286,22 +294,32 @@ const KingConfigAssistant: React.FC<KingConfigAssistantProps> = ({
           )}
 
           {/* Résumé */}
-          <div className="border-t border-gray-200 pt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div>
-              <p className="text-gray-600">Total joueurs</p>
-              <p className="font-semibold text-lg">{totalPlayers}</p>
+          <div className="border-t border-gray-200 pt-4 space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+              <div>
+                <p className="text-gray-600">Total joueurs</p>
+                <p className="font-semibold text-lg">{totalPlayers}</p>
+              </div>
+              <div>
+                <p className="text-gray-600">Phases</p>
+                <p className="font-semibold text-lg">{selectedConfig.phases.length}</p>
+              </div>
+              <div>
+                <p className="text-gray-600">Total matchs</p>
+                <p className="font-semibold text-lg text-blue-600">{selectedConfig.totalMatches}</p>
+              </div>
+              <div>
+                <p className="text-gray-600">Durée totale</p>
+                <p className="font-semibold text-lg text-purple-600">{selectedConfig.estimatedTotalDisplay}</p>
+              </div>
+              <div>
+                <p className="text-gray-600">Qualifiés final</p>
+                <p className="font-semibold text-lg text-yellow-600">1 KING 👑</p>
+              </div>
             </div>
-            <div>
-              <p className="text-gray-600">Phases</p>
-              <p className="font-semibold text-lg">{selectedConfig.phases.length}</p>
-            </div>
-            <div>
-              <p className="text-gray-600">Durée estimée</p>
-              <p className="font-semibold text-lg">{selectedConfig.estimatedDuration}</p>
-            </div>
-            <div>
-              <p className="text-gray-600">Qualifiés final</p>
-              <p className="font-semibold text-lg text-yellow-600">1 KING 👑</p>
+            <div className="text-xs text-gray-500 bg-gray-50 px-3 py-2 rounded">
+              ℹ️ Estimation basée sur {selectedConfig.availableFields} terrain{selectedConfig.availableFields > 1 ? 's' : ''} •
+              {selectedConfig.estimatedDuration} recommandé{selectedConfig.estimatedDuration.includes('-') ? 's' : ''}
             </div>
           </div>
         </div>
@@ -386,38 +404,58 @@ const PhaseEditor: React.FC<{
 // Composant pour prévisualiser une phase
 const PhasePreview: React.FC<{ phase: PhaseConfig }> = ({ phase }) => {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 text-sm">
-      <div className="flex items-center gap-2">
-        <Users size={16} className="text-gray-400" />
-        <span>
-          <strong>{phase.totalTeams}</strong> équipes ({phase.playersPerTeam} joueurs)
-        </span>
+    <div className="space-y-3">
+      {/* Ligne 1: Infos de base */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 text-sm">
+        <div className="flex items-center gap-2">
+          <Users size={16} className="text-gray-400" />
+          <span>
+            <strong>{phase.totalTeams}</strong> équipes ({phase.playersPerTeam} joueurs)
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <MapPin size={16} className="text-gray-400" />
+          <span>
+            <strong>{phase.numberOfPools}</strong> poule(s) de {phase.teamsPerPool}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <ChevronRight size={16} className="text-green-500" />
+          <span>
+            <strong>{phase.totalQualified}</strong> qualifié(s)
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Calendar size={16} className="text-gray-400" />
+          <span>
+            <strong>{phase.estimatedRounds}</strong> rounds KOB
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Trophy size={16} className="text-blue-500" />
+          <span>
+            <strong>{phase.totalMatches}</strong> matchs total
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Clock size={16} className="text-purple-500" />
+          <span>
+            Durée: <strong>{phase.estimatedDurationDisplay}</strong>
+          </span>
+        </div>
       </div>
 
-      <div className="flex items-center gap-2">
-        <MapPin size={16} className="text-gray-400" />
-        <span>
-          <strong>{phase.numberOfPools}</strong> poule(s) de {phase.teamsPerPool}
-        </span>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <ChevronRight size={16} className="text-green-500" />
-        <span>
-          <strong>{phase.totalQualified}</strong> qualifié(s)
-        </span>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <Calendar size={16} className="text-gray-400" />
-        <span>
-          <strong>{phase.estimatedRounds}</strong> rounds KOB
-        </span>
-      </div>
-
-      <div className="col-span-2 text-gray-600">
+      {/* Ligne 2: Règles de jeu */}
+      <div className="text-xs text-gray-600 bg-gray-50 px-3 py-2 rounded">
         {phase.setsPerMatch} set(s) de {phase.pointsPerSet} pts
         {phase.tieBreakEnabled && ' • Tie-break'}
+        {' • '}
+        {phase.fields} terrain{phase.fields > 1 ? 's' : ''} utilisé{phase.fields > 1 ? 's' : ''}
       </div>
     </div>
   );

@@ -16,10 +16,14 @@ export interface PhaseConfig {
   totalQualified: number;
   fields: number; // nombre de terrains utilisés
   estimatedRounds: number; // nombre de rounds KOB nécessaires
+  totalMatches: number; // nombre total de matchs dans la phase
   // Règles de jeu
   setsPerMatch: number;
   pointsPerSet: number;
   tieBreakEnabled: boolean;
+  // Estimation temporelle
+  estimatedDurationMinutes: number; // durée estimée en minutes
+  estimatedDurationDisplay: string; // ex: "2h30" ou "45min"
   // Planning
   suggestedDate?: string; // peut être rempli par l'utilisateur
 }
@@ -28,10 +32,21 @@ export interface KingConfiguration {
   totalPlayers: number;
   availableFields: number;
   phases: PhaseConfig[];
-  estimatedDuration: string; // estimation de la durée totale
+  totalMatches: number; // nombre total de matchs du tournoi
+  estimatedDuration: string; // estimation de la durée totale (ex: "2-3 jours")
+  estimatedTotalMinutes: number; // durée totale en minutes
+  estimatedTotalDisplay: string; // ex: "8h30"
   description: string;
   warnings?: string[];
 }
+
+/**
+ * Constants pour le calcul de durée
+ */
+const MINUTES_PER_SET = 18; // Durée moyenne d'un set en minutes
+const MINUTES_BREAK_BETWEEN_SETS = 2; // Pause entre sets
+const MINUTES_BREAK_BETWEEN_MATCHES = 3; // Pause entre matchs
+const MINUTES_SETUP_PER_PHASE = 15; // Temps d'installation début de phase
 
 /**
  * Calcule le nombre de rounds nécessaires pour une phase KOB (King of the Beach)
@@ -54,6 +69,55 @@ function calculateKOBRounds(teamsPerPool: number): number {
 }
 
 /**
+ * Calcule le nombre total de matchs pour une phase
+ */
+function calculateTotalMatches(
+  numberOfPools: number,
+  estimatedRounds: number
+): number {
+  // En KOB, chaque round = 1 match par poule
+  // (2 équipes s'affrontent, les autres sont sur le banc)
+  return estimatedRounds * numberOfPools;
+}
+
+/**
+ * Calcule la durée estimée d'un match en minutes
+ */
+function calculateMatchDuration(setsPerMatch: number): number {
+  const setsDuration = setsPerMatch * MINUTES_PER_SET;
+  const breaksDuration = Math.max(0, setsPerMatch - 1) * MINUTES_BREAK_BETWEEN_SETS;
+  return setsDuration + breaksDuration + MINUTES_BREAK_BETWEEN_MATCHES;
+}
+
+/**
+ * Calcule la durée estimée d'une phase en minutes
+ */
+function calculatePhaseDuration(
+  totalMatches: number,
+  fields: number,
+  setsPerMatch: number
+): number {
+  const matchDuration = calculateMatchDuration(setsPerMatch);
+  const matchesInParallel = Math.ceil(totalMatches / fields);
+  return matchesInParallel * matchDuration + MINUTES_SETUP_PER_PHASE;
+}
+
+/**
+ * Formate une durée en minutes vers un format lisible (ex: "2h30" ou "45min")
+ */
+function formatDuration(minutes: number): string {
+  if (minutes < 60) {
+    return `${Math.round(minutes)}min`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const mins = Math.round(minutes % 60);
+  if (mins === 0) {
+    return `${hours}h`;
+  }
+  return `${hours}h${mins.toString().padStart(2, '0')}`;
+}
+
+/**
  * Trouve le diviseur le plus proche d'un nombre pour créer des poules équilibrées
  * Note: Fonction utilitaire non utilisée pour le moment mais conservée pour référence future
  */
@@ -70,6 +134,46 @@ function findOptimalDivisor(total: number, preferred: number): number {
   return total; // Cas extrême : une seule poule
 }
 */
+
+/**
+ * Enrichit une phase avec les calculs de matchs et durée
+ */
+export function enrichPhaseWithTimings(phase: Partial<PhaseConfig>): PhaseConfig {
+  const totalMatches = calculateTotalMatches(
+    phase.numberOfPools!,
+    phase.estimatedRounds!
+  );
+
+  const durationMinutes = calculatePhaseDuration(
+    totalMatches,
+    phase.fields!,
+    phase.setsPerMatch!
+  );
+
+  return {
+    ...phase,
+    totalMatches,
+    estimatedDurationMinutes: durationMinutes,
+    estimatedDurationDisplay: formatDuration(durationMinutes),
+  } as PhaseConfig;
+}
+
+/**
+ * Enrichit une configuration complète avec les totaux
+ */
+function enrichConfigurationWithTotals(
+  config: Omit<KingConfiguration, 'totalMatches' | 'estimatedTotalMinutes' | 'estimatedTotalDisplay'>
+): KingConfiguration {
+  const totalMatches = config.phases.reduce((sum, phase) => sum + phase.totalMatches, 0);
+  const totalMinutes = config.phases.reduce((sum, phase) => sum + phase.estimatedDurationMinutes, 0);
+
+  return {
+    ...config,
+    totalMatches,
+    estimatedTotalMinutes: totalMinutes,
+    estimatedTotalDisplay: formatDuration(totalMinutes),
+  };
+}
 
 /**
  * Suggère des configurations optimales pour le mode King
@@ -129,7 +233,7 @@ function generateClassicProgression(
   const phase1QualifiedPerPool = Math.max(2, Math.floor(phase1TeamsPerPool / 3));
   const phase1Qualified = phase1QualifiedPerPool * phase1Pools;
 
-  phases.push({
+  phases.push(enrichPhaseWithTimings({
     phaseNumber: 1,
     gameMode: '4v4',
     playersPerTeam: 4,
@@ -143,7 +247,7 @@ function generateClassicProgression(
     setsPerMatch: 1,
     pointsPerSet: 21,
     tieBreakEnabled: false,
-  });
+  }));
 
   // Phase 2 : 3v3
   const phase2Teams = phase1Qualified;
@@ -158,7 +262,7 @@ function generateClassicProgression(
     adjustedPhase2Qualified = [2, 4, 8, 16].find(n => n >= phase2Qualified && n <= phase2Teams) || 4;
   }
 
-  phases.push({
+  phases.push(enrichPhaseWithTimings({
     phaseNumber: 2,
     gameMode: '3v3',
     playersPerTeam: 3,
@@ -172,11 +276,11 @@ function generateClassicProgression(
     setsPerMatch: 2,
     pointsPerSet: 15,
     tieBreakEnabled: true,
-  });
+  }));
 
   // Phase 3 : 2v2 (finale)
   const phase3Teams = adjustedPhase2Qualified;
-  phases.push({
+  phases.push(enrichPhaseWithTimings({
     phaseNumber: 3,
     gameMode: '2v2',
     playersPerTeam: 2,
@@ -190,15 +294,15 @@ function generateClassicProgression(
     setsPerMatch: 3,
     pointsPerSet: 21,
     tieBreakEnabled: true,
-  });
+  }));
 
-  return {
+  return enrichConfigurationWithTotals({
     totalPlayers,
     availableFields,
     phases,
     estimatedDuration: '2-3 jours',
     description: 'Progression classique (recommandée) : 4v4 → 3v3 → 2v2',
-  };
+  });
 }
 
 /**
@@ -218,7 +322,7 @@ function generateBigProgression(
   const phase1QualifiedPerPool = Math.max(3, Math.floor(phase1TeamsPerPool / 3));
   const phase1Qualified = phase1QualifiedPerPool * phase1Pools;
 
-  phases.push({
+  phases.push(enrichPhaseWithTimings({
     phaseNumber: 1,
     gameMode: '6v6',
     playersPerTeam: 6,
@@ -232,7 +336,7 @@ function generateBigProgression(
     setsPerMatch: 1,
     pointsPerSet: 21,
     tieBreakEnabled: false,
-  });
+  }));
 
   // Phase 2 : 4v4
   const phase2Teams = phase1Qualified;
@@ -241,7 +345,7 @@ function generateBigProgression(
   const phase2QualifiedPerPool = Math.max(2, Math.floor(phase2TeamsPerPool / 2));
   const phase2Qualified = phase2QualifiedPerPool * phase2Pools;
 
-  phases.push({
+  phases.push(enrichPhaseWithTimings({
     phaseNumber: 2,
     gameMode: '4v4',
     playersPerTeam: 4,
@@ -255,10 +359,10 @@ function generateBigProgression(
     setsPerMatch: 2,
     pointsPerSet: 21,
     tieBreakEnabled: true,
-  });
+  }));
 
   // Phase 3 : 2v2 (finale)
-  phases.push({
+  phases.push(enrichPhaseWithTimings({
     phaseNumber: 3,
     gameMode: '2v2',
     playersPerTeam: 2,
@@ -272,15 +376,15 @@ function generateBigProgression(
     setsPerMatch: 3,
     pointsPerSet: 21,
     tieBreakEnabled: true,
-  });
+  }));
 
-  return {
+  return enrichConfigurationWithTotals({
     totalPlayers,
     availableFields,
     phases,
     estimatedDuration: '3-4 jours',
     description: 'Progression pour grand tournoi : 6v6 → 4v4 → 2v2',
-  };
+  });
 }
 
 /**
@@ -306,7 +410,7 @@ function generateFastProgression(
     adjustedPhase1Qualified = [4, 8, 16].find(n => n >= phase1Qualified && n <= phase1Teams) || 8;
   }
 
-  phases.push({
+  phases.push(enrichPhaseWithTimings({
     phaseNumber: 1,
     gameMode: '4v4',
     playersPerTeam: 4,
@@ -320,10 +424,10 @@ function generateFastProgression(
     setsPerMatch: 1,
     pointsPerSet: 21,
     tieBreakEnabled: false,
-  });
+  }));
 
   // Phase 2 : 2v2 (finale)
-  phases.push({
+  phases.push(enrichPhaseWithTimings({
     phaseNumber: 2,
     gameMode: '2v2',
     playersPerTeam: 2,
@@ -337,15 +441,15 @@ function generateFastProgression(
     setsPerMatch: 3,
     pointsPerSet: 21,
     tieBreakEnabled: true,
-  });
+  }));
 
-  return {
+  return enrichConfigurationWithTotals({
     totalPlayers,
     availableFields,
     phases,
     estimatedDuration: '1-2 jours',
     description: 'Progression rapide (2 phases) : 4v4 → 2v2',
-  };
+  });
 }
 
 /**
@@ -371,7 +475,7 @@ function generateCompactProgression(
     adjustedPhase1Qualified = [4, 8].find(n => n >= phase1Qualified && n <= phase1Teams) || 4;
   }
 
-  phases.push({
+  phases.push(enrichPhaseWithTimings({
     phaseNumber: 1,
     gameMode: '3v3',
     playersPerTeam: 3,
@@ -385,10 +489,10 @@ function generateCompactProgression(
     setsPerMatch: 2,
     pointsPerSet: 15,
     tieBreakEnabled: false,
-  });
+  }));
 
   // Phase 2 : 2v2 (finale)
-  phases.push({
+  phases.push(enrichPhaseWithTimings({
     phaseNumber: 2,
     gameMode: '2v2',
     playersPerTeam: 2,
@@ -402,15 +506,15 @@ function generateCompactProgression(
     setsPerMatch: 3,
     pointsPerSet: 21,
     tieBreakEnabled: true,
-  });
+  }));
 
-  return {
+  return enrichConfigurationWithTotals({
     totalPlayers,
     availableFields,
     phases,
     estimatedDuration: '1-2 jours',
     description: 'Configuration compacte : 3v3 → 2v2',
-  };
+  });
 }
 
 /**
