@@ -240,8 +240,10 @@ exports.unregisterTeam = async (req, res) => {
 
                 await batch.commit();
 
-                // TODO: Envoyer une notification au capitaine de l'équipe promue
-                console.log(`Équipe ${teamToPromoteId} promue de la liste d'attente.`);
+                // Log notification for the captain of the promoted team
+                // NOTE: When a notification system is implemented, send an actual notification here
+                console.log(`[NOTIFICATION] Équipe ${teamToPromoteId} promue de la liste d'attente.`);
+                console.log(`[NOTIFICATION] Le capitaine (ID: ${teamToPromoteData.captainId}) doit être notifié que son équipe "${teamToPromoteData.name}" a été promue du rang ${eventData.name}.`);
             }
         }
 
