@@ -72,6 +72,9 @@ export const createTournament = async (req: Request, res: Response) => {
       throw new AppError('Tournament name is required', 400);
     }
 
+    // Handle uploaded file (if any)
+    const coverImagePath = (req as any).file ? `/uploads/${(req as any).file.filename}` : undefined;
+
     const tournamentData: any = {
       name: name.trim(),
       description: description?.trim() || '',
@@ -99,6 +102,11 @@ export const createTournament = async (req: Request, res: Response) => {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
+
+    // Add cover image if provided
+    if (coverImagePath) {
+      tournamentData.coverImage = coverImagePath;
+    }
 
     const tournamentRef = await adminDb.collection('events').add(tournamentData);
 
@@ -178,6 +186,11 @@ export const updateTournament = async (req: Request, res: Response) => {
     const updateData: any = {
       updatedAt: new Date(),
     };
+
+    // Handle uploaded file (if any)
+    if ((req as any).file) {
+      updateData.coverImage = `/uploads/${(req as any).file.filename}`;
+    }
 
     // Only add defined values to avoid Firestore undefined errors
     if (name !== undefined && name !== null) updateData.name = name.trim();
