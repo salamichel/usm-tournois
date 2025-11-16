@@ -74,5 +74,6 @@ router.post('/tournaments/:tournamentId/king/matches/:matchId/record-result', as
 router.post('/tournaments/:tournamentId/king/reset-phase-1', asyncHandler(getTournament), asyncHandler(kingController.resetKingPhase1));
 router.post('/tournaments/:tournamentId/king/reset-phase-2', asyncHandler(getTournament), asyncHandler(kingController.resetKingPhase2));
 router.post('/tournaments/:tournamentId/king/reset-phase-3', asyncHandler(getTournament), asyncHandler(kingController.resetKingPhase3));
+router.post('/tournaments/:tournamentId/king/set-all-matches-scores', asyncHandler(getTournament), asyncHandler(kingController.setAllKingMatchesScores));
 
 export default router;

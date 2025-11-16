@@ -866,3 +866,103 @@ export const resetKingPhase3 = async (req: Request, res: Response) => {
     res.status(500).json({ success: false, message: 'Server error while resetting final phase.' });
   }
 };
+
+/**
+ * Set random scores for all incomplete matches in current phase
+ * For testing purposes only
+ */
+export const setAllKingMatchesScores = async (req: Request, res: Response) => {
+  try {
+    const tournament = (req as any).tournament;
+    if (!tournament) {
+      return res.status(404).json({ success: false, message: 'Tournament not found in request.' });
+    }
+
+    const tournamentId = tournament.id;
+    const tournamentRef = adminDb.collection('events').doc(tournamentId);
+    const kingDocRef = tournamentRef.collection('king').doc('mainKingData');
+    const kingDoc = await kingDocRef.get();
+
+    if (!kingDoc.exists) {
+      return res.status(404).json({ success: false, message: 'King tournament data not found.' });
+    }
+
+    const currentPhaseNumber = tournament.currentKingPhase;
+    if (!currentPhaseNumber || currentPhaseNumber === 0) {
+      return res.status(400).json({ success: false, message: 'No active phase to set scores for.' });
+    }
+
+    const phaseDocRef = kingDocRef.collection('phases').doc(`phase-${currentPhaseNumber}`);
+    const phaseDoc = await phaseDocRef.get();
+
+    if (!phaseDoc.exists) {
+      return res.status(404).json({ success: false, message: 'Current King tournament phase not found.' });
+    }
+
+    const batch = adminDb.batch();
+    let matchesUpdatedCount = 0;
+    const allPhaseMatches: any[] = [];
+
+    // Random score options (2-0, 2-1, 0-2, 1-2)
+    const scoreOptions = [
+      { s1: 2, s2: 0 }, { s1: 2, s2: 1 },
+      { s1: 0, s2: 2 }, { s1: 1, s2: 2 }
+    ];
+
+    const poolsSnapshot = await phaseDocRef.collection('pools').get();
+    for (const poolDoc of poolsSnapshot.docs) {
+      const matchesSnapshot = await poolDoc.ref.collection('matches').get();
+      for (const matchDoc of matchesSnapshot.docs) {
+        const matchData: any = { id: matchDoc.id, ...matchDoc.data() };
+
+        if (matchData.status !== 'completed') {
+          // Generate random score
+          const randomScore = scoreOptions[Math.floor(Math.random() * scoreOptions.length)];
+
+          matchData.setsWonTeam1 = randomScore.s1;
+          matchData.setsWonTeam2 = randomScore.s2;
+          matchData.status = 'completed';
+          matchData.updatedAt = new Date();
+
+          // Determine winner
+          let winnerTeam = null;
+          if (matchData.setsWonTeam1 > matchData.setsWonTeam2) {
+            winnerTeam = matchData.team1;
+          } else if (matchData.setsWonTeam2 > matchData.setsWonTeam1) {
+            winnerTeam = matchData.team2;
+          }
+          matchData.winnerTeam = winnerTeam;
+          matchData.winnerName = winnerTeam ? winnerTeam.name : null;
+          matchData.winnerPlayerIds = winnerTeam ? winnerTeam.members.map((m: any) => m.id) : [];
+
+          batch.update(matchDoc.ref, matchData);
+          matchesUpdatedCount++;
+        }
+        allPhaseMatches.push(matchData);
+      }
+    }
+
+    if (matchesUpdatedCount === 0) {
+      return res.json({ success: true, message: 'All matches in current phase are already completed.' });
+    }
+
+    // Update phase document with all matches
+    batch.update(phaseDocRef, {
+      allMatches: allPhaseMatches,
+      updatedAt: new Date()
+    });
+
+    await batch.commit();
+
+    // Recalculate rankings
+    const allMatchesCompleted = await kingService.isPhaseCompleted(kingDocRef, currentPhaseNumber);
+    const finalBatch = adminDb.batch();
+    await recalculateRankingAndUpdateTournament(finalBatch, tournamentRef, kingDocRef, allMatchesCompleted, currentPhaseNumber, currentPhaseNumber);
+    await finalBatch.commit();
+
+    res.json({ success: true, message: `${matchesUpdatedCount} matches updated with random scores.` });
+  } catch (error) {
+    console.error('Error setting random scores:', error);
+    res.status(500).json({ success: false, message: 'Server error while setting random scores.' });
+  }
+};
