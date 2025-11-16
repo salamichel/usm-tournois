@@ -5,25 +5,36 @@ import adminService from '@services/admin.service';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Save, Calendar, Users, MapPin, DollarSign, Settings } from 'lucide-react';
 
-// Helper function to format ISO date string to YYYY-MM-DD
+// Helper function to format ISO date string to YYYY-MM-DD (UTC, no timezone conversion)
 const formatDateForInput = (isoString: string | undefined | null): string => {
   if (!isoString) return '';
   try {
     const date = new Date(isoString);
     if (isNaN(date.getTime())) return '';
-    return date.toISOString().split('T')[0];
+
+    // Use UTC components to avoid timezone conversion
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
   } catch {
     return '';
   }
 };
 
-// Helper function to format ISO date string to HH:MM
+// Helper function to format ISO date string to HH:MM (UTC, no timezone conversion)
 const formatTimeForInput = (isoString: string | undefined | null): string => {
   if (!isoString) return '';
   try {
     const date = new Date(isoString);
     if (isNaN(date.getTime())) return '';
-    return date.toISOString().split('T')[1].substring(0, 5);
+
+    // Use UTC components to avoid timezone conversion
+    const hours = String(date.getUTCHours()).padStart(2, '0');
+    const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+
+    return `${hours}:${minutes}`;
   } catch {
     return '';
   }
@@ -160,11 +171,12 @@ const AdminTournamentForm = () => {
 
       const formDataToSend = new FormData();
 
-      // Combine date and time fields into ISO datetime strings
+      // Combine date and time fields into ISO datetime strings (treating as UTC to avoid timezone conversion)
       const combineDateAndTime = (dateStr: string, timeStr: string): string => {
         if (!dateStr) return '';
-        const dateTime = timeStr ? `${dateStr}T${timeStr}:00` : `${dateStr}T00:00:00`;
-        return new Date(dateTime).toISOString();
+        // Add 'Z' to indicate UTC timezone and avoid local timezone conversion
+        const dateTime = timeStr ? `${dateStr}T${timeStr}:00Z` : `${dateStr}T00:00:00Z`;
+        return dateTime;
       };
 
       // Add combined datetime fields
