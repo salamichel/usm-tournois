@@ -1,0 +1,42 @@
+{
+  "name": "usm-tournois-server",
+  "version": "1.0.0",
+  "description": "USM Tournois API Server",
+  "main": "dist/app.js",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/app.ts",
+    "build": "tsc",
+    "start": "node dist/app.js",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint . --ext .ts"
+  },
+  "keywords": ["api", "express", "typescript", "firebase"],
+  "author": "USM Tournois Team",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.19.2",
+    "firebase-admin": "^13.5.0",
+    "firebase": "^12.4.0",
+    "express-session": "^1.18.2",
+    "dotenv": "^16.6.1",
+    "multer": "^2.0.2",
+    "cors": "^2.8.5",
+    "helmet": "^8.0.0",
+    "compression": "^1.7.4",
+    "express-rate-limit": "^7.4.1"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/express-session": "^1.18.0",
+    "@types/cors": "^2.8.17",
+    "@types/compression": "^1.7.5",
+    "@types/multer": "^1.4.12",
+    "@types/node": "^22.7.5",
+    "@typescript-eslint/eslint-plugin": "^8.8.0",
+    "@typescript-eslint/parser": "^8.8.0",
+    "eslint": "^9.11.1",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.2"
+  }
+}
