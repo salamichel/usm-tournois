@@ -144,3 +144,144 @@ export interface KingDashboardData {
   currentPhase?: KingPhase;
   status: KingTournamentStatus;
 }
+
+// ========================================
+// FLEXIBLE KING MODE TYPES (NEW SYSTEM)
+// ========================================
+
+/**
+ * Supported game modes for flexible King tournaments
+ */
+export type GameMode = '6v6' | '5v5' | '4v4' | '3v3' | '2v2' | '1v1';
+
+/**
+ * Status of a flexible King phase
+ */
+export type FlexiblePhaseStatus =
+  | 'not_configured'   // Not yet configured by admin
+  | 'configured'       // Configured, ready to start
+  | 'in_progress'      // Currently running
+  | 'completed';       // Finished
+
+/**
+ * Configuration for a single phase in flexible King mode
+ */
+export interface FlexiblePhaseConfig {
+  phaseNumber: number;
+  gameMode: GameMode;
+  playersPerTeam: number;
+  teamsPerPool: number;
+  numberOfPools: number;
+  totalParticipants: number;  // Total players in this phase
+  qualifiedPerPool: number;
+  totalQualified: number;     // Total qualified for next phase
+  fields: number;             // Number of available fields
+  estimatedRounds: number;
+
+  // Game rules
+  setsPerMatch: number;
+  pointsPerSet: number;
+  tieBreakEnabled: boolean;
+
+  // Scheduling
+  scheduledDate?: string;     // ISO date string
+}
+
+/**
+ * A phase in a flexible King tournament
+ */
+export interface FlexibleKingPhase {
+  id: string;                 // Unique phase ID
+  tournamentId: string;
+  phaseNumber: number;
+  status: FlexiblePhaseStatus;
+  config: FlexiblePhaseConfig;
+
+  // Participants
+  participantIds: string[];   // Player IDs participating in this phase
+  qualifiedIds: string[];     // Player IDs qualified to next phase (filled after completion)
+  withdrawnIds: string[];     // Player IDs marked as withdrawn (manual)
+  repechedIds: string[];      // Player IDs manually repêched from previous phase
+
+  // Generated data
+  pools?: KingPool[];         // Generated pools (if status >= 'configured')
+  matches?: KingMatch[];      // Generated matches
+  ranking?: KingPlayerRanking[];
+
+  // Metadata
+  createdAt: Date;
+  configuredAt?: Date;        // When phase was configured
+  startedAt?: Date;           // When phase started
+  completedAt?: Date;         // When phase completed
+}
+
+/**
+ * Overall flexible King tournament data
+ */
+export interface FlexibleKingTournamentData {
+  phases: FlexibleKingPhase[];
+  currentPhaseNumber: number | null;  // null if no phase in progress
+  winner?: {
+    playerId: string;
+    playerPseudo: string;
+  };
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// ========================================
+// DTOs FOR FLEXIBLE KING MODE API
+// ========================================
+
+export interface ConfigureKingPhaseDto {
+  tournamentId: string;
+  phaseNumber: number;
+  config: FlexiblePhaseConfig;
+}
+
+export interface GeneratePhasePoolsDto {
+  tournamentId: string;
+  phaseNumber: number;
+}
+
+export interface MarkWithdrawalsDto {
+  tournamentId: string;
+  phaseNumber: number;
+  withdrawnPlayerIds: string[];
+}
+
+export interface ManageRepechagesDto {
+  tournamentId: string;
+  phaseNumber: number;
+  repechedPlayerIds: string[];
+}
+
+export interface CompletePhaseDto {
+  tournamentId: string;
+  phaseNumber: number;
+}
+
+export interface GetKingPreviewDto {
+  tournamentId: string;
+  registeredCount?: number;  // Optional override for preview calculation
+}
+
+export interface RepechageCandidate {
+  playerId: string;
+  playerPseudo: string;
+  rank: number;
+  wins: number;
+  losses: number;
+}
+
+export interface CompletePhaseResponse {
+  qualifiedIds: string[];
+  repechageCandidates: RepechageCandidate[];
+}
+
+export interface FlexibleKingDashboardData {
+  tournament: any; // Tournament type
+  kingData: FlexibleKingTournamentData;
+  currentPhase?: FlexibleKingPhase;
+  registeredPlayersCount: number;
+}
