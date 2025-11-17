@@ -15,14 +15,14 @@ export interface PhaseConfig {
   teamsPerPool: number; // Moyenne d'équipes par poule (pour compatibilité)
   numberOfPools: number;
   totalTeams: number;
-  qualifiedPerPool: number; // Moyenne de qualifiés par poule (pour compatibilité)
-  totalQualified: number;
+  qualifiedPerPool: number; // JOUEURS qualifiés par poule (moyenne, pour compatibilité)
+  totalQualified: number; // TOTAL de JOUEURS qualifiés pour la phase suivante
   fields: number; // nombre de terrains utilisés
   estimatedRounds: number; // nombre de rounds KOB nécessaires
   totalMatches: number; // nombre total de matchs dans la phase
   // Support des poules déséquilibrées (optionnel)
   poolDistribution?: number[]; // ex: [3, 3, 4] = 3 poules avec 3, 3 et 4 équipes
-  qualifiedPerPoolDistribution?: number[]; // ex: [2, 2, 2] = 2 qualifiés par poule
+  qualifiedPerPoolDistribution?: number[]; // ex: [4, 4, 4] = 4 JOUEURS qualifiés par poule
   // Règles de jeu
   setsPerMatch: number;
   pointsPerSet: number;
@@ -287,7 +287,7 @@ export function customizePhaseWithPools(
     throw new Error(`Le nombre de poules (${numberOfPools}) ne peut pas dépasser le nombre d'équipes (${phase.totalTeams})`);
   }
 
-  // Calculer la distribution
+  // Calculer la distribution des équipes
   const poolDistribution = distributeTeamsInPools(phase.totalTeams, numberOfPools);
 
   // Valider la distribution
@@ -296,20 +296,24 @@ export function customizePhaseWithPools(
     throw new Error(validation.error);
   }
 
-  // Calculer les qualifiés par poule (proportionnel)
-  const totalQualified = phase.totalQualified;
+  // Calculer les JOUEURS qualifiés par poule (proportionnel)
+  // totalQualified = nombre de JOUEURS à qualifier au total
+  const totalQualifiedPlayers = phase.totalQualified;
   const qualifiedPerPoolDistribution: number[] = [];
-  let remainingQualified = totalQualified;
+  let remainingQualified = totalQualifiedPlayers;
 
   for (let i = 0; i < poolDistribution.length; i++) {
     const teamsInPool = poolDistribution[i];
+    const playersInPool = teamsInPool * phase.playersPerTeam;
     const poolsLeft = poolDistribution.length - i;
 
     // Répartir proportionnellement
     const qualifiedInPool = Math.floor(remainingQualified / poolsLeft);
 
-    // Ne pas qualifier plus que le nombre d'équipes dans la poule
-    const finalQualified = Math.min(qualifiedInPool, teamsInPool - 1);
+    // Ne pas qualifier plus que le nombre de joueurs dans la poule - playersPerTeam
+    // (il faut au moins une équipe non qualifiée)
+    const maxQualifiedInPool = playersInPool - phase.playersPerTeam;
+    const finalQualified = Math.min(qualifiedInPool, maxQualifiedInPool);
 
     qualifiedPerPoolDistribution.push(finalQualified);
     remainingQualified -= finalQualified;
@@ -318,7 +322,11 @@ export function customizePhaseWithPools(
   // Si des qualifiés restants, les ajouter aux premières poules
   let i = 0;
   while (remainingQualified > 0 && i < qualifiedPerPoolDistribution.length) {
-    if (qualifiedPerPoolDistribution[i] < poolDistribution[i] - 1) {
+    const teamsInPool = poolDistribution[i];
+    const playersInPool = teamsInPool * phase.playersPerTeam;
+    const maxQualifiedInPool = playersInPool - phase.playersPerTeam;
+
+    if (qualifiedPerPoolDistribution[i] < maxQualifiedInPool) {
       qualifiedPerPoolDistribution[i]++;
       remainingQualified--;
     }
@@ -332,7 +340,7 @@ export function customizePhaseWithPools(
     poolDistribution,
     qualifiedPerPoolDistribution,
     teamsPerPool: Math.floor(phase.totalTeams / numberOfPools), // Moyenne
-    qualifiedPerPool: Math.floor(totalQualified / numberOfPools), // Moyenne
+    qualifiedPerPool: Math.floor(totalQualifiedPlayers / numberOfPools), // Moyenne JOUEURS
   };
 
   return enrichPhaseWithTimings(newPhase);
@@ -393,8 +401,8 @@ function generateClassicProgression(
   const phase1Teams = Math.floor(totalPlayers / 4);
   const phase1Pools = Math.min(availableFields, Math.max(2, Math.floor(phase1Teams / 8)));
   const phase1TeamsPerPool = Math.floor(phase1Teams / phase1Pools);
-  const phase1QualifiedPerPool = Math.max(2, Math.floor(phase1TeamsPerPool / 3));
-  const phase1Qualified = phase1QualifiedPerPool * phase1Pools;
+  const phase1QualifiedPlayersPerPool = Math.max(4, Math.floor(phase1TeamsPerPool * 4 / 3)); // JOUEURS qualifiés par poule
+  const phase1QualifiedPlayers = phase1QualifiedPlayersPerPool * phase1Pools; // Total JOUEURS qualifiés
 
   phases.push(enrichPhaseWithTimings({
     phaseNumber: 1,
@@ -404,8 +412,8 @@ function generateClassicProgression(
     teamsPerPool: phase1TeamsPerPool,
     numberOfPools: phase1Pools,
     totalTeams: phase1Teams,
-    qualifiedPerPool: phase1QualifiedPerPool,
-    totalQualified: phase1Qualified,
+    qualifiedPerPool: phase1QualifiedPlayersPerPool, // JOUEURS
+    totalQualified: phase1QualifiedPlayers, // JOUEURS
     fields: Math.min(availableFields, phase1Pools),
     estimatedRounds: 3, // Phase 1: toujours 3 rounds en Round Robin
     setsPerMatch: 1,
@@ -414,16 +422,23 @@ function generateClassicProgression(
   }));
 
   // Phase 2 : 3v3
-  const phase2Teams = phase1Qualified;
+  const phase2Players = phase1QualifiedPlayers; // JOUEURS de la phase 1
+  const phase2Teams = Math.floor(phase2Players / 3); // Convertir en équipes de 3
   const phase2Pools = Math.min(availableFields, Math.max(2, Math.floor(phase2Teams / 4)));
   const phase2TeamsPerPool = Math.floor(phase2Teams / phase2Pools);
-  const phase2QualifiedPerPool = Math.max(2, Math.floor(phase2TeamsPerPool / 2));
-  const phase2Qualified = phase2QualifiedPerPool * phase2Pools;
+  const phase2QualifiedPlayersPerPool = Math.max(3, Math.floor(phase2TeamsPerPool * 3 / 2)); // JOUEURS qualifiés par poule
+  const phase2QualifiedPlayers = phase2QualifiedPlayersPerPool * phase2Pools; // Total JOUEURS
 
-  // Assurer que phase2Qualified est une puissance de 2 pour la phase finale
-  let adjustedPhase2Qualified = phase2Qualified;
-  if (![2, 4, 8, 16].includes(phase2Qualified)) {
-    adjustedPhase2Qualified = [2, 4, 8, 16].find(n => n >= phase2Qualified && n <= phase2Teams) || 4;
+  // Assurer que phase2QualifiedPlayers permet de former des équipes de 2 (nombre pair)
+  let adjustedPhase2QualifiedPlayers = phase2QualifiedPlayers;
+  if (phase2QualifiedPlayers % 2 !== 0) {
+    adjustedPhase2QualifiedPlayers = phase2QualifiedPlayers - 1; // Arrondir au nombre pair inférieur
+  }
+  // Et vérifier que ça donne une puissance de 2 en équipes
+  const phase3Teams = Math.floor(adjustedPhase2QualifiedPlayers / 2);
+  if (![2, 4, 8, 16].includes(phase3Teams)) {
+    const targetTeams = [2, 4, 8, 16].find(n => n >= phase3Teams && n <= phase2Teams) || 4;
+    adjustedPhase2QualifiedPlayers = targetTeams * 2; // Convertir en joueurs
   }
 
   phases.push(enrichPhaseWithTimings({
@@ -434,8 +449,8 @@ function generateClassicProgression(
     teamsPerPool: phase2TeamsPerPool,
     numberOfPools: phase2Pools,
     totalTeams: phase2Teams,
-    qualifiedPerPool: phase2QualifiedPerPool,
-    totalQualified: adjustedPhase2Qualified,
+    qualifiedPerPool: phase2QualifiedPlayersPerPool, // JOUEURS
+    totalQualified: adjustedPhase2QualifiedPlayers, // JOUEURS
     fields: Math.min(availableFields, phase2Pools),
     estimatedRounds: calculateKOBRounds(phase2TeamsPerPool),
     setsPerMatch: 2,
@@ -444,7 +459,8 @@ function generateClassicProgression(
   }));
 
   // Phase 3 : 2v2 (finale)
-  const phase3Teams = adjustedPhase2Qualified;
+  const phase3Players = adjustedPhase2QualifiedPlayers; // JOUEURS de la phase 2
+  const phase3Teams = Math.floor(phase3Players / 2); // Convertir en équipes de 2
   phases.push(enrichPhaseWithTimings({
     phaseNumber: 3,
     gameMode: '2v2',
@@ -453,8 +469,8 @@ function generateClassicProgression(
     teamsPerPool: phase3Teams,
     numberOfPools: 1,
     totalTeams: phase3Teams,
-    qualifiedPerPool: 1,
-    totalQualified: 1,
+    qualifiedPerPool: 2, // 2 JOUEURS (l'équipe gagnante)
+    totalQualified: 2, // 2 JOUEURS (le KING et son partenaire)
     fields: Math.min(availableFields, 2),
     estimatedRounds: calculateKOBRounds(phase3Teams),
     setsPerMatch: 3,
@@ -485,8 +501,8 @@ function generateBigProgression(
   const phase1Teams = Math.floor(totalPlayers / 6);
   const phase1Pools = Math.min(availableFields, Math.max(2, Math.floor(phase1Teams / 10)));
   const phase1TeamsPerPool = Math.floor(phase1Teams / phase1Pools);
-  const phase1QualifiedPerPool = Math.max(3, Math.floor(phase1TeamsPerPool / 3));
-  const phase1Qualified = phase1QualifiedPerPool * phase1Pools;
+  const phase1QualifiedPlayersPerPool = Math.max(6, Math.floor(phase1TeamsPerPool * 6 / 3)); // JOUEURS qualifiés par poule
+  const phase1QualifiedPlayers = phase1QualifiedPlayersPerPool * phase1Pools; // Total JOUEURS
 
   phases.push(enrichPhaseWithTimings({
     phaseNumber: 1,
@@ -496,8 +512,8 @@ function generateBigProgression(
     teamsPerPool: phase1TeamsPerPool,
     numberOfPools: phase1Pools,
     totalTeams: phase1Teams,
-    qualifiedPerPool: phase1QualifiedPerPool,
-    totalQualified: phase1Qualified,
+    qualifiedPerPool: phase1QualifiedPlayersPerPool, // JOUEURS
+    totalQualified: phase1QualifiedPlayers, // JOUEURS
     fields: Math.min(availableFields, phase1Pools),
     estimatedRounds: 3, // Phase 1: toujours 3 rounds en Round Robin
     setsPerMatch: 1,
@@ -506,11 +522,14 @@ function generateBigProgression(
   }));
 
   // Phase 2 : 4v4
-  const phase2Teams = phase1Qualified;
+  const phase2Players = phase1QualifiedPlayers; // JOUEURS de la phase 1
+  const phase2Teams = Math.floor(phase2Players / 4); // Convertir en équipes de 4
   const phase2Pools = Math.min(availableFields, Math.max(2, Math.floor(phase2Teams / 4)));
   const phase2TeamsPerPool = Math.floor(phase2Teams / phase2Pools);
-  const phase2QualifiedPerPool = Math.max(2, Math.floor(phase2TeamsPerPool / 2));
-  const phase2Qualified = phase2QualifiedPerPool * phase2Pools;
+  const phase2QualifiedPlayersPerPool = Math.max(4, Math.floor(phase2TeamsPerPool * 4 / 2)); // JOUEURS qualifiés par poule
+  const phase2QualifiedPlayers = phase2QualifiedPlayersPerPool * phase2Pools; // Total JOUEURS
+  // Arrondir pour phase 2v2 (nombre pair)
+  const adjustedPhase2QualifiedPlayers = phase2QualifiedPlayers % 2 === 0 ? phase2QualifiedPlayers : phase2QualifiedPlayers - 1;
 
   phases.push(enrichPhaseWithTimings({
     phaseNumber: 2,
@@ -520,8 +539,8 @@ function generateBigProgression(
     teamsPerPool: phase2TeamsPerPool,
     numberOfPools: phase2Pools,
     totalTeams: phase2Teams,
-    qualifiedPerPool: phase2QualifiedPerPool,
-    totalQualified: phase2Qualified,
+    qualifiedPerPool: phase2QualifiedPlayersPerPool, // JOUEURS
+    totalQualified: adjustedPhase2QualifiedPlayers, // JOUEURS
     fields: Math.min(availableFields, phase2Pools),
     estimatedRounds: calculateKOBRounds(phase2TeamsPerPool),
     setsPerMatch: 2,
@@ -530,18 +549,20 @@ function generateBigProgression(
   }));
 
   // Phase 3 : 2v2 (finale)
+  const phase3Players = adjustedPhase2QualifiedPlayers; // JOUEURS de la phase 2
+  const phase3Teams = Math.floor(phase3Players / 2); // Convertir en équipes de 2
   phases.push(enrichPhaseWithTimings({
     phaseNumber: 3,
     gameMode: '2v2',
     phaseFormat: 'kob', // Phase 3 utilise KOB
     playersPerTeam: 2,
-    teamsPerPool: phase2Qualified,
+    teamsPerPool: phase3Teams,
     numberOfPools: 1,
-    totalTeams: phase2Qualified,
-    qualifiedPerPool: 1,
-    totalQualified: 1,
+    totalTeams: phase3Teams,
+    qualifiedPerPool: 2, // 2 JOUEURS (l'équipe gagnante)
+    totalQualified: 2, // 2 JOUEURS (le KING et son partenaire)
     fields: Math.min(availableFields, 2),
-    estimatedRounds: calculateKOBRounds(phase2Qualified),
+    estimatedRounds: calculateKOBRounds(phase3Teams),
     setsPerMatch: 3,
     pointsPerSet: 21,
     tieBreakEnabled: true,
@@ -570,13 +591,19 @@ function generateFastProgression(
   const phase1Teams = Math.floor(totalPlayers / 4);
   const phase1Pools = Math.min(availableFields, Math.max(2, Math.floor(phase1Teams / 6)));
   const phase1TeamsPerPool = Math.floor(phase1Teams / phase1Pools);
-  const phase1QualifiedPerPool = Math.max(2, Math.floor(phase1TeamsPerPool / 2));
-  const phase1Qualified = phase1QualifiedPerPool * phase1Pools;
+  const phase1QualifiedPlayersPerPool = Math.max(4, Math.floor(phase1TeamsPerPool * 4 / 2)); // JOUEURS qualifiés par poule
+  const phase1QualifiedPlayers = phase1QualifiedPlayersPerPool * phase1Pools; // Total JOUEURS
 
-  // Assurer que c'est une puissance de 2
-  let adjustedPhase1Qualified = phase1Qualified;
-  if (![4, 8, 16].includes(phase1Qualified)) {
-    adjustedPhase1Qualified = [4, 8, 16].find(n => n >= phase1Qualified && n <= phase1Teams) || 8;
+  // Assurer que phase1QualifiedPlayers permet de former des équipes de 2 (multiple de 2)
+  // et que ça donne une puissance de 2 en nombre d'équipes
+  let adjustedPhase1QualifiedPlayers = phase1QualifiedPlayers;
+  if (adjustedPhase1QualifiedPlayers % 2 !== 0) {
+    adjustedPhase1QualifiedPlayers -= 1;
+  }
+  const phase2Teams = Math.floor(adjustedPhase1QualifiedPlayers / 2);
+  if (![4, 8, 16].includes(phase2Teams)) {
+    const targetTeams = [4, 8, 16].find(n => n >= phase2Teams && n <= phase1Teams) || 8;
+    adjustedPhase1QualifiedPlayers = targetTeams * 2; // Convertir en joueurs
   }
 
   phases.push(enrichPhaseWithTimings({
@@ -587,8 +614,8 @@ function generateFastProgression(
     teamsPerPool: phase1TeamsPerPool,
     numberOfPools: phase1Pools,
     totalTeams: phase1Teams,
-    qualifiedPerPool: phase1QualifiedPerPool,
-    totalQualified: adjustedPhase1Qualified,
+    qualifiedPerPool: phase1QualifiedPlayersPerPool, // JOUEURS
+    totalQualified: adjustedPhase1QualifiedPlayers, // JOUEURS
     fields: Math.min(availableFields, phase1Pools),
     estimatedRounds: 3, // Phase 1: toujours 3 rounds en Round Robin
     setsPerMatch: 1,
@@ -597,18 +624,20 @@ function generateFastProgression(
   }));
 
   // Phase 2 : 2v2 (finale)
+  const phase2Players = adjustedPhase1QualifiedPlayers; // JOUEURS de la phase 1
+  const phase2FinalTeams = Math.floor(phase2Players / 2); // Convertir en équipes de 2
   phases.push(enrichPhaseWithTimings({
     phaseNumber: 2,
     gameMode: '2v2',
     phaseFormat: 'kob', // Phase 2 utilise KOB
     playersPerTeam: 2,
-    teamsPerPool: adjustedPhase1Qualified,
+    teamsPerPool: phase2FinalTeams,
     numberOfPools: 1,
-    totalTeams: adjustedPhase1Qualified,
-    qualifiedPerPool: 1,
-    totalQualified: 1,
+    totalTeams: phase2FinalTeams,
+    qualifiedPerPool: 2, // 2 JOUEURS (l'équipe gagnante)
+    totalQualified: 2, // 2 JOUEURS (le KING et son partenaire)
     fields: Math.min(availableFields, 2),
-    estimatedRounds: calculateKOBRounds(adjustedPhase1Qualified),
+    estimatedRounds: calculateKOBRounds(phase2FinalTeams),
     setsPerMatch: 3,
     pointsPerSet: 21,
     tieBreakEnabled: true,
@@ -637,13 +666,19 @@ function generateCompactProgression(
   const phase1Teams = Math.floor(totalPlayers / 3);
   const phase1Pools = Math.min(availableFields, Math.max(2, Math.floor(phase1Teams / 4)));
   const phase1TeamsPerPool = Math.floor(phase1Teams / phase1Pools);
-  const phase1QualifiedPerPool = Math.max(2, Math.floor(phase1TeamsPerPool / 2));
-  const phase1Qualified = phase1QualifiedPerPool * phase1Pools;
+  const phase1QualifiedPlayersPerPool = Math.max(3, Math.floor(phase1TeamsPerPool * 3 / 2)); // JOUEURS qualifiés par poule
+  const phase1QualifiedPlayers = phase1QualifiedPlayersPerPool * phase1Pools; // Total JOUEURS
 
-  // Assurer que c'est une puissance de 2
-  let adjustedPhase1Qualified = phase1Qualified;
-  if (![4, 8].includes(phase1Qualified)) {
-    adjustedPhase1Qualified = [4, 8].find(n => n >= phase1Qualified && n <= phase1Teams) || 4;
+  // Assurer que phase1QualifiedPlayers permet de former des équipes de 2 (multiple de 2)
+  // et que ça donne une puissance de 2 en nombre d'équipes
+  let adjustedPhase1QualifiedPlayers = phase1QualifiedPlayers;
+  if (adjustedPhase1QualifiedPlayers % 2 !== 0) {
+    adjustedPhase1QualifiedPlayers -= 1;
+  }
+  const phase2Teams = Math.floor(adjustedPhase1QualifiedPlayers / 2);
+  if (![4, 8].includes(phase2Teams)) {
+    const targetTeams = [4, 8].find(n => n >= phase2Teams && n <= phase1Teams) || 4;
+    adjustedPhase1QualifiedPlayers = targetTeams * 2; // Convertir en joueurs
   }
 
   phases.push(enrichPhaseWithTimings({
@@ -654,8 +689,8 @@ function generateCompactProgression(
     teamsPerPool: phase1TeamsPerPool,
     numberOfPools: phase1Pools,
     totalTeams: phase1Teams,
-    qualifiedPerPool: phase1QualifiedPerPool,
-    totalQualified: adjustedPhase1Qualified,
+    qualifiedPerPool: phase1QualifiedPlayersPerPool, // JOUEURS
+    totalQualified: adjustedPhase1QualifiedPlayers, // JOUEURS
     fields: Math.min(availableFields, phase1Pools),
     estimatedRounds: 3, // Phase 1: toujours 3 rounds en Round Robin
     setsPerMatch: 2,
@@ -664,18 +699,20 @@ function generateCompactProgression(
   }));
 
   // Phase 2 : 2v2 (finale)
+  const phase2Players = adjustedPhase1QualifiedPlayers; // JOUEURS de la phase 1
+  const phase2FinalTeams = Math.floor(phase2Players / 2); // Convertir en équipes de 2
   phases.push(enrichPhaseWithTimings({
     phaseNumber: 2,
     gameMode: '2v2',
     phaseFormat: 'kob', // Phase 2 utilise KOB
     playersPerTeam: 2,
-    teamsPerPool: adjustedPhase1Qualified,
+    teamsPerPool: phase2FinalTeams,
     numberOfPools: 1,
-    totalTeams: adjustedPhase1Qualified,
-    qualifiedPerPool: 1,
-    totalQualified: 1,
+    totalTeams: phase2FinalTeams,
+    qualifiedPerPool: 2, // 2 JOUEURS (l'équipe gagnante)
+    totalQualified: 2, // 2 JOUEURS (le KING et son partenaire)
     fields: Math.min(availableFields, 2),
-    estimatedRounds: calculateKOBRounds(adjustedPhase1Qualified),
+    estimatedRounds: calculateKOBRounds(phase2FinalTeams),
     setsPerMatch: 3,
     pointsPerSet: 21,
     tieBreakEnabled: true,
@@ -709,22 +746,27 @@ export function validateKingConfiguration(config: KingConfiguration): string[] {
       errors.push(`Phase ${i + 1}: Pas assez de joueurs (besoin de ${totalPlayersInPhase}, disponible: ${config.totalPlayers})`);
     }
 
-    // Vérifier cohérence des qualifiés
-    if (phase.totalQualified > phase.totalTeams) {
-      errors.push(`Phase ${i + 1}: Plus de qualifiés que d'équipes`);
+    // Vérifier cohérence des qualifiés (totalQualified = JOUEURS)
+    if (phase.totalQualified > totalPlayersInPhase) {
+      errors.push(`Phase ${i + 1}: Plus de qualifiés (${phase.totalQualified} joueurs) que de joueurs dans la phase (${totalPlayersInPhase})`);
     }
 
     // Vérifier la phase suivante
     if (i < config.phases.length - 1) {
       const nextPhase = config.phases[i + 1];
-      if (phase.totalQualified !== nextPhase.totalTeams) {
-        errors.push(`Incohérence entre phase ${i + 1} et ${i + 2}: ${phase.totalQualified} qualifiés mais ${nextPhase.totalTeams} équipes attendues`);
+      const nextPhaseExpectedPlayers = nextPhase.totalTeams * nextPhase.playersPerTeam;
+      if (phase.totalQualified !== nextPhaseExpectedPlayers) {
+        errors.push(
+          `Incohérence entre phase ${i + 1} et ${i + 2}: ` +
+          `${phase.totalQualified} joueurs qualifiés mais ${nextPhaseExpectedPlayers} joueurs nécessaires ` +
+          `pour former ${nextPhase.totalTeams} équipes de ${nextPhase.playersPerTeam}`
+        );
       }
     }
 
-    // La dernière phase doit avoir 1 seul qualifié
-    if (i === config.phases.length - 1 && phase.totalQualified !== 1) {
-      errors.push('La dernière phase doit avoir exactement 1 qualifié (le KING)');
+    // La dernière phase doit avoir 2 qualifiés (le KING et son partenaire)
+    if (i === config.phases.length - 1 && phase.totalQualified !== 2) {
+      errors.push('La dernière phase doit avoir exactement 2 qualifiés (le KING et son partenaire)');
     }
   }
 
