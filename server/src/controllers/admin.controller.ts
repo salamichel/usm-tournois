@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { adminDb } from '../config/firebase.config';
 import { AppError } from '../middlewares/error.middleware';
 import { convertTimestamps } from '../utils/firestore.utils';
+import { awardPointsToTeam } from '../services/playerPoints.service';
 
 /**
  * Tournament Management
@@ -889,6 +890,15 @@ export const freezeRanking = async (req: Request, res: Response) => {
       throw new AppError('Invalid final ranking data', 400);
     }
 
+    // Get tournament info for points attribution
+    const tournamentDoc = await adminDb.collection('events').doc(tournamentId).get();
+    if (!tournamentDoc.exists) {
+      throw new AppError('Tournament not found', 404);
+    }
+    const tournamentData = tournamentDoc.data();
+    const tournamentName = tournamentData?.name || 'Unknown Tournament';
+    const tournamentDate = tournamentData?.date?.toDate() || new Date();
+
     const batch = adminDb.batch();
     const finalRankingCollectionRef = adminDb
       .collection('events')
@@ -901,13 +911,16 @@ export const freezeRanking = async (req: Request, res: Response) => {
       batch.delete(doc.ref);
     });
 
-    // Add new ranking
+    // Add new ranking and award points to players
+    const pointsAttributionPromises: Promise<void>[] = [];
+
     finalRanking.forEach((teamEntry: any, index: number) => {
       const teamName = teamEntry[0];
       const stats = teamEntry[1];
+      const rank = index + 1;
 
       const rankData = {
-        rank: index + 1,
+        rank,
         teamName,
         teamData: stats.team || {},
         matchesPlayed: stats.matchesPlayed || 0,
@@ -929,13 +942,30 @@ export const freezeRanking = async (req: Request, res: Response) => {
       };
 
       batch.set(finalRankingCollectionRef.doc(), rankData);
+
+      // Award points to team members if team data is available
+      if (stats.team && stats.team.members && Array.isArray(stats.team.members)) {
+        const pointsPromise = awardPointsToTeam(
+          tournamentId,
+          tournamentName,
+          tournamentDate,
+          teamName,
+          stats.team.members,
+          rank
+        );
+        pointsAttributionPromises.push(pointsPromise);
+      }
     });
 
+    // Commit ranking to database
     await batch.commit();
+
+    // Award points to all players (in parallel)
+    await Promise.all(pointsAttributionPromises);
 
     res.json({
       success: true,
-      message: 'Final ranking frozen successfully',
+      message: 'Final ranking frozen successfully and points awarded to players',
     });
   } catch (error: any) {
     console.error('Error freezing ranking:', error);

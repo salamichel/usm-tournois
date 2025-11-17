@@ -14,6 +14,7 @@ import ProfilePage from '@pages/public/ProfilePage';
 import DashboardPage from '@pages/public/DashboardPage';
 import TeamManagementPage from '@pages/public/TeamManagementPage';
 import ChangePasswordPage from '@pages/public/ChangePasswordPage';
+import PlayerRankingPage from '@pages/public/PlayerRankingPage';
 import NotFoundPage from '@pages/public/NotFoundPage';
 
 // Admin pages
@@ -38,6 +39,7 @@ function App() {
             {/* Public routes */}
             <Route path="/" element={<HomePage />} />
             <Route path="/tournoi/:id" element={<TournamentDetailPage />} />
+            <Route path="/classement" element={<PlayerRankingPage />} />
             <Route path="/login" element={<LoginPage />} />
 
             {/* Protected routes */}

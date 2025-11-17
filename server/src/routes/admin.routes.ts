@@ -5,6 +5,7 @@ import { getTournament } from '../middlewares/tournament.middleware';
 import { uploadCoverImage } from '../middlewares/upload.middleware';
 import * as adminController from '../controllers/admin.controller';
 import * as kingController from '../controllers/king.controller';
+import * as playerRankingController from '../controllers/playerRanking.controller';
 
 const router = Router();
 
@@ -76,5 +77,11 @@ router.post('/tournaments/:tournamentId/king/reset-phase-1', asyncHandler(getTou
 router.post('/tournaments/:tournamentId/king/reset-phase-2', asyncHandler(getTournament), asyncHandler(kingController.resetKingPhase2));
 router.post('/tournaments/:tournamentId/king/reset-phase-3', asyncHandler(getTournament), asyncHandler(kingController.resetKingPhase3));
 router.post('/tournaments/:tournamentId/king/set-all-matches-scores', asyncHandler(getTournament), asyncHandler(kingController.setAllKingMatchesScores));
+
+/**
+ * Player Ranking Management
+ */
+router.post('/players/recalculate-rankings', asyncHandler(playerRankingController.recalculateRankings));
+router.get('/tournaments/:tournamentId/player-points', asyncHandler(playerRankingController.getTournamentPoints));
 
 export default router;
