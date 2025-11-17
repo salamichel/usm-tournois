@@ -563,3 +563,282 @@ export function validatePhasesConfiguration(
 
   return { valid: errors.length === 0, errors };
 }
+
+// ========================================
+// STATISTICS & PREVIEW
+// ========================================
+
+/**
+ * Generate phase preview without saving
+ */
+export function generatePhasePreview(
+  config: FlexiblePhaseConfig,
+  registeredPlayersCount: number
+): {
+  valid: boolean;
+  errors: string[];
+  preview?: {
+    totalMatches: number;
+    matchesPerPool: number[];
+    estimatedDuration: number;
+    poolDistribution: number[];
+  };
+} {
+  const errors: string[] = [];
+
+  // Validate player count
+  const expectedPlayers = config.totalTeams * config.playersPerTeam;
+  if (expectedPlayers > registeredPlayersCount) {
+    errors.push(
+      `Not enough players: need ${expectedPlayers}, have ${registeredPlayersCount}`
+    );
+  }
+
+  // Validate pools
+  if (config.numberOfPools < 1) {
+    errors.push('Must have at least 1 pool');
+  }
+
+  if (config.numberOfPools > config.totalTeams) {
+    errors.push('Cannot have more pools than teams');
+  }
+
+  if (errors.length > 0) {
+    return { valid: false, errors };
+  }
+
+  // Generate pool distribution
+  const poolDistribution =
+    config.poolDistribution || distributeTeamsInPools(config.totalTeams, config.numberOfPools);
+
+  // Calculate matches per pool
+  const matchesPerPool = poolDistribution.map((teamsInPool) => {
+    if (config.phaseFormat === 'round-robin') {
+      return ((teamsInPool * (teamsInPool - 1)) / 2) * config.estimatedRounds;
+    } else {
+      return Math.floor(teamsInPool / 2) * config.estimatedRounds;
+    }
+  });
+
+  const totalMatches = matchesPerPool.reduce((sum, matches) => sum + matches, 0);
+
+  return {
+    valid: true,
+    errors: [],
+    preview: {
+      totalMatches,
+      matchesPerPool,
+      estimatedDuration: config.estimatedTime,
+      poolDistribution,
+    },
+  };
+}
+
+/**
+ * Calculate phase statistics
+ */
+export function calculatePhaseStatistics(matches: KingMatch[]): {
+  totalMatches: number;
+  completedMatches: number;
+  pendingMatches: number;
+  inProgressMatches: number;
+  completionPercentage: number;
+  averageSetsPerMatch: number;
+} {
+  const stats = {
+    totalMatches: matches.length,
+    completedMatches: 0,
+    pendingMatches: 0,
+    inProgressMatches: 0,
+    completionPercentage: 0,
+    averageSetsPerMatch: 0,
+  };
+
+  let totalSets = 0;
+  let matchesWithSets = 0;
+
+  matches.forEach((match) => {
+    if (match.status === 'completed') {
+      stats.completedMatches++;
+      if (match.setsWonTeam1 !== undefined && match.setsWonTeam2 !== undefined) {
+        totalSets += match.setsWonTeam1 + match.setsWonTeam2;
+        matchesWithSets++;
+      }
+    } else if (match.status === 'in_progress') {
+      stats.inProgressMatches++;
+    } else {
+      stats.pendingMatches++;
+    }
+  });
+
+  stats.completionPercentage =
+    stats.totalMatches > 0 ? (stats.completedMatches / stats.totalMatches) * 100 : 0;
+
+  stats.averageSetsPerMatch = matchesWithSets > 0 ? totalSets / matchesWithSets : 0;
+
+  return stats;
+}
+
+/**
+ * Get player statistics for a phase
+ */
+export function getPlayerStatistics(
+  matches: KingMatch[],
+  playerId: string
+): {
+  matchesPlayed: number;
+  wins: number;
+  losses: number;
+  setsWon: number;
+  setsLost: number;
+  winRate: number;
+} {
+  const stats = {
+    matchesPlayed: 0,
+    wins: 0,
+    losses: 0,
+    setsWon: 0,
+    setsLost: 0,
+    winRate: 0,
+  };
+
+  matches
+    .filter((m) => m.status === 'completed')
+    .forEach((match) => {
+      let playerInTeam1 = false;
+      let playerInTeam2 = false;
+
+      if (match.team1?.members) {
+        playerInTeam1 = match.team1.members.some((p) => p.id === playerId);
+      }
+
+      if (match.team2?.members) {
+        playerInTeam2 = match.team2.members.some((p) => p.id === playerId);
+      }
+
+      if (!playerInTeam1 && !playerInTeam2) {
+        return; // Player not in this match
+      }
+
+      stats.matchesPlayed++;
+
+      const setsWonTeam1 = match.setsWonTeam1 || 0;
+      const setsWonTeam2 = match.setsWonTeam2 || 0;
+
+      if (playerInTeam1) {
+        stats.setsWon += setsWonTeam1;
+        stats.setsLost += setsWonTeam2;
+        if (setsWonTeam1 > setsWonTeam2) {
+          stats.wins++;
+        } else {
+          stats.losses++;
+        }
+      } else {
+        stats.setsWon += setsWonTeam2;
+        stats.setsLost += setsWonTeam1;
+        if (setsWonTeam2 > setsWonTeam1) {
+          stats.wins++;
+        } else {
+          stats.losses++;
+        }
+      }
+    });
+
+  stats.winRate = stats.matchesPlayed > 0 ? (stats.wins / stats.matchesPlayed) * 100 : 0;
+
+  return stats;
+}
+
+/**
+ * Validate configuration before initialization
+ */
+export function validateInitialConfiguration(
+  phases: FlexiblePhaseConfig[],
+  registeredPlayersCount: number
+): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+
+  // Check we have at least one phase
+  if (!phases || phases.length === 0) {
+    errors.push('At least one phase configuration is required');
+    return { valid: false, errors };
+  }
+
+  // Check phase numbers are sequential
+  for (let i = 0; i < phases.length; i++) {
+    if (phases[i].phaseNumber !== i + 1) {
+      errors.push(`Phase numbers must be sequential. Expected ${i + 1}, got ${phases[i].phaseNumber}`);
+    }
+  }
+
+  // Validate first phase has enough players
+  const firstPhase = phases[0];
+  const firstPhaseExpectedPlayers = firstPhase.totalTeams * firstPhase.playersPerTeam;
+  if (firstPhaseExpectedPlayers > registeredPlayersCount) {
+    errors.push(
+      `Phase 1 requires ${firstPhaseExpectedPlayers} players, but only ${registeredPlayersCount} are registered`
+    );
+  }
+
+  // Validate each phase configuration
+  phases.forEach((phase) => {
+    // Validate pool configuration
+    if (phase.numberOfPools < 1) {
+      errors.push(`Phase ${phase.phaseNumber}: Must have at least 1 pool`);
+    }
+
+    if (phase.numberOfPools > phase.totalTeams) {
+      errors.push(
+        `Phase ${phase.phaseNumber}: Cannot have more pools (${phase.numberOfPools}) than teams (${phase.totalTeams})`
+      );
+    }
+
+    // Validate qualified count
+    const totalPlayersInPhase = phase.totalTeams * phase.playersPerTeam;
+    if (phase.totalQualified < phase.playersPerTeam) {
+      errors.push(
+        `Phase ${phase.phaseNumber}: Must qualify at least ${phase.playersPerTeam} players (one full team)`
+      );
+    }
+
+    if (phase.totalQualified >= totalPlayersInPhase) {
+      errors.push(
+        `Phase ${phase.phaseNumber}: Cannot qualify all players (${phase.totalQualified} >= ${totalPlayersInPhase})`
+      );
+    }
+
+    // Validate pool distribution if provided
+    if (phase.poolDistribution) {
+      const sumTeams = phase.poolDistribution.reduce((sum, teams) => sum + teams, 0);
+      if (sumTeams !== phase.totalTeams) {
+        errors.push(
+          `Phase ${phase.phaseNumber}: Pool distribution total (${sumTeams}) doesn't match total teams (${phase.totalTeams})`
+        );
+      }
+
+      if (phase.poolDistribution.length !== phase.numberOfPools) {
+        errors.push(
+          `Phase ${phase.phaseNumber}: Pool distribution length (${phase.poolDistribution.length}) doesn't match number of pools (${phase.numberOfPools})`
+        );
+      }
+    }
+  });
+
+  // Validate phase transitions
+  for (let i = 0; i < phases.length - 1; i++) {
+    const currentPhase = phases[i];
+    const nextPhase = phases[i + 1];
+
+    const currentQualified = currentPhase.totalQualified;
+    const nextExpected = nextPhase.totalTeams * nextPhase.playersPerTeam;
+
+    if (currentQualified !== nextExpected) {
+      errors.push(
+        `Phase ${currentPhase.phaseNumber} qualifies ${currentQualified} players, ` +
+          `but Phase ${nextPhase.phaseNumber} expects ${nextExpected} players`
+      );
+    }
+  }
+
+  return { valid: errors.length === 0, errors };
+}

@@ -124,6 +124,26 @@ export const initializeFlexibleKing = async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: 'Tournament not found' });
     }
 
+    // Get registered players count for validation
+    const unassignedPlayersSnapshot = await tournamentRef
+      .collection('unassignedPlayers')
+      .get();
+    const registeredPlayersCount = unassignedPlayersSnapshot.size;
+
+    // Validate configuration before initializing
+    const validation = flexibleKingService.validateInitialConfiguration(
+      phases,
+      registeredPlayersCount
+    );
+
+    if (!validation.valid) {
+      return res.status(400).json({
+        success: false,
+        message: 'Configuration validation failed',
+        errors: validation.errors,
+      });
+    }
+
     // Initialize King data structure
     const kingData = flexibleKingService.initializeFlexibleKingTournament(phases);
 
@@ -688,6 +708,355 @@ export const resetFlexibleKingPhase = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: 'Error resetting phase',
+    });
+  }
+};
+
+/**
+ * Record match result for flexible King phase
+ */
+export const recordFlexibleKingMatchResult = async (req: Request, res: Response) => {
+  const { tournamentId, phaseNumber, matchId } = req.params;
+  const { setsWonTeam1, setsWonTeam2 } = req.body;
+
+  try {
+    if (setsWonTeam1 === undefined || setsWonTeam2 === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: 'setsWonTeam1 and setsWonTeam2 are required',
+      });
+    }
+
+    const tournamentRef = adminDb.collection('events').doc(tournamentId);
+    const flexKingDocRef = tournamentRef.collection('flexibleKing').doc('mainData');
+    const phaseDocRef = flexKingDocRef.collection('phases').doc(`phase-${phaseNumber}`);
+
+    // Find the match
+    const poolsSnapshot = await phaseDocRef.collection('pools').get();
+    let matchRef: any = null;
+    let matchData: any = null;
+    let poolId: string | null = null;
+
+    for (const poolDoc of poolsSnapshot.docs) {
+      const matchesSnapshot = await poolDoc.ref.collection('matches').where('id', '==', matchId).get();
+      if (!matchesSnapshot.empty) {
+        matchRef = matchesSnapshot.docs[0].ref;
+        matchData = { id: matchesSnapshot.docs[0].id, ...matchesSnapshot.docs[0].data() };
+        poolId = poolDoc.id;
+        break;
+      }
+    }
+
+    if (!matchRef || !matchData) {
+      return res.status(404).json({
+        success: false,
+        message: 'Match not found in this phase',
+      });
+    }
+
+    // Determine winner
+    let winnerTeam = null;
+    if (setsWonTeam1 > setsWonTeam2) {
+      winnerTeam = matchData.team1;
+    } else if (setsWonTeam2 > setsWonTeam1) {
+      winnerTeam = matchData.team2;
+    }
+
+    const batch = adminDb.batch();
+
+    // Update match
+    const updatedMatchData = {
+      setsWonTeam1: parseInt(String(setsWonTeam1)),
+      setsWonTeam2: parseInt(String(setsWonTeam2)),
+      status: 'completed',
+      winnerTeam,
+      winnerName: winnerTeam ? winnerTeam.name : null,
+      winnerPlayerIds: winnerTeam ? winnerTeam.members.map((m: any) => m.id) : [],
+      updatedAt: new Date(),
+    };
+
+    batch.update(matchRef, updatedMatchData);
+
+    await batch.commit();
+
+    // Recalculate phase ranking
+    const allMatches: KingMatch[] = [];
+    for (const poolDoc of poolsSnapshot.docs) {
+      const matchesSnapshot = await poolDoc.ref.collection('matches').get();
+      matchesSnapshot.docs.forEach((doc) => {
+        allMatches.push({ id: doc.id, ...doc.data() } as KingMatch);
+      });
+    }
+
+    const ranking = kingService.calculateKingRanking(allMatches);
+
+    // Update phase ranking
+    await phaseDocRef.update({
+      ranking,
+      updatedAt: new Date(),
+    });
+
+    console.log(`✅ Match ${matchId} result recorded`);
+
+    res.json({
+      success: true,
+      message: 'Match result recorded successfully',
+      data: {
+        matchId,
+        setsWonTeam1: updatedMatchData.setsWonTeam1,
+        setsWonTeam2: updatedMatchData.setsWonTeam2,
+        winner: winnerTeam ? winnerTeam.name : 'Draw',
+      },
+    });
+  } catch (error) {
+    console.error('Error recording match result:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error recording match result',
+    });
+  }
+};
+
+/**
+ * Get phase statistics
+ */
+export const getPhaseStatistics = async (req: Request, res: Response) => {
+  const { tournamentId, phaseNumber } = req.params;
+
+  try {
+    const tournamentRef = adminDb.collection('events').doc(tournamentId);
+    const flexKingDocRef = tournamentRef.collection('flexibleKing').doc('mainData');
+    const phaseDocRef = flexKingDocRef.collection('phases').doc(`phase-${phaseNumber}`);
+
+    const phaseDoc = await phaseDocRef.get();
+
+    if (!phaseDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        message: `Phase ${phaseNumber} not found`,
+      });
+    }
+
+    // Load all matches
+    const poolsSnapshot = await phaseDocRef.collection('pools').get();
+    const matches: KingMatch[] = [];
+
+    for (const poolDoc of poolsSnapshot.docs) {
+      const matchesSnapshot = await poolDoc.ref.collection('matches').get();
+      matchesSnapshot.docs.forEach((doc) => {
+        matches.push({ id: doc.id, ...doc.data() } as KingMatch);
+      });
+    }
+
+    // Calculate statistics
+    const stats = flexibleKingService.calculatePhaseStatistics(matches);
+
+    res.json({
+      success: true,
+      data: stats,
+    });
+  } catch (error) {
+    console.error('Error getting phase statistics:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error getting phase statistics',
+    });
+  }
+};
+
+/**
+ * Get player statistics for a phase
+ */
+export const getPlayerPhaseStatistics = async (req: Request, res: Response) => {
+  const { tournamentId, phaseNumber, playerId } = req.params;
+
+  try {
+    const tournamentRef = adminDb.collection('events').doc(tournamentId);
+    const flexKingDocRef = tournamentRef.collection('flexibleKing').doc('mainData');
+    const phaseDocRef = flexKingDocRef.collection('phases').doc(`phase-${phaseNumber}`);
+
+    const phaseDoc = await phaseDocRef.get();
+
+    if (!phaseDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        message: `Phase ${phaseNumber} not found`,
+      });
+    }
+
+    // Load all matches
+    const poolsSnapshot = await phaseDocRef.collection('pools').get();
+    const matches: KingMatch[] = [];
+
+    for (const poolDoc of poolsSnapshot.docs) {
+      const matchesSnapshot = await poolDoc.ref.collection('matches').get();
+      matchesSnapshot.docs.forEach((doc) => {
+        matches.push({ id: doc.id, ...doc.data() } as KingMatch);
+      });
+    }
+
+    // Calculate player statistics
+    const stats = flexibleKingService.getPlayerStatistics(matches, playerId);
+
+    res.json({
+      success: true,
+      data: {
+        playerId,
+        ...stats,
+      },
+    });
+  } catch (error) {
+    console.error('Error getting player statistics:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error getting player statistics',
+    });
+  }
+};
+
+/**
+ * Validate and preview configuration before initialization
+ */
+export const previewConfiguration = async (req: Request, res: Response) => {
+  const { tournamentId } = req.params;
+  const { phases } = req.body;
+
+  try {
+    if (!phases || !Array.isArray(phases) || phases.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phases configuration is required',
+      });
+    }
+
+    const tournamentRef = adminDb.collection('events').doc(tournamentId);
+    const tournamentDoc = await tournamentRef.get();
+
+    if (!tournamentDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        message: 'Tournament not found',
+      });
+    }
+
+    // Get registered players count
+    const unassignedPlayersSnapshot = await tournamentRef.collection('unassignedPlayers').get();
+    const registeredPlayersCount = unassignedPlayersSnapshot.size;
+
+    // Validate configuration
+    const validation = flexibleKingService.validateInitialConfiguration(
+      phases,
+      registeredPlayersCount
+    );
+
+    if (!validation.valid) {
+      return res.status(400).json({
+        success: false,
+        message: 'Configuration validation failed',
+        errors: validation.errors,
+      });
+    }
+
+    // Generate preview for each phase
+    const phasePreviews = phases.map((phaseConfig) => {
+      const preview = flexibleKingService.generatePhasePreview(phaseConfig, registeredPlayersCount);
+      return {
+        phaseNumber: phaseConfig.phaseNumber,
+        gameMode: phaseConfig.gameMode,
+        ...preview,
+      };
+    });
+
+    res.json({
+      success: true,
+      message: 'Configuration is valid',
+      data: {
+        registeredPlayersCount,
+        phases: phasePreviews,
+        validation,
+      },
+    });
+  } catch (error) {
+    console.error('Error previewing configuration:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error previewing configuration',
+    });
+  }
+};
+
+/**
+ * Get repechage candidates for a completed phase
+ */
+export const getRepechageCandidates = async (req: Request, res: Response) => {
+  const { tournamentId, phaseNumber } = req.params;
+
+  try {
+    const tournamentRef = adminDb.collection('events').doc(tournamentId);
+    const flexKingDocRef = tournamentRef.collection('flexibleKing').doc('mainData');
+    const phaseDocRef = flexKingDocRef.collection('phases').doc(`phase-${phaseNumber}`);
+
+    const phaseDoc = await phaseDocRef.get();
+
+    if (!phaseDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        message: `Phase ${phaseNumber} not found`,
+      });
+    }
+
+    const phase = phaseDoc.data() as FlexibleKingPhase;
+
+    if (phase.status !== 'completed') {
+      return res.status(400).json({
+        success: false,
+        message: `Phase ${phaseNumber} must be completed to get repechage candidates`,
+      });
+    }
+
+    // Load pools and matches
+    const poolsSnapshot = await phaseDocRef.collection('pools').get();
+    const pools: KingPool[] = [];
+    const matches: KingMatch[] = [];
+
+    for (const poolDoc of poolsSnapshot.docs) {
+      const poolData = poolDoc.data();
+      const matchesSnapshot = await poolDoc.ref.collection('matches').get();
+      const poolMatches = matchesSnapshot.docs.map((m) => ({
+        id: m.id,
+        ...m.data(),
+      })) as KingMatch[];
+
+      pools.push({
+        id: poolDoc.id,
+        name: poolData.name,
+        players: poolData.players || [],
+        matches: poolMatches,
+        playerCount: poolData.playerCount,
+      });
+
+      matches.push(...poolMatches);
+    }
+
+    // Calculate repechage candidates
+    const candidates = flexibleKingService.calculateRepechageCandidates(
+      pools,
+      matches,
+      phase.qualifiedIds
+    );
+
+    res.json({
+      success: true,
+      data: {
+        candidates,
+        qualifiedCount: phase.qualifiedIds.length,
+      },
+    });
+  } catch (error) {
+    console.error('Error getting repechage candidates:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error getting repechage candidates',
     });
   }
 };

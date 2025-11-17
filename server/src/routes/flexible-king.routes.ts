@@ -29,6 +29,16 @@ router.post(
 );
 
 /**
+ * @route   POST /api/flexible-king/tournaments/:tournamentId/preview
+ * @desc    Validate and preview configuration before initialization
+ * @access  Admin
+ */
+router.post(
+  '/tournaments/:tournamentId/preview',
+  asyncHandler(flexibleKingController.previewConfiguration)
+);
+
+/**
  * @route   PUT /api/flexible-king/tournaments/:tournamentId/phases/:phaseNumber/config
  * @desc    Update phase configuration
  * @access  Admin
@@ -56,6 +66,46 @@ router.post(
 router.post(
   '/tournaments/:tournamentId/phases/:phaseNumber/complete',
   asyncHandler(flexibleKingController.completeFlexibleKingPhase)
+);
+
+/**
+ * @route   POST /api/flexible-king/tournaments/:tournamentId/phases/:phaseNumber/matches/:matchId/result
+ * @desc    Record match result for a flexible King phase
+ * @access  Admin
+ */
+router.post(
+  '/tournaments/:tournamentId/phases/:phaseNumber/matches/:matchId/result',
+  asyncHandler(flexibleKingController.recordFlexibleKingMatchResult)
+);
+
+/**
+ * @route   GET /api/flexible-king/tournaments/:tournamentId/phases/:phaseNumber/statistics
+ * @desc    Get phase statistics
+ * @access  Admin
+ */
+router.get(
+  '/tournaments/:tournamentId/phases/:phaseNumber/statistics',
+  asyncHandler(flexibleKingController.getPhaseStatistics)
+);
+
+/**
+ * @route   GET /api/flexible-king/tournaments/:tournamentId/phases/:phaseNumber/players/:playerId/statistics
+ * @desc    Get player statistics for a phase
+ * @access  Admin
+ */
+router.get(
+  '/tournaments/:tournamentId/phases/:phaseNumber/players/:playerId/statistics',
+  asyncHandler(flexibleKingController.getPlayerPhaseStatistics)
+);
+
+/**
+ * @route   GET /api/flexible-king/tournaments/:tournamentId/phases/:phaseNumber/repechage-candidates
+ * @desc    Get repechage candidates for a completed phase
+ * @access  Admin
+ */
+router.get(
+  '/tournaments/:tournamentId/phases/:phaseNumber/repechage-candidates',
+  asyncHandler(flexibleKingController.getRepechageCandidates)
 );
 
 /**
