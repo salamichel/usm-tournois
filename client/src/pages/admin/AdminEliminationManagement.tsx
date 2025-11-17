@@ -1,15 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import AdminLayout from '@components/AdminLayout';
+import MatchScoreModal from '@components/admin/MatchScoreModal';
 import adminService from '@services/admin.service';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Trophy } from 'lucide-react';
+import { ArrowLeft, Trophy, Edit2 } from 'lucide-react';
 
 const AdminEliminationManagement = () => {
   const { tournamentId } = useParams();
   const [tournament, setTournament] = useState<any>(null);
   const [matches, setMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Modal states
+  const [scoreModalOpen, setScoreModalOpen] = useState(false);
+  const [selectedMatch, setSelectedMatch] = useState<any>(null);
 
   useEffect(() => {
     loadData();
@@ -23,12 +28,28 @@ const AdminEliminationManagement = () => {
         adminService.getEliminationMatches(tournamentId!),
       ]);
 
-      setTournament(tournamentRes.tournament);
-      setMatches(matchesRes.matches || []);
+      setTournament(tournamentRes.tournament || tournamentRes.data?.tournament);
+      setMatches(matchesRes.matches || matchesRes.data?.matches || []);
     } catch (error: any) {
       toast.error(error.message || 'Erreur lors du chargement');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEditMatchScore = (match: any) => {
+    setSelectedMatch(match);
+    setScoreModalOpen(true);
+  };
+
+  const handleSaveMatchScore = async (sets: any[]) => {
+    try {
+      await adminService.updateEliminationMatchScore(tournamentId!, selectedMatch.id, sets);
+      toast.success('Score mis à jour avec succès. Les résultats ont été propagés au bracket.');
+      loadData();
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur lors de la mise à jour du score');
+      throw error;
     }
   };
 
@@ -41,6 +62,15 @@ const AdminEliminationManagement = () => {
       </AdminLayout>
     );
   }
+
+  // Group matches by round
+  const roundOrder = [
+    { key: 'Finale', label: 'Finale' },
+    { key: 'Match 3ème place', label: 'Match pour la 3ème place' },
+    { key: 'Demi-finale', label: 'Demi-finales' },
+    { key: 'Quart de finale', label: 'Quarts de finale' },
+    { key: 'Tour Préliminaire', label: 'Tour Préliminaire' },
+  ];
 
   return (
     <AdminLayout>
@@ -67,21 +97,21 @@ const AdminEliminationManagement = () => {
           </div>
         ) : (
           <div className="space-y-6">
-            {['final', 'semi-final', 'quarter-final', 'round-of-16'].map(round => {
-              const roundMatches = matches.filter(m => m.round === round);
+            {roundOrder.map(({ key, label }) => {
+              const roundMatches = matches.filter(m => m.round === key);
               if (roundMatches.length === 0) return null;
 
               return (
-                <div key={round} className="bg-white rounded-lg shadow-md p-6">
-                  <h2 className="text-2xl font-bold mb-4 capitalize">
-                    {round.replace('-', ' ')}
-                  </h2>
+                <div key={key} className="bg-white rounded-lg shadow-md p-6">
+                  <h2 className="text-2xl font-bold mb-4">{label}</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {roundMatches.map((match, idx) => (
-                      <div key={idx} className="border border-gray-300 rounded-lg p-4">
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="font-semibold">Match {match.matchNumber || idx + 1}</span>
-                          <span className={`text-sm px-2 py-1 rounded ${
+                    {roundMatches.map((match) => (
+                      <div key={match.id} className="border-2 border-gray-300 rounded-lg p-4 hover:border-blue-400 transition-colors">
+                        <div className="flex justify-between items-center mb-3">
+                          <span className="font-semibold text-gray-700">
+                            Match {match.matchNumber || ''}
+                          </span>
+                          <span className={`text-xs px-2 py-1 rounded ${
                             match.status === 'completed' ? 'bg-green-100 text-green-800' :
                             match.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
                             'bg-gray-100 text-gray-800'
@@ -90,20 +120,58 @@ const AdminEliminationManagement = () => {
                              match.status === 'in_progress' ? 'En cours' : 'À venir'}
                           </span>
                         </div>
-                        <div className="space-y-2">
-                          <div className={`flex justify-between items-center p-2 rounded ${
-                            match.winner === match.team1?.id ? 'bg-green-50 font-bold' : 'bg-gray-50'
+
+                        {/* Teams and scores */}
+                        <div className="space-y-2 mb-3">
+                          <div className={`flex justify-between items-center p-3 rounded ${
+                            match.winnerId === match.team1?.id ? 'bg-green-50 border-2 border-green-300 font-bold' : 'bg-gray-50 border border-gray-200'
                           }`}>
-                            <span>{match.team1?.name || 'TBD'}</span>
-                            <span>{match.score1 ?? '-'}</span>
+                            <span className="flex-1">{match.team1?.name || 'À déterminer'}</span>
+                            {match.sets && match.sets.length > 0 && (
+                              <div className="flex gap-2">
+                                {match.sets.map((set: any, idx: number) => (
+                                  <span key={idx} className="text-sm min-w-[24px] text-center">
+                                    {set.score1 ?? '-'}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                          <div className={`flex justify-between items-center p-2 rounded ${
-                            match.winner === match.team2?.id ? 'bg-green-50 font-bold' : 'bg-gray-50'
+                          <div className={`flex justify-between items-center p-3 rounded ${
+                            match.winnerId === match.team2?.id ? 'bg-green-50 border-2 border-green-300 font-bold' : 'bg-gray-50 border border-gray-200'
                           }`}>
-                            <span>{match.team2?.name || 'TBD'}</span>
-                            <span>{match.score2 ?? '-'}</span>
+                            <span className="flex-1">{match.team2?.name || 'À déterminer'}</span>
+                            {match.sets && match.sets.length > 0 && (
+                              <div className="flex gap-2">
+                                {match.sets.map((set: any, idx: number) => (
+                                  <span key={idx} className="text-sm min-w-[24px] text-center">
+                                    {set.score2 ?? '-'}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </div>
+
+                        {/* Edit button */}
+                        <div className="flex justify-end">
+                          <button
+                            onClick={() => handleEditMatchScore(match)}
+                            className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 px-3 py-1 rounded hover:bg-blue-50 transition-colors"
+                          >
+                            <Edit2 size={14} />
+                            Modifier les scores
+                          </button>
+                        </div>
+
+                        {/* Winner info */}
+                        {match.winnerId && match.winnerName && (
+                          <div className="mt-2 pt-2 border-t border-gray-200">
+                            <p className="text-xs text-green-700 font-medium">
+                              🏆 Vainqueur: {match.winnerName}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -112,7 +180,28 @@ const AdminEliminationManagement = () => {
             })}
           </div>
         )}
+
+        {/* Info about propagation */}
+        {matches.length > 0 && (
+          <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <p className="text-sm text-blue-800">
+              <strong>Note :</strong> Lorsque vous modifiez le score d'un match, le vainqueur est automatiquement
+              propagé vers le match suivant du bracket d'élimination. Les perdants des demi-finales sont également
+              propagés vers le match pour la 3ème place.
+            </p>
+          </div>
+        )}
       </div>
+
+      {/* Score Modal */}
+      <MatchScoreModal
+        isOpen={scoreModalOpen}
+        onClose={() => setScoreModalOpen(false)}
+        onSave={handleSaveMatchScore}
+        match={selectedMatch}
+        setsToWin={tournament?.setsPerMatchElimination || 3}
+        pointsPerSet={tournament?.pointsPerSetElimination || 21}
+      />
     </AdminLayout>
   );
 };
