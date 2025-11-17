@@ -155,6 +155,11 @@ export interface KingDashboardData {
 export type GameMode = '6v6' | '5v5' | '4v4' | '3v3' | '2v2' | '1v1';
 
 /**
+ * Phase format: Round Robin (all teams play each other) or KOB (rotation pairing)
+ */
+export type PhaseFormat = 'round-robin' | 'kob';
+
+/**
  * Status of a flexible King phase
  */
 export type FlexiblePhaseStatus =
@@ -165,18 +170,26 @@ export type FlexiblePhaseStatus =
 
 /**
  * Configuration for a single phase in flexible King mode
+ * Compatible with frontend PhaseConfig from kingConfigSuggestions.ts
  */
 export interface FlexiblePhaseConfig {
   phaseNumber: number;
   gameMode: GameMode;
+  phaseFormat: PhaseFormat;         // 'round-robin' or 'kob'
   playersPerTeam: number;
-  teamsPerPool: number;
+  totalTeams: number;               // Total teams in this phase
   numberOfPools: number;
-  totalParticipants: number;  // Total players in this phase
-  qualifiedPerPool: number;
-  totalQualified: number;     // Total qualified for next phase
-  fields: number;             // Number of available fields
+  teamsPerPool: number;             // Average teams per pool
+  qualifiedPerPool: number;         // JOUEURS qualifiés par poule
+  totalQualified: number;           // Total JOUEURS qualifiés for next phase
+  fields: number;                   // Number of available fields
   estimatedRounds: number;
+  totalMatches: number;             // Total matches in this phase
+  estimatedTime: number;            // Estimated time in minutes
+
+  // Optional: for unbalanced pool distributions
+  poolDistribution?: number[];      // ex: [3, 3, 4] teams per pool
+  qualifiedPerPoolDistribution?: number[]; // ex: [4, 4, 4] JOUEURS per pool
 
   // Game rules
   setsPerMatch: number;
@@ -184,7 +197,7 @@ export interface FlexiblePhaseConfig {
   tieBreakEnabled: boolean;
 
   // Scheduling
-  scheduledDate?: string;     // ISO date string
+  scheduledDate?: string;           // ISO date string
 }
 
 /**
