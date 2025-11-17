@@ -65,6 +65,7 @@ export const createTournament = async (req: Request, res: Response) => {
       waitingListEnabled,
       waitingListSize,
       whatsappGroupLink,
+      registrationMode,
     } = req.body;
 
     // Validate required fields
@@ -99,6 +100,7 @@ export const createTournament = async (req: Request, res: Response) => {
       waitingListEnabled: waitingListEnabled === true || waitingListEnabled === 'true' || false,
       waitingListSize: waitingListSize ? parseInt(waitingListSize) : 0,
       whatsappGroupLink: whatsappGroupLink?.trim() || '',
+      registrationMode: registrationMode || 'teams',
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -175,6 +177,7 @@ export const updateTournament = async (req: Request, res: Response) => {
       waitingListEnabled,
       waitingListSize,
       whatsappGroupLink,
+      registrationMode,
     } = req.body;
 
     const tournamentDoc = await adminDb.collection('events').doc(id).get();
@@ -216,6 +219,7 @@ export const updateTournament = async (req: Request, res: Response) => {
     if (waitingListEnabled !== undefined && waitingListEnabled !== null) updateData.waitingListEnabled = waitingListEnabled === true || waitingListEnabled === 'true';
     if (waitingListSize !== undefined && waitingListSize !== null) updateData.waitingListSize = parseInt(waitingListSize);
     if (whatsappGroupLink !== undefined && whatsappGroupLink !== null) updateData.whatsappGroupLink = whatsappGroupLink.trim();
+    if (registrationMode !== undefined && registrationMode !== null) updateData.registrationMode = registrationMode;
 
     await adminDb.collection('events').doc(id).update(updateData);
 
@@ -1342,5 +1346,127 @@ export const getDashboard = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error getting dashboard data:', error);
     throw new AppError('Error retrieving dashboard data', 500);
+  }
+};
+
+/**
+ * Generate random teams from unassigned players
+ */
+export const generateRandomTeams = async (req: Request, res: Response) => {
+  try {
+    const { tournamentId } = req.params;
+
+    // Get tournament
+    const tournamentDoc = await adminDb.collection('events').doc(tournamentId).get();
+    if (!tournamentDoc.exists) {
+      throw new AppError('Tournament not found', 404);
+    }
+
+    const tournament = tournamentDoc.data();
+
+    // Check if tournament is in random mode
+    if (tournament?.registrationMode !== 'random') {
+      throw new AppError('This tournament is not in random registration mode', 400);
+    }
+
+    const playersPerTeam = tournament.playersPerTeam || 4;
+
+    // Get all unassigned players
+    const unassignedPlayersSnapshot = await adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('unassignedPlayers')
+      .get();
+
+    if (unassignedPlayersSnapshot.empty) {
+      throw new AppError('No players registered for this tournament', 400);
+    }
+
+    const players = unassignedPlayersSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    // Check if we have enough players
+    if (players.length < playersPerTeam) {
+      throw new AppError(`Not enough players. Need at least ${playersPerTeam} players to create teams.`, 400);
+    }
+
+    // Shuffle players randomly using Fisher-Yates algorithm
+    const shuffledPlayers = [...players];
+    for (let i = shuffledPlayers.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffledPlayers[i], shuffledPlayers[j]] = [shuffledPlayers[j], shuffledPlayers[i]];
+    }
+
+    // Calculate number of complete teams we can create
+    const numTeams = Math.floor(shuffledPlayers.length / playersPerTeam);
+
+    if (numTeams === 0) {
+      throw new AppError(`Not enough players to create a complete team. Need at least ${playersPerTeam} players.`, 400);
+    }
+
+    // Create teams
+    const batch = adminDb.batch();
+    let playerIndex = 0;
+
+    for (let teamNum = 1; teamNum <= numTeams; teamNum++) {
+      const teamPlayers = shuffledPlayers.slice(playerIndex, playerIndex + playersPerTeam);
+      playerIndex += playersPerTeam;
+
+      // Create team document
+      const teamRef = adminDb
+        .collection('events')
+        .doc(tournamentId)
+        .collection('teams')
+        .doc();
+
+      const members = teamPlayers.map((player: any) => ({
+        userId: player.userId || player.id,
+        pseudo: player.pseudo,
+        level: player.level || 'N/A',
+        isVirtual: player.isVirtual || false,
+      }));
+
+      const teamData = {
+        name: `Équipe ${teamNum}`,
+        captainId: members[0].userId, // First player is captain
+        members: members,
+        recruitmentOpen: false,
+        registeredAt: new Date(),
+        createdAt: new Date(),
+      };
+
+      batch.set(teamRef, teamData);
+
+      // Remove players from unassigned list
+      teamPlayers.forEach((player: any) => {
+        const unassignedRef = adminDb
+          .collection('events')
+          .doc(tournamentId)
+          .collection('unassignedPlayers')
+          .doc(player.id);
+        batch.delete(unassignedRef);
+      });
+    }
+
+    await batch.commit();
+
+    // Calculate remaining players
+    const remainingPlayers = shuffledPlayers.length - (numTeams * playersPerTeam);
+
+    res.json({
+      success: true,
+      message: `Successfully created ${numTeams} team${numTeams > 1 ? 's' : ''} with ${playersPerTeam} players each.`,
+      data: {
+        teamsCreated: numTeams,
+        playersAssigned: numTeams * playersPerTeam,
+        remainingPlayers: remainingPlayers,
+      },
+    });
+  } catch (error: any) {
+    console.error('Error generating random teams:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error generating random teams', 500);
   }
 };

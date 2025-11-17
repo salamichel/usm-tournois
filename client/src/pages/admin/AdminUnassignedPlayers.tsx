@@ -3,13 +3,14 @@ import { useParams, Link } from 'react-router-dom';
 import AdminLayout from '@components/AdminLayout';
 import adminService from '@services/admin.service';
 import toast from 'react-hot-toast';
-import { ArrowLeft, UserMinus, Trash2 } from 'lucide-react';
+import { ArrowLeft, UserMinus, Trash2, Shuffle } from 'lucide-react';
 
 const AdminUnassignedPlayers = () => {
   const { tournamentId } = useParams();
   const [tournament, setTournament] = useState<any>(null);
   const [players, setPlayers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -44,6 +45,28 @@ const AdminUnassignedPlayers = () => {
     }
   };
 
+  const handleGenerateRandomTeams = async () => {
+    if (!confirm(`Voulez-vous générer les équipes aléatoirement avec ${players.length} joueur(s) ?\n\nCette action créera des équipes de ${tournament.playersPerTeam} joueurs.`)) {
+      return;
+    }
+
+    try {
+      setGenerating(true);
+      const response = await adminService.generateRandomTeams(tournamentId!);
+      toast.success(response.message || 'Équipes générées avec succès');
+
+      if (response.data?.remainingPlayers > 0) {
+        toast.success(`${response.data.remainingPlayers} joueur(s) restant(s) non assigné(s)`, { duration: 5000 });
+      }
+
+      loadData();
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur lors de la génération des équipes');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   if (loading) {
     return (
       <AdminLayout>
@@ -68,9 +91,24 @@ const AdminUnassignedPlayers = () => {
         </div>
 
         <div className="bg-white rounded-lg shadow-md p-6">
-          <p className="text-gray-600 mb-4">
-            Ces joueurs se sont inscrits au tournoi mais n'ont pas encore rejoint ou créé d'équipe.
-          </p>
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-gray-600">
+              {tournament?.registrationMode === 'random'
+                ? `${players.length} joueur(s) inscrit(s). Les équipes seront générées aléatoirement.`
+                : 'Ces joueurs se sont inscrits au tournoi mais n\'ont pas encore rejoint ou créé d\'équipe.'}
+            </p>
+            {tournament?.registrationMode === 'random' && players.length > 0 && (
+              <button
+                onClick={handleGenerateRandomTeams}
+                disabled={generating || players.length < tournament.playersPerTeam}
+                className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                title={players.length < tournament.playersPerTeam ? `Besoin d'au moins ${tournament.playersPerTeam} joueurs` : 'Générer les équipes aléatoirement'}
+              >
+                <Shuffle size={18} />
+                {generating ? 'Génération...' : 'Générer les équipes'}
+              </button>
+            )}
+          </div>
 
           {players.length > 0 ? (
             <div className="overflow-x-auto">
