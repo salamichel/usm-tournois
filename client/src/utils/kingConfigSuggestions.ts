@@ -5,9 +5,12 @@
 
 export type GameMode = '6v6' | '5v5' | '4v4' | '3v3' | '2v2' | '1v1';
 
+export type PhaseFormat = 'round-robin' | 'kob';
+
 export interface PhaseConfig {
   phaseNumber: number;
   gameMode: GameMode;
+  phaseFormat: PhaseFormat; // Format de la phase (Round Robin ou KOB)
   playersPerTeam: number;
   teamsPerPool: number;
   numberOfPools: number;
@@ -72,12 +75,22 @@ function calculateKOBRounds(teamsPerPool: number): number {
  * Calcule le nombre total de matchs pour une phase
  */
 function calculateTotalMatches(
+  phaseFormat: PhaseFormat,
+  teamsPerPool: number,
   numberOfPools: number,
   estimatedRounds: number
 ): number {
-  // En KOB, chaque round = 1 match par poule
-  // (2 équipes s'affrontent, les autres sont sur le banc)
-  return estimatedRounds * numberOfPools;
+  if (phaseFormat === 'round-robin') {
+    // Round Robin : chaque round génère C(N,2) matchs
+    // où C(N,2) = N×(N-1)/2 (combinaisons de 2 équipes parmi N)
+    const matchesPerRoundPerPool = (teamsPerPool * (teamsPerPool - 1)) / 2;
+    return matchesPerRoundPerPool * estimatedRounds * numberOfPools;
+  } else {
+    // KOB : chaque round génère floor(N/2) matchs par poule
+    // (les équipes se regroupent en paires, ex: 4 équipes → 2 matchs)
+    const matchesPerRoundPerPool = Math.floor(teamsPerPool / 2);
+    return matchesPerRoundPerPool * estimatedRounds * numberOfPools;
+  }
 }
 
 /**
@@ -140,6 +153,8 @@ function findOptimalDivisor(total: number, preferred: number): number {
  */
 export function enrichPhaseWithTimings(phase: Partial<PhaseConfig>): PhaseConfig {
   const totalMatches = calculateTotalMatches(
+    phase.phaseFormat!,
+    phase.teamsPerPool!,
     phase.numberOfPools!,
     phase.estimatedRounds!
   );
@@ -236,6 +251,7 @@ function generateClassicProgression(
   phases.push(enrichPhaseWithTimings({
     phaseNumber: 1,
     gameMode: '4v4',
+    phaseFormat: 'round-robin', // Phase 1 utilise Round Robin
     playersPerTeam: 4,
     teamsPerPool: phase1TeamsPerPool,
     numberOfPools: phase1Pools,
@@ -243,7 +259,7 @@ function generateClassicProgression(
     qualifiedPerPool: phase1QualifiedPerPool,
     totalQualified: phase1Qualified,
     fields: Math.min(availableFields, phase1Pools),
-    estimatedRounds: calculateKOBRounds(phase1TeamsPerPool),
+    estimatedRounds: 3, // Phase 1: toujours 3 rounds en Round Robin
     setsPerMatch: 1,
     pointsPerSet: 21,
     tieBreakEnabled: false,
@@ -265,6 +281,7 @@ function generateClassicProgression(
   phases.push(enrichPhaseWithTimings({
     phaseNumber: 2,
     gameMode: '3v3',
+    phaseFormat: 'kob', // Phase 2 utilise KOB
     playersPerTeam: 3,
     teamsPerPool: phase2TeamsPerPool,
     numberOfPools: phase2Pools,
@@ -283,6 +300,7 @@ function generateClassicProgression(
   phases.push(enrichPhaseWithTimings({
     phaseNumber: 3,
     gameMode: '2v2',
+    phaseFormat: 'kob', // Phase 3 utilise KOB
     playersPerTeam: 2,
     teamsPerPool: phase3Teams,
     numberOfPools: 1,
@@ -325,6 +343,7 @@ function generateBigProgression(
   phases.push(enrichPhaseWithTimings({
     phaseNumber: 1,
     gameMode: '6v6',
+    phaseFormat: 'round-robin', // Phase 1 utilise Round Robin
     playersPerTeam: 6,
     teamsPerPool: phase1TeamsPerPool,
     numberOfPools: phase1Pools,
@@ -332,7 +351,7 @@ function generateBigProgression(
     qualifiedPerPool: phase1QualifiedPerPool,
     totalQualified: phase1Qualified,
     fields: Math.min(availableFields, phase1Pools),
-    estimatedRounds: calculateKOBRounds(phase1TeamsPerPool),
+    estimatedRounds: 3, // Phase 1: toujours 3 rounds en Round Robin
     setsPerMatch: 1,
     pointsPerSet: 21,
     tieBreakEnabled: false,
@@ -348,6 +367,7 @@ function generateBigProgression(
   phases.push(enrichPhaseWithTimings({
     phaseNumber: 2,
     gameMode: '4v4',
+    phaseFormat: 'kob', // Phase 2 utilise KOB
     playersPerTeam: 4,
     teamsPerPool: phase2TeamsPerPool,
     numberOfPools: phase2Pools,
@@ -365,6 +385,7 @@ function generateBigProgression(
   phases.push(enrichPhaseWithTimings({
     phaseNumber: 3,
     gameMode: '2v2',
+    phaseFormat: 'kob', // Phase 3 utilise KOB
     playersPerTeam: 2,
     teamsPerPool: phase2Qualified,
     numberOfPools: 1,
@@ -413,6 +434,7 @@ function generateFastProgression(
   phases.push(enrichPhaseWithTimings({
     phaseNumber: 1,
     gameMode: '4v4',
+    phaseFormat: 'round-robin', // Phase 1 utilise Round Robin
     playersPerTeam: 4,
     teamsPerPool: phase1TeamsPerPool,
     numberOfPools: phase1Pools,
@@ -420,7 +442,7 @@ function generateFastProgression(
     qualifiedPerPool: phase1QualifiedPerPool,
     totalQualified: adjustedPhase1Qualified,
     fields: Math.min(availableFields, phase1Pools),
-    estimatedRounds: calculateKOBRounds(phase1TeamsPerPool),
+    estimatedRounds: 3, // Phase 1: toujours 3 rounds en Round Robin
     setsPerMatch: 1,
     pointsPerSet: 21,
     tieBreakEnabled: false,
@@ -430,6 +452,7 @@ function generateFastProgression(
   phases.push(enrichPhaseWithTimings({
     phaseNumber: 2,
     gameMode: '2v2',
+    phaseFormat: 'kob', // Phase 2 utilise KOB
     playersPerTeam: 2,
     teamsPerPool: adjustedPhase1Qualified,
     numberOfPools: 1,
@@ -478,6 +501,7 @@ function generateCompactProgression(
   phases.push(enrichPhaseWithTimings({
     phaseNumber: 1,
     gameMode: '3v3',
+    phaseFormat: 'round-robin', // Phase 1 utilise Round Robin
     playersPerTeam: 3,
     teamsPerPool: phase1TeamsPerPool,
     numberOfPools: phase1Pools,
@@ -485,7 +509,7 @@ function generateCompactProgression(
     qualifiedPerPool: phase1QualifiedPerPool,
     totalQualified: adjustedPhase1Qualified,
     fields: Math.min(availableFields, phase1Pools),
-    estimatedRounds: calculateKOBRounds(phase1TeamsPerPool),
+    estimatedRounds: 3, // Phase 1: toujours 3 rounds en Round Robin
     setsPerMatch: 2,
     pointsPerSet: 15,
     tieBreakEnabled: false,
@@ -495,6 +519,7 @@ function generateCompactProgression(
   phases.push(enrichPhaseWithTimings({
     phaseNumber: 2,
     gameMode: '2v2',
+    phaseFormat: 'kob', // Phase 2 utilise KOB
     playersPerTeam: 2,
     teamsPerPool: adjustedPhase1Qualified,
     numberOfPools: 1,
