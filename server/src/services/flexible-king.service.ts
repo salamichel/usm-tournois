@@ -16,10 +16,9 @@ import type {
   KingTeam,
   KingMatch,
   KingPool,
-  KingPlayerRanking,
   PhaseFormat,
 } from '@shared/types';
-import { shuffleArray, formRandomTeams, calculateKingRanking } from './king.service';
+import { shuffleArray, formRandomTeams } from './king.service';
 
 // ========================================
 // CONFIGURATION HELPERS
@@ -46,8 +45,7 @@ export function distributeTeamsInPools(totalTeams: number, numberOfPools: number
  */
 export function distributeQualifiedInPools(
   totalQualified: number,
-  numberOfPools: number,
-  poolDistribution: number[]
+  numberOfPools: number
 ): number[] {
   const baseQualifiedPerPool = Math.floor(totalQualified / numberOfPools);
   const remainder = totalQualified % numberOfPools;
@@ -118,7 +116,7 @@ export function calculateTotalMatches(
 function generateRoundRobinMatches(
   poolPlayers: KingPlayer[],
   poolId: string,
-  poolName: string,
+  _poolName: string,
   teamSize: number,
   teamsPerPool: number,
   numRounds: number,
@@ -522,7 +520,7 @@ export function updatePhaseConfiguration(
  */
 export function validatePhaseStart(
   phase: FlexibleKingPhase,
-  registeredPlayersCount: number
+  _registeredPlayersCount: number
 ): { valid: boolean; error?: string } {
   if (phase.status !== 'configured' && phase.status !== 'not_configured') {
     return { valid: false, error: `Phase ${phase.phaseNumber} is already ${phase.status}` };

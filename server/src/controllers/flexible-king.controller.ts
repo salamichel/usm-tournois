@@ -5,7 +5,6 @@ import * as kingService from '../services/king.service';
 import type {
   FlexibleKingPhase,
   FlexibleKingTournamentData,
-  FlexiblePhaseConfig,
   KingPlayer,
   KingPool,
   KingMatch,
@@ -446,8 +445,7 @@ export const completeFlexibleKingPhase = async (req: Request, res: Response) => 
       phase.config.qualifiedPerPoolDistribution ||
       flexibleKingService.distributeQualifiedInPools(
         phase.config.totalQualified,
-        phase.config.numberOfPools,
-        phase.config.poolDistribution || []
+        phase.config.numberOfPools
       );
 
     const qualifiers = flexibleKingService.calculatePhaseQualifiers(
