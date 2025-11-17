@@ -27,6 +27,8 @@ router.post('/tournaments/:id/clone', asyncHandler(adminController.cloneTourname
  */
 router.get('/tournaments/:tournamentId/pools', asyncHandler(adminController.getPools));
 router.post('/tournaments/:tournamentId/pools', asyncHandler(adminController.createPool));
+router.put('/tournaments/:tournamentId/pools/:poolId', asyncHandler(adminController.updatePoolName));
+router.delete('/tournaments/:tournamentId/pools/:poolId', asyncHandler(adminController.deletePool));
 router.post('/tournaments/:tournamentId/pools/:poolId/assign-teams', asyncHandler(adminController.assignTeamsToPool));
 router.post('/tournaments/:tournamentId/pools/:poolId/generate-matches', asyncHandler(adminController.generatePoolMatches));
 
@@ -36,6 +38,12 @@ router.post('/tournaments/:tournamentId/pools/:poolId/generate-matches', asyncHa
 router.get('/tournaments/:tournamentId/elimination', asyncHandler(adminController.getEliminationMatches));
 router.post('/tournaments/:tournamentId/generate-elimination', asyncHandler(adminController.generateEliminationBracket));
 router.post('/tournaments/:tournamentId/freeze-ranking', asyncHandler(adminController.freezeRanking));
+
+/**
+ * Match Score Management
+ */
+router.post('/tournaments/:tournamentId/pools/:poolId/matches/:matchId/update-score', asyncHandler(adminController.updatePoolMatchScore));
+router.post('/tournaments/:tournamentId/elimination/:matchId/update-score', asyncHandler(adminController.updateEliminationMatchScore));
 
 /**
  * Team Management
