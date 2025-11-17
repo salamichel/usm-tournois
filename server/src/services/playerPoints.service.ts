@@ -8,10 +8,22 @@ import type {
   PlayerTournamentPoints,
   PlayerGlobalRanking,
   PlayerStats,
-  PointsConfig,
 } from '../../../shared/types/playerPoints.types';
-import { getPointsForRank, DEFAULT_POINTS_CONFIG } from '../../../shared/types/playerPoints.types';
 import type { TeamMember } from '../../../shared/types/team.types';
+
+/**
+ * Get points for a given rank based on tournament position
+ */
+function getPointsForRank(rank: number): number {
+  if (rank === 1) return 100;
+  if (rank === 2) return 80;
+  if (rank === 3) return 65;
+  if (rank === 4) return 55;
+  if (rank >= 5 && rank <= 8) return 40;
+  if (rank >= 9 && rank <= 16) return 25;
+  if (rank >= 17 && rank <= 32) return 15;
+  return 10; // 32nd+ (participation)
+}
 
 /**
  * Award points to all players in a team based on their rank
@@ -22,10 +34,9 @@ export async function awardPointsToTeam(
   tournamentDate: Date,
   teamName: string,
   teamMembers: TeamMember[],
-  rank: number,
-  pointsConfig: PointsConfig = DEFAULT_POINTS_CONFIG
+  rank: number
 ): Promise<void> {
-  const points = getPointsForRank(rank, pointsConfig);
+  const points = getPointsForRank(rank);
   const batch = adminDb.batch();
 
   // Award points to each team member
