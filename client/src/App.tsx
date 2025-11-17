@@ -30,6 +30,8 @@ import AdminUsersList from '@pages/admin/AdminUsersList';
 import AdminUserForm from '@pages/admin/AdminUserForm';
 import AdminUnassignedPlayers from '@pages/admin/AdminUnassignedPlayers';
 import AdminVirtualUsers from '@pages/admin/AdminVirtualUsers';
+import AdminClubsList from '@pages/admin/AdminClubsList';
+import AdminClubForm from '@pages/admin/AdminClubForm';
 
 function App() {
   return (
@@ -195,6 +197,30 @@ function App() {
               element={
                 <AdminRoute>
                   <AdminVirtualUsers />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/clubs"
+              element={
+                <AdminRoute>
+                  <AdminClubsList />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/clubs/new"
+              element={
+                <AdminRoute>
+                  <AdminClubForm />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/clubs/:id/edit"
+              element={
+                <AdminRoute>
+                  <AdminClubForm />
                 </AdminRoute>
               }
             />

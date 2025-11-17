@@ -52,6 +52,7 @@ const AdminTournamentForm = () => {
     description: '',
     whatsappGroupLink: '',
     isActive: true,
+    isClubInternal: false,
     date: '',
     time: '',
     registrationStartDate: '',
@@ -105,6 +106,7 @@ const AdminTournamentForm = () => {
         description: tournament.description || '',
         whatsappGroupLink: tournament.whatsappGroupLink || '',
         isActive: tournament.isActive ?? true,
+        isClubInternal: tournament.isClubInternal ?? false,
         date: formatDateForInput(tournament.date),
         time: formatTimeForInput(tournament.date),
         registrationStartDate: formatDateForInput(tournament.registrationStartDateTime),
@@ -324,6 +326,23 @@ const AdminTournamentForm = () => {
                   Tournoi Actif
                 </label>
               </div>
+
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="isClubInternal"
+                  name="isClubInternal"
+                  checked={formData.isClubInternal}
+                  onChange={handleChange}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="isClubInternal" className="ml-2 block text-sm font-medium text-gray-700">
+                  Tournoi interne à un club
+                </label>
+              </div>
+              <p className="text-xs text-gray-500 -mt-2">
+                Si coché, les logos de club ne seront pas affichés pour ce tournoi
+              </p>
 
               <div>
                 <label htmlFor="coverImage" className="block text-sm font-medium text-gray-700 mb-1">

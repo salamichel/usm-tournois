@@ -6,6 +6,9 @@
 // User types
 export * from './user.types';
 
+// Club types
+export * from './club.types';
+
 // Tournament types
 export * from './tournament.types';
 

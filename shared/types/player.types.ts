@@ -10,6 +10,7 @@ export interface UnassignedPlayer {
   userId: string;
   pseudo: string;
   level: UserLevel;
+  clubId?: string;
   registeredAt?: Date;
 }
 

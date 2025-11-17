@@ -57,6 +57,9 @@ export interface Tournament {
   // Registration mode
   registrationMode: RegistrationMode; // 'teams' or 'random'
 
+  // Club-specific field
+  isClubInternal?: boolean; // If true, club logos won't be displayed for this tournament
+
   // King format specific fields
   king?: boolean; // Flag to indicate if this is a King tournament
   currentKingPhase?: number; // 0, 1, 2, or 3
@@ -99,6 +102,7 @@ export interface CreateTournamentDto {
   waitingListEnabled: boolean;
   waitingListSize: number;
   coverImage?: string;
+  isClubInternal?: boolean;
 }
 
 export interface UpdateTournamentDto extends Partial<CreateTournamentDto> {

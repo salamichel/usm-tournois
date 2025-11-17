@@ -14,6 +14,7 @@ export interface User {
   level: UserLevel;
   role: UserRole;
   avatar?: string;
+  clubId?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -32,6 +33,7 @@ export interface UpdateUserDto {
   level?: UserLevel;
   role?: UserRole;
   avatar?: string;
+  clubId?: string;
 }
 
 export interface UserSession {
@@ -40,6 +42,7 @@ export interface UserSession {
   pseudo: string;
   level: UserLevel;
   role: UserRole;
+  clubId?: string;
 }
 
 export interface ChangePasswordDto {

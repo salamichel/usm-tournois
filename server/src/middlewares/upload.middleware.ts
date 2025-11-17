@@ -44,3 +44,6 @@ export const upload = multer({
 
 // Middleware for single file upload (coverImage)
 export const uploadCoverImage = upload.single('coverImage');
+
+// Middleware for single file upload (club logo)
+export const uploadClubLogo = upload.single('logo');
