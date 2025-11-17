@@ -435,9 +435,9 @@ function generateClassicProgression(
     adjustedPhase2QualifiedPlayers = phase2QualifiedPlayers - 1; // Arrondir au nombre pair inférieur
   }
   // Et vérifier que ça donne une puissance de 2 en équipes
-  const phase3Teams = Math.floor(adjustedPhase2QualifiedPlayers / 2);
-  if (![2, 4, 8, 16].includes(phase3Teams)) {
-    const targetTeams = [2, 4, 8, 16].find(n => n >= phase3Teams && n <= phase2Teams) || 4;
+  const estimatedPhase3Teams = Math.floor(adjustedPhase2QualifiedPlayers / 2);
+  if (![2, 4, 8, 16].includes(estimatedPhase3Teams)) {
+    const targetTeams = [2, 4, 8, 16].find(n => n >= estimatedPhase3Teams && n <= phase2Teams) || 4;
     adjustedPhase2QualifiedPlayers = targetTeams * 2; // Convertir en joueurs
   }
 
