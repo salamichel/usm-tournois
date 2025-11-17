@@ -7,7 +7,9 @@ import {
   GameMode,
   enrichPhaseWithTimings,
   customizePhaseWithPools,
-  MAX_TEAMS_PER_POOL
+  MAX_TEAMS_PER_POOL,
+  generateMatchSchedule,
+  ScheduledMatch
 } from '@utils/kingConfigSuggestions';
 import {
   Users,
@@ -84,6 +86,26 @@ const KingConfigAssistant: React.FC<KingConfigAssistantProps> = ({
       } catch (error) {
         console.error('Erreur lors du changement du nombre de poules:', error);
         return;
+      }
+    } else if (field === 'totalQualified') {
+      // Cas spécial: changement du nombre de qualifiés
+      const updatedPhase = { ...newConfig.phases[phaseIndex], totalQualified: value };
+
+      // Recalculer qualifiedPerPool (moyenne)
+      updatedPhase.qualifiedPerPool = Math.floor(value / updatedPhase.numberOfPools);
+
+      // Si poolDistribution existe, recalculer qualifiedPerPoolDistribution
+      if (updatedPhase.poolDistribution) {
+        try {
+          const currentPhase = newConfig.phases[phaseIndex];
+          const tempPhase = { ...currentPhase, totalQualified: value };
+          newConfig.phases[phaseIndex] = customizePhaseWithPools(tempPhase, tempPhase.numberOfPools);
+        } catch (error) {
+          console.error('Erreur lors du changement du nombre de qualifiés:', error);
+          return;
+        }
+      } else {
+        newConfig.phases[phaseIndex] = enrichPhaseWithTimings(updatedPhase);
       }
     } else {
       // Mettre à jour le champ modifié
@@ -350,6 +372,11 @@ const PhaseEditor: React.FC<{
   const maxPools = phase.totalTeams;
   const minPools = Math.max(1, Math.ceil(phase.totalTeams / MAX_TEAMS_PER_POOL));
 
+  // Calcul des limites pour le nombre de qualifiés (en JOUEURS)
+  const totalPlayersInPhase = phase.totalTeams * phase.playersPerTeam;
+  const minQualified = phase.playersPerTeam; // Au moins une équipe complète
+  const maxQualified = totalPlayersInPhase - phase.playersPerTeam; // Au moins une équipe non qualifiée
+
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3 text-sm">
@@ -396,6 +423,21 @@ const PhaseEditor: React.FC<{
         </div>
 
         <div>
+          <label className="block text-gray-600 mb-1">
+            Joueurs qualifiés
+            <span className="text-xs text-gray-500 ml-1">({minQualified}-{maxQualified})</span>
+          </label>
+          <input
+            type="number"
+            min={minQualified}
+            max={maxQualified}
+            value={phase.totalQualified}
+            onChange={(e) => onUpdate('totalQualified', parseInt(e.target.value))}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+          />
+        </div>
+
+        <div>
           <label className="block text-gray-600 mb-1">Sets par match</label>
           <input
             type="number"
@@ -407,7 +449,7 @@ const PhaseEditor: React.FC<{
           />
         </div>
 
-        <div className="col-span-2">
+        <div>
           <label className="block text-gray-600 mb-1">Points par set</label>
           <input
             type="number"
@@ -453,6 +495,77 @@ const PhaseEditor: React.FC<{
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+// Composant pour visualiser le planning des matchs
+const MatchScheduleViewer: React.FC<{ phase: PhaseConfig }> = ({ phase }) => {
+  const [showSchedule, setShowSchedule] = useState(false);
+  const [schedule, setSchedule] = useState<ScheduledMatch[]>([]);
+
+  const handleGenerateSchedule = () => {
+    const generated = generateMatchSchedule(phase);
+    setSchedule(generated);
+    setShowSchedule(true);
+  };
+
+  if (!showSchedule) {
+    return (
+      <button
+        onClick={handleGenerateSchedule}
+        className="text-xs text-blue-600 hover:text-blue-700 underline"
+      >
+        📅 Voir le planning des matchs
+      </button>
+    );
+  }
+
+  // Regrouper par round
+  const matchesByRound = schedule.reduce((acc, match) => {
+    if (!acc[match.round]) acc[match.round] = [];
+    acc[match.round].push(match);
+    return acc;
+  }, {} as Record<number, ScheduledMatch[]>);
+
+  return (
+    <div className="bg-gray-50 border border-gray-300 rounded p-3 space-y-3">
+      <div className="flex items-center justify-between">
+        <h4 className="font-semibold text-sm">Planning des matchs</h4>
+        <button
+          onClick={() => setShowSchedule(false)}
+          className="text-xs text-gray-600 hover:text-gray-800"
+        >
+          ✕ Fermer
+        </button>
+      </div>
+
+      <div className="space-y-2 max-h-96 overflow-y-auto">
+        {Object.entries(matchesByRound).map(([round, matches]) => (
+          <div key={round} className="bg-white rounded border border-gray-200 p-2">
+            <div className="font-medium text-xs text-blue-700 mb-2">
+              Round {round} ({matches.length} match{matches.length > 1 ? 's' : ''})
+            </div>
+            <div className="space-y-1">
+              {matches.map((match, idx) => (
+                <div key={idx} className="text-xs flex items-center gap-2 py-1">
+                  <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-medium">
+                    T{match.fieldNumber}
+                  </span>
+                  <span className="text-gray-500">Poule {match.pool}</span>
+                  <span className="flex-1 text-gray-900">
+                    Équipe {match.team1 + 1} vs Équipe {match.team2 + 1}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="text-xs text-gray-500 border-t border-gray-200 pt-2">
+        💡 Les matchs d'un même round peuvent se jouer en parallèle sur différents terrains
+      </div>
     </div>
   );
 };
@@ -532,6 +645,9 @@ const PhasePreview: React.FC<{ phase: PhaseConfig }> = ({ phase }) => {
         {' • '}
         {phase.fields} terrain{phase.fields > 1 ? 's' : ''} utilisé{phase.fields > 1 ? 's' : ''}
       </div>
+
+      {/* Ligne 3: Planning des matchs */}
+      <MatchScheduleViewer phase={phase} />
     </div>
   );
 };

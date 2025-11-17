@@ -728,6 +728,147 @@ function generateCompactProgression(
 }
 
 /**
+ * Représente un match planifié
+ */
+export interface ScheduledMatch {
+  round: number; // Numéro du round
+  matchNumber: number; // Numéro du match dans le round
+  fieldNumber: number; // Numéro du terrain (1-N)
+  pool: number; // Numéro de la poule
+  team1: number; // Index de l'équipe 1 (0-based)
+  team2: number; // Index de l'équipe 2 (0-based)
+}
+
+/**
+ * Génère un planning optimisé des matchs pour une phase
+ * Optimise la répartition sur les terrains et évite les matchs consécutifs
+ */
+export function generateMatchSchedule(phase: PhaseConfig): ScheduledMatch[] {
+  const schedule: ScheduledMatch[] = [];
+  const poolDistribution = phase.poolDistribution || Array(phase.numberOfPools).fill(phase.teamsPerPool);
+
+  let globalMatchNumber = 0;
+
+  for (let poolIndex = 0; poolIndex < poolDistribution.length; poolIndex++) {
+    const teamsInPool = poolDistribution[poolIndex];
+    const poolMatches: ScheduledMatch[] = [];
+
+    if (phase.phaseFormat === 'round-robin') {
+      // Round Robin : Générer tous les matchs possibles C(N,2)
+      const allMatches: [number, number][] = [];
+      for (let i = 0; i < teamsInPool; i++) {
+        for (let j = i + 1; j < teamsInPool; j++) {
+          allMatches.push([i, j]);
+        }
+      }
+
+      // Répartir les matchs sur les rounds de manière équilibrée
+      const matchesPerRound = Math.ceil(allMatches.length / phase.estimatedRounds);
+
+      for (let round = 0; round < phase.estimatedRounds; round++) {
+        const roundStart = round * matchesPerRound;
+        const roundEnd = Math.min((round + 1) * matchesPerRound, allMatches.length);
+        const roundMatches = allMatches.slice(roundStart, roundEnd);
+
+        roundMatches.forEach(([team1, team2], index) => {
+          poolMatches.push({
+            round: round + 1,
+            matchNumber: globalMatchNumber++,
+            fieldNumber: (poolIndex % phase.fields) + 1,
+            pool: poolIndex + 1,
+            team1,
+            team2
+          });
+        });
+      }
+    } else {
+      // KOB : Rotation optimisée pour éviter les matchs consécutifs
+      for (let round = 0; round < phase.estimatedRounds; round++) {
+        const matchesThisRound = Math.floor(teamsInPool / 2);
+
+        // Algorithme de rotation round-robin pour KOB
+        for (let matchInRound = 0; matchInRound < matchesThisRound; matchInRound++) {
+          const team1 = (round + matchInRound * 2) % teamsInPool;
+          const team2 = (round + matchInRound * 2 + 1) % teamsInPool;
+
+          poolMatches.push({
+            round: round + 1,
+            matchNumber: globalMatchNumber++,
+            fieldNumber: (poolIndex % phase.fields) + 1,
+            pool: poolIndex + 1,
+            team1,
+            team2
+          });
+        }
+      }
+    }
+
+    schedule.push(...poolMatches);
+  }
+
+  // Optimiser la répartition sur les terrains disponibles
+  return optimizeFieldAllocation(schedule, phase.fields);
+}
+
+/**
+ * Optimise la répartition des matchs sur les terrains disponibles
+ * pour maximiser l'utilisation et minimiser les temps d'attente
+ */
+function optimizeFieldAllocation(
+  matches: ScheduledMatch[],
+  availableFields: number
+): ScheduledMatch[] {
+  // Regrouper par round
+  const matchesByRound = new Map<number, ScheduledMatch[]>();
+
+  matches.forEach(match => {
+    const roundMatches = matchesByRound.get(match.round) || [];
+    roundMatches.push(match);
+    matchesByRound.set(match.round, roundMatches);
+  });
+
+  const optimizedSchedule: ScheduledMatch[] = [];
+
+  // Pour chaque round, distribuer les matchs sur les terrains disponibles
+  matchesByRound.forEach((roundMatches, round) => {
+    roundMatches.forEach((match, index) => {
+      optimizedSchedule.push({
+        ...match,
+        fieldNumber: (index % availableFields) + 1
+      });
+    });
+  });
+
+  return optimizedSchedule.sort((a, b) => {
+    // Trier par round, puis par terrain
+    if (a.round !== b.round) return a.round - b.round;
+    return a.fieldNumber - b.fieldNumber;
+  });
+}
+
+/**
+ * Formate le planning en format lisible
+ */
+export function formatMatchSchedule(schedule: ScheduledMatch[]): string {
+  const lines: string[] = [];
+  let currentRound = 0;
+
+  schedule.forEach(match => {
+    if (match.round !== currentRound) {
+      currentRound = match.round;
+      lines.push(`\n=== ROUND ${currentRound} ===`);
+    }
+
+    lines.push(
+      `Terrain ${match.fieldNumber} | Poule ${match.pool} | ` +
+      `Équipe ${match.team1 + 1} vs Équipe ${match.team2 + 1}`
+    );
+  });
+
+  return lines.join('\n');
+}
+
+/**
  * Valide une configuration King personnalisée
  */
 export function validateKingConfiguration(config: KingConfiguration): string[] {
