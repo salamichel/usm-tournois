@@ -5,7 +5,9 @@ import {
   suggestKingConfigurations,
   validateKingConfiguration,
   GameMode,
-  enrichPhaseWithTimings
+  enrichPhaseWithTimings,
+  customizePhaseWithPools,
+  MAX_TEAMS_PER_POOL
 } from '@utils/kingConfigSuggestions';
 import {
   Users,
@@ -18,7 +20,8 @@ import {
   Plus,
   Trash2,
   Trophy,
-  Clock
+  Clock,
+  Layers
 } from 'lucide-react';
 
 interface KingConfigAssistantProps {
@@ -73,11 +76,22 @@ const KingConfigAssistant: React.FC<KingConfigAssistantProps> = ({
     const newConfig = { ...selectedConfig };
     newConfig.phases = [...newConfig.phases];
 
-    // Mettre à jour le champ modifié
-    const updatedPhase = { ...newConfig.phases[phaseIndex], [field]: value };
+    // Cas spécial: changement du nombre de poules nécessite un recalcul complet
+    if (field === 'numberOfPools') {
+      try {
+        const currentPhase = newConfig.phases[phaseIndex];
+        newConfig.phases[phaseIndex] = customizePhaseWithPools(currentPhase, value as number);
+      } catch (error) {
+        console.error('Erreur lors du changement du nombre de poules:', error);
+        return;
+      }
+    } else {
+      // Mettre à jour le champ modifié
+      const updatedPhase = { ...newConfig.phases[phaseIndex], [field]: value };
 
-    // Recalculer les valeurs dépendantes
-    newConfig.phases[phaseIndex] = enrichPhaseWithTimings(updatedPhase);
+      // Recalculer les valeurs dépendantes
+      newConfig.phases[phaseIndex] = enrichPhaseWithTimings(updatedPhase);
+    }
 
     setSelectedConfig(newConfig);
     setCustomConfig(newConfig);
@@ -333,70 +347,112 @@ const PhaseEditor: React.FC<{
   phase: PhaseConfig;
   onUpdate: (field: keyof PhaseConfig, value: any) => void;
 }> = ({ phase, onUpdate }) => {
+  const maxPools = phase.totalTeams;
+  const minPools = Math.max(1, Math.ceil(phase.totalTeams / MAX_TEAMS_PER_POOL));
+
   return (
-    <div className="grid grid-cols-2 gap-3 text-sm">
-      <div>
-        <label className="block text-gray-600 mb-1">Mode de jeu</label>
-        <select
-          value={phase.gameMode}
-          onChange={(e) => onUpdate('gameMode', e.target.value as GameMode)}
-          className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-        >
-          <option value="6v6">6v6</option>
-          <option value="5v5">5v5</option>
-          <option value="4v4">4v4</option>
-          <option value="3v3">3v3</option>
-          <option value="2v2">2v2</option>
-          <option value="1v1">1v1</option>
-        </select>
-      </div>
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3 text-sm">
+        <div>
+          <label className="block text-gray-600 mb-1">Mode de jeu</label>
+          <select
+            value={phase.gameMode}
+            onChange={(e) => onUpdate('gameMode', e.target.value as GameMode)}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+          >
+            <option value="6v6">6v6</option>
+            <option value="5v5">5v5</option>
+            <option value="4v4">4v4</option>
+            <option value="3v3">3v3</option>
+            <option value="2v2">2v2</option>
+            <option value="1v1">1v1</option>
+          </select>
+        </div>
 
-      <div>
-        <label className="block text-gray-600 mb-1">Terrains</label>
-        <input
-          type="number"
-          min="1"
-          value={phase.fields}
-          onChange={(e) => onUpdate('fields', parseInt(e.target.value))}
-          className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-        />
-      </div>
-
-      <div>
-        <label className="block text-gray-600 mb-1">Sets par match</label>
-        <input
-          type="number"
-          min="1"
-          max="5"
-          value={phase.setsPerMatch}
-          onChange={(e) => onUpdate('setsPerMatch', parseInt(e.target.value))}
-          className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-        />
-      </div>
-
-      <div>
-        <label className="block text-gray-600 mb-1">Points par set</label>
-        <input
-          type="number"
-          min="11"
-          max="30"
-          value={phase.pointsPerSet}
-          onChange={(e) => onUpdate('pointsPerSet', parseInt(e.target.value))}
-          className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-        />
-      </div>
-
-      <div className="col-span-2">
-        <label className="flex items-center gap-2 text-gray-700">
+        <div>
+          <label className="block text-gray-600 mb-1">Terrains</label>
           <input
-            type="checkbox"
-            checked={phase.tieBreakEnabled}
-            onChange={(e) => onUpdate('tieBreakEnabled', e.target.checked)}
-            className="rounded"
+            type="number"
+            min="1"
+            value={phase.fields}
+            onChange={(e) => onUpdate('fields', parseInt(e.target.value))}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
           />
-          Tie-break activé
-        </label>
+        </div>
+
+        <div>
+          <label className="block text-gray-600 mb-1">
+            Nombre de poules
+            <span className="text-xs text-gray-500 ml-1">({minPools}-{maxPools})</span>
+          </label>
+          <input
+            type="number"
+            min={minPools}
+            max={maxPools}
+            value={phase.numberOfPools}
+            onChange={(e) => onUpdate('numberOfPools', parseInt(e.target.value))}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+          />
+        </div>
+
+        <div>
+          <label className="block text-gray-600 mb-1">Sets par match</label>
+          <input
+            type="number"
+            min="1"
+            max="5"
+            value={phase.setsPerMatch}
+            onChange={(e) => onUpdate('setsPerMatch', parseInt(e.target.value))}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+          />
+        </div>
+
+        <div className="col-span-2">
+          <label className="block text-gray-600 mb-1">Points par set</label>
+          <input
+            type="number"
+            min="11"
+            max="30"
+            value={phase.pointsPerSet}
+            onChange={(e) => onUpdate('pointsPerSet', parseInt(e.target.value))}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+          />
+        </div>
+
+        <div className="col-span-2">
+          <label className="flex items-center gap-2 text-gray-700">
+            <input
+              type="checkbox"
+              checked={phase.tieBreakEnabled}
+              onChange={(e) => onUpdate('tieBreakEnabled', e.target.checked)}
+              className="rounded"
+            />
+            Tie-break activé
+          </label>
+        </div>
       </div>
+
+      {/* Prévisualisation de la répartition des poules */}
+      {phase.poolDistribution && phase.poolDistribution.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded p-2 text-xs">
+          <div className="flex items-center gap-2 mb-1">
+            <Layers size={14} className="text-blue-600" />
+            <span className="font-medium text-blue-900">Répartition des poules :</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {phase.poolDistribution.map((teams, index) => (
+              <span key={index} className="bg-white px-2 py-1 rounded border border-blue-300 text-blue-900">
+                Poule {index + 1}: <strong>{teams}</strong> équipe{teams > 1 ? 's' : ''}
+                {phase.qualifiedPerPoolDistribution && phase.qualifiedPerPoolDistribution[index] !== undefined && (
+                  <span className="text-green-600 ml-1">
+                    (→ {phase.qualifiedPerPoolDistribution[index]} qualifié{phase.qualifiedPerPoolDistribution[index] > 1 ? 's' : ''})
+                  </span>
+                )}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -417,7 +473,8 @@ const PhasePreview: React.FC<{ phase: PhaseConfig }> = ({ phase }) => {
         <div className="flex items-center gap-2">
           <MapPin size={16} className="text-gray-400" />
           <span>
-            <strong>{phase.numberOfPools}</strong> poule(s) de {phase.teamsPerPool}
+            <strong>{phase.numberOfPools}</strong> poule(s)
+            {phase.poolDistribution ? '' : ` de ${phase.teamsPerPool}`}
           </span>
         </div>
 
@@ -431,7 +488,7 @@ const PhasePreview: React.FC<{ phase: PhaseConfig }> = ({ phase }) => {
         <div className="flex items-center gap-2">
           <Calendar size={16} className="text-gray-400" />
           <span>
-            <strong>{phase.estimatedRounds}</strong> rounds KOB
+            <strong>{phase.estimatedRounds}</strong> rounds {phase.phaseFormat === 'round-robin' ? 'RR' : 'KOB'}
           </span>
         </div>
 
@@ -449,6 +506,24 @@ const PhasePreview: React.FC<{ phase: PhaseConfig }> = ({ phase }) => {
           </span>
         </div>
       </div>
+
+      {/* Distribution des poules (si poules déséquilibrées) */}
+      {phase.poolDistribution && phase.poolDistribution.length > 1 && (
+        <div className="bg-blue-50 border border-blue-200 rounded px-3 py-2 text-xs">
+          <div className="flex items-center gap-2 mb-1">
+            <Layers size={14} className="text-blue-600" />
+            <span className="font-medium text-blue-900">Répartition :</span>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {phase.poolDistribution.map((teams, index) => (
+              <span key={index} className="text-blue-900">
+                <strong>{teams}</strong> équipe{teams > 1 ? 's' : ''}
+                {index < phase.poolDistribution!.length - 1 && <span className="mx-1">•</span>}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Ligne 2: Règles de jeu */}
       <div className="text-xs text-gray-600 bg-gray-50 px-3 py-2 rounded">

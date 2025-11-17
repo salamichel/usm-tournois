@@ -12,14 +12,17 @@ export interface PhaseConfig {
   gameMode: GameMode;
   phaseFormat: PhaseFormat; // Format de la phase (Round Robin ou KOB)
   playersPerTeam: number;
-  teamsPerPool: number;
+  teamsPerPool: number; // Moyenne d'équipes par poule (pour compatibilité)
   numberOfPools: number;
   totalTeams: number;
-  qualifiedPerPool: number;
+  qualifiedPerPool: number; // Moyenne de qualifiés par poule (pour compatibilité)
   totalQualified: number;
   fields: number; // nombre de terrains utilisés
   estimatedRounds: number; // nombre de rounds KOB nécessaires
   totalMatches: number; // nombre total de matchs dans la phase
+  // Support des poules déséquilibrées (optionnel)
+  poolDistribution?: number[]; // ex: [3, 3, 4] = 3 poules avec 3, 3 et 4 équipes
+  qualifiedPerPoolDistribution?: number[]; // ex: [2, 2, 2] = 2 qualifiés par poule
   // Règles de jeu
   setsPerMatch: number;
   pointsPerSet: number;
@@ -52,6 +55,60 @@ const MINUTES_BREAK_BETWEEN_MATCHES = 3; // Pause entre matchs
 const MINUTES_SETUP_PER_PHASE = 15; // Temps d'installation début de phase
 
 /**
+ * Contraintes pour les poules
+ */
+export const MIN_TEAMS_PER_POOL = 2; // Minimum 2 équipes par poule
+export const MAX_TEAMS_PER_POOL = 8; // Maximum 8 équipes par poule
+export const MIN_POOLS = 1; // Minimum 1 poule (finale)
+
+/**
+ * Répartit un nombre d'équipes en poules de manière équilibrée
+ * Exemple: 10 équipes en 3 poules → [4, 3, 3] (la plus équilibrée possible)
+ */
+export function distributeTeamsInPools(totalTeams: number, numberOfPools: number): number[] {
+  if (numberOfPools <= 0 || totalTeams < numberOfPools) {
+    throw new Error('Nombre de poules invalide');
+  }
+
+  const baseTeamsPerPool = Math.floor(totalTeams / numberOfPools);
+  const remainder = totalTeams % numberOfPools;
+
+  const distribution: number[] = [];
+
+  // Distribue les équipes en commençant par les poules avec un peu plus d'équipes
+  for (let i = 0; i < numberOfPools; i++) {
+    if (i < remainder) {
+      distribution.push(baseTeamsPerPool + 1);
+    } else {
+      distribution.push(baseTeamsPerPool);
+    }
+  }
+
+  return distribution;
+}
+
+/**
+ * Valide si une répartition de poules respecte les contraintes
+ */
+export function validatePoolDistribution(distribution: number[]): { valid: boolean; error?: string } {
+  if (distribution.length === 0) {
+    return { valid: false, error: 'Aucune poule définie' };
+  }
+
+  for (let i = 0; i < distribution.length; i++) {
+    const teams = distribution[i];
+    if (teams < MIN_TEAMS_PER_POOL) {
+      return { valid: false, error: `Poule ${i + 1} a ${teams} équipes (min: ${MIN_TEAMS_PER_POOL})` };
+    }
+    if (teams > MAX_TEAMS_PER_POOL) {
+      return { valid: false, error: `Poule ${i + 1} a ${teams} équipes (max: ${MAX_TEAMS_PER_POOL})` };
+    }
+  }
+
+  return { valid: true };
+}
+
+/**
  * Calcule le nombre de rounds nécessaires pour une phase KOB (King of the Beach)
  */
 function calculateKOBRounds(teamsPerPool: number): number {
@@ -73,13 +130,35 @@ function calculateKOBRounds(teamsPerPool: number): number {
 
 /**
  * Calcule le nombre total de matchs pour une phase
+ * Supporte à la fois les poules équilibrées (legacy) et déséquilibrées (via distribution)
  */
 function calculateTotalMatches(
   phaseFormat: PhaseFormat,
   teamsPerPool: number,
   numberOfPools: number,
-  estimatedRounds: number
+  estimatedRounds: number,
+  poolDistribution?: number[]
 ): number {
+  // Si une distribution est fournie, l'utiliser pour un calcul précis
+  if (poolDistribution && poolDistribution.length > 0) {
+    let totalMatches = 0;
+
+    for (const teamsInPool of poolDistribution) {
+      if (phaseFormat === 'round-robin') {
+        // Round Robin : C(N,2) matchs par round
+        const matchesPerRound = (teamsInPool * (teamsInPool - 1)) / 2;
+        totalMatches += matchesPerRound * estimatedRounds;
+      } else {
+        // KOB : floor(N/2) matchs par round
+        const matchesPerRound = Math.floor(teamsInPool / 2);
+        totalMatches += matchesPerRound * estimatedRounds;
+      }
+    }
+
+    return totalMatches;
+  }
+
+  // Sinon, utiliser le calcul legacy (toutes les poules ont le même nombre d'équipes)
   if (phaseFormat === 'round-robin') {
     // Round Robin : chaque round génère C(N,2) matchs
     // où C(N,2) = N×(N-1)/2 (combinaisons de 2 équipes parmi N)
@@ -156,7 +235,8 @@ export function enrichPhaseWithTimings(phase: Partial<PhaseConfig>): PhaseConfig
     phase.phaseFormat!,
     phase.teamsPerPool!,
     phase.numberOfPools!,
-    phase.estimatedRounds!
+    phase.estimatedRounds!,
+    phase.poolDistribution // Support des poules déséquilibrées
   );
 
   const durationMinutes = calculatePhaseDuration(
@@ -188,6 +268,74 @@ function enrichConfigurationWithTotals(
     estimatedTotalMinutes: totalMinutes,
     estimatedTotalDisplay: formatDuration(totalMinutes),
   };
+}
+
+/**
+ * Recalcule une phase avec un nombre de poules personnalisé
+ * Retourne une nouvelle phase avec la distribution mise à jour
+ */
+export function customizePhaseWithPools(
+  phase: PhaseConfig,
+  numberOfPools: number
+): PhaseConfig {
+  // Valider le nombre de poules
+  if (numberOfPools < MIN_POOLS) {
+    throw new Error(`Le nombre de poules doit être au moins ${MIN_POOLS}`);
+  }
+
+  if (numberOfPools > phase.totalTeams) {
+    throw new Error(`Le nombre de poules (${numberOfPools}) ne peut pas dépasser le nombre d'équipes (${phase.totalTeams})`);
+  }
+
+  // Calculer la distribution
+  const poolDistribution = distributeTeamsInPools(phase.totalTeams, numberOfPools);
+
+  // Valider la distribution
+  const validation = validatePoolDistribution(poolDistribution);
+  if (!validation.valid) {
+    throw new Error(validation.error);
+  }
+
+  // Calculer les qualifiés par poule (proportionnel)
+  const totalQualified = phase.totalQualified;
+  const qualifiedPerPoolDistribution: number[] = [];
+  let remainingQualified = totalQualified;
+
+  for (let i = 0; i < poolDistribution.length; i++) {
+    const teamsInPool = poolDistribution[i];
+    const poolsLeft = poolDistribution.length - i;
+
+    // Répartir proportionnellement
+    const qualifiedInPool = Math.floor(remainingQualified / poolsLeft);
+
+    // Ne pas qualifier plus que le nombre d'équipes dans la poule
+    const finalQualified = Math.min(qualifiedInPool, teamsInPool - 1);
+
+    qualifiedPerPoolDistribution.push(finalQualified);
+    remainingQualified -= finalQualified;
+  }
+
+  // Si des qualifiés restants, les ajouter aux premières poules
+  let i = 0;
+  while (remainingQualified > 0 && i < qualifiedPerPoolDistribution.length) {
+    if (qualifiedPerPoolDistribution[i] < poolDistribution[i] - 1) {
+      qualifiedPerPoolDistribution[i]++;
+      remainingQualified--;
+    }
+    i++;
+  }
+
+  // Recalculer avec la nouvelle distribution
+  const newPhase: Partial<PhaseConfig> = {
+    ...phase,
+    numberOfPools,
+    poolDistribution,
+    qualifiedPerPoolDistribution,
+    teamsPerPool: Math.floor(phase.totalTeams / numberOfPools), // Moyenne
+    qualifiedPerPool: Math.floor(totalQualified / numberOfPools), // Moyenne
+  };
+
+  return enrichPhaseWithTimings(newPhase);
 }
 
 /**
