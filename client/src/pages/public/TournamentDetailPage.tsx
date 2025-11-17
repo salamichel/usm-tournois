@@ -632,7 +632,7 @@ const TournamentDetailPage = () => {
                 </h2>
                 <p className="text-gray-600 mb-4">
                   {tournament?.registrationMode === 'random'
-                    ? 'Inscrivez-vous comme joueur. Les équipes seront générées aléatoirement par l\'admin.'
+                    ? 'Inscrivez-vous comme joueur. Les équipes seront générées de manière équilibrée par niveau par l\'admin.'
                     : 'Choisissez votre mode d\'inscription'}
                 </p>
                 <div className="flex flex-wrap gap-4">

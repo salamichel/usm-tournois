@@ -46,7 +46,7 @@ const AdminUnassignedPlayers = () => {
   };
 
   const handleGenerateRandomTeams = async () => {
-    if (!confirm(`Voulez-vous générer les équipes aléatoirement avec ${players.length} joueur(s) ?\n\nCette action créera des équipes de ${tournament.playersPerTeam} joueurs.`)) {
+    if (!confirm(`Voulez-vous générer les équipes équilibrées avec ${players.length} joueur(s) ?\n\nCette action créera des équipes de ${tournament.playersPerTeam} joueurs équilibrées par niveau.`)) {
       return;
     }
 
@@ -94,7 +94,7 @@ const AdminUnassignedPlayers = () => {
           <div className="flex items-center justify-between mb-4">
             <p className="text-gray-600">
               {tournament?.registrationMode === 'random'
-                ? `${players.length} joueur(s) inscrit(s). Les équipes seront générées aléatoirement.`
+                ? `${players.length} joueur(s) inscrit(s). Les équipes seront générées de manière équilibrée par niveau.`
                 : 'Ces joueurs se sont inscrits au tournoi mais n\'ont pas encore rejoint ou créé d\'équipe.'}
             </p>
             {tournament?.registrationMode === 'random' && players.length > 0 && (
@@ -102,10 +102,10 @@ const AdminUnassignedPlayers = () => {
                 onClick={handleGenerateRandomTeams}
                 disabled={generating || players.length < tournament.playersPerTeam}
                 className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                title={players.length < tournament.playersPerTeam ? `Besoin d'au moins ${tournament.playersPerTeam} joueurs` : 'Générer les équipes aléatoirement'}
+                title={players.length < tournament.playersPerTeam ? `Besoin d'au moins ${tournament.playersPerTeam} joueurs` : 'Générer les équipes équilibrées par niveau'}
               >
                 <Shuffle size={18} />
-                {generating ? 'Génération...' : 'Générer les équipes'}
+                {generating ? 'Génération...' : 'Générer les équipes équilibrées'}
               </button>
             )}
           </div>

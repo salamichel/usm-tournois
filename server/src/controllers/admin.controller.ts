@@ -1392,27 +1392,65 @@ export const generateRandomTeams = async (req: Request, res: Response) => {
       throw new AppError(`Not enough players. Need at least ${playersPerTeam} players to create teams.`, 400);
     }
 
-    // Shuffle players randomly using Fisher-Yates algorithm
-    const shuffledPlayers = [...players];
-    for (let i = shuffledPlayers.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffledPlayers[i], shuffledPlayers[j]] = [shuffledPlayers[j], shuffledPlayers[i]];
-    }
+    // Define level ranking (higher = better)
+    const levelRanking: { [key: string]: number } = {
+      'expert': 5,
+      'confirme': 4,
+      'confirmé': 4,
+      'moyen': 3,
+      'intermediaire': 2,
+      'intermédiaire': 2,
+      'debutant': 1,
+      'débutant': 1,
+    };
+
+    // Sort players by level (best to worst), with random shuffle for same levels
+    const sortedPlayers = [...players].sort((a, b) => {
+      const levelA = levelRanking[a.niveau?.toLowerCase()] || 0;
+      const levelB = levelRanking[b.niveau?.toLowerCase()] || 0;
+
+      if (levelA !== levelB) {
+        return levelB - levelA; // Descending order (best first)
+      }
+
+      // Random order for players with same level
+      return Math.random() - 0.5;
+    });
 
     // Calculate number of complete teams we can create
-    const numTeams = Math.floor(shuffledPlayers.length / playersPerTeam);
+    const numTeams = Math.floor(sortedPlayers.length / playersPerTeam);
 
     if (numTeams === 0) {
       throw new AppError(`Not enough players to create a complete team. Need at least ${playersPerTeam} players.`, 400);
     }
 
-    // Create teams
-    const batch = adminDb.batch();
-    let playerIndex = 0;
+    // Distribute players using snake draft algorithm for balanced teams
+    // This ensures each team gets a fair distribution of skill levels
+    const teams: any[][] = Array.from({ length: numTeams }, () => []);
+    let currentTeam = 0;
+    let direction = 1; // 1 for forward, -1 for backward
 
-    for (let teamNum = 1; teamNum <= numTeams; teamNum++) {
-      const teamPlayers = shuffledPlayers.slice(playerIndex, playerIndex + playersPerTeam);
-      playerIndex += playersPerTeam;
+    for (let i = 0; i < numTeams * playersPerTeam; i++) {
+      teams[currentTeam].push(sortedPlayers[i]);
+
+      // Move to next team
+      currentTeam += direction;
+
+      // Change direction when we reach either end
+      if (currentTeam >= numTeams) {
+        currentTeam = numTeams - 1;
+        direction = -1;
+      } else if (currentTeam < 0) {
+        currentTeam = 0;
+        direction = 1;
+      }
+    }
+
+    // Create teams in database
+    const batch = adminDb.batch();
+
+    for (let teamNum = 0; teamNum < numTeams; teamNum++) {
+      const teamPlayers = teams[teamNum];
 
       // Create team document
       const teamRef = adminDb
@@ -1424,13 +1462,13 @@ export const generateRandomTeams = async (req: Request, res: Response) => {
       const members = teamPlayers.map((player: any) => ({
         userId: player.userId || player.id,
         pseudo: player.pseudo,
-        level: player.level || 'N/A',
+        level: player.niveau || player.level || 'N/A',
         isVirtual: player.isVirtual || false,
       }));
 
       const teamData = {
-        name: `Équipe ${teamNum}`,
-        captainId: members[0].userId, // First player is captain
+        name: `Équipe ${teamNum + 1}`,
+        captainId: members[0].userId, // First player (highest level) is captain
         members: members,
         recruitmentOpen: false,
         registeredAt: new Date(),
@@ -1453,11 +1491,11 @@ export const generateRandomTeams = async (req: Request, res: Response) => {
     await batch.commit();
 
     // Calculate remaining players
-    const remainingPlayers = shuffledPlayers.length - (numTeams * playersPerTeam);
+    const remainingPlayers = sortedPlayers.length - (numTeams * playersPerTeam);
 
     res.json({
       success: true,
-      message: `Successfully created ${numTeams} team${numTeams > 1 ? 's' : ''} with ${playersPerTeam} players each.`,
+      message: `Successfully created ${numTeams} balanced team${numTeams > 1 ? 's' : ''} with ${playersPerTeam} players each.`,
       data: {
         teamsCreated: numTeams,
         playersAssigned: numTeams * playersPerTeam,
