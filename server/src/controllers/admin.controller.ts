@@ -1344,3 +1344,194 @@ export const getDashboard = async (req: Request, res: Response) => {
     throw new AppError('Error retrieving dashboard data', 500);
   }
 };
+
+/**
+ * Virtual Accounts Management
+ */
+
+/**
+ * Get all virtual users
+ */
+export const getAllVirtualUsers = async (req: Request, res: Response) => {
+  try {
+    const usersSnapshot = await adminDb
+      .collection('users')
+      .where('isVirtual', '==', true)
+      .get();
+
+    const virtualUsers = await Promise.all(
+      usersSnapshot.docs.map(async (doc) => {
+        const userData = doc.data();
+
+        // Find which teams this virtual user belongs to
+        const teams: any[] = [];
+        const eventsSnapshot = await adminDb.collection('events').get();
+
+        for (const eventDoc of eventsSnapshot.docs) {
+          const teamsSnapshot = await eventDoc.ref.collection('teams').get();
+
+          for (const teamDoc of teamsSnapshot.docs) {
+            const teamData = teamDoc.data();
+            const members = teamData.members || [];
+
+            if (members.some((m: any) => m.userId === doc.id)) {
+              teams.push({
+                teamId: teamDoc.id,
+                teamName: teamData.name,
+                tournamentId: eventDoc.id,
+                tournamentName: eventDoc.data().name,
+                isCaptain: teamData.captainId === doc.id,
+              });
+            }
+          }
+        }
+
+        return convertTimestamps({
+          id: doc.id,
+          ...userData,
+          teams,
+        });
+      })
+    );
+
+    res.json({
+      success: true,
+      data: { virtualUsers },
+    });
+  } catch (error) {
+    console.error('Error getting virtual users:', error);
+    throw new AppError('Error retrieving virtual users', 500);
+  }
+};
+
+/**
+ * Link virtual account to existing real account (admin operation)
+ */
+export const linkVirtualToRealUser = async (req: Request, res: Response) => {
+  const { virtualUserId, realUserId } = req.body;
+
+  if (!virtualUserId || !realUserId) {
+    throw new AppError('Virtual user ID and real user ID are required', 400);
+  }
+
+  try {
+    // Verify virtual user exists and is virtual
+    const virtualUserDoc = await adminDb.collection('users').doc(virtualUserId).get();
+
+    if (!virtualUserDoc.exists) {
+      throw new AppError('Virtual user not found', 404);
+    }
+
+    const virtualUserData = virtualUserDoc.data();
+
+    if (!virtualUserData?.isVirtual) {
+      throw new AppError('This is not a virtual account', 400);
+    }
+
+    // Verify real user exists and is not virtual
+    const realUserDoc = await adminDb.collection('users').doc(realUserId).get();
+
+    if (!realUserDoc.exists) {
+      throw new AppError('Real user not found', 404);
+    }
+
+    const realUserData = realUserDoc.data();
+
+    if (realUserData?.isVirtual) {
+      throw new AppError('Target user is also a virtual account', 400);
+    }
+
+    // Start batch operations
+    const batch = adminDb.batch();
+
+    // Update all teams that reference the virtual user
+    const eventsSnapshot = await adminDb.collection('events').get();
+
+    for (const eventDoc of eventsSnapshot.docs) {
+      const teamsSnapshot = await eventDoc.ref.collection('teams').get();
+
+      for (const teamDoc of teamsSnapshot.docs) {
+        const teamData = teamDoc.data();
+        const members = teamData.members || [];
+
+        // Check if virtual user is in this team
+        const memberIndex = members.findIndex((m: any) => m.userId === virtualUserId);
+
+        if (memberIndex !== -1) {
+          // Check if real user is already in this team
+          const realUserInTeam = members.some((m: any) => m.userId === realUserId);
+
+          if (realUserInTeam) {
+            // Real user already in team, just remove virtual user
+            members.splice(memberIndex, 1);
+          } else {
+            // Replace virtual user with real user
+            members[memberIndex] = {
+              userId: realUserId,
+              pseudo: realUserData.pseudo,
+              level: realUserData.level,
+            };
+          }
+
+          batch.update(teamDoc.ref, {
+            members,
+            updatedAt: new Date(),
+          });
+
+          // If virtual user was captain, transfer captainship
+          if (teamData.captainId === virtualUserId) {
+            batch.update(teamDoc.ref, {
+              captainId: realUserId,
+              captainPseudo: realUserData.pseudo,
+              updatedAt: new Date(),
+            });
+          }
+        }
+      }
+
+      // Handle unassigned players
+      const unassignedRef = eventDoc.ref.collection('unassignedPlayers').doc(virtualUserId);
+      const unassignedDoc = await unassignedRef.get();
+
+      if (unassignedDoc.exists) {
+        batch.delete(unassignedRef);
+
+        // Check if real user is not already in unassigned
+        const realUnassignedRef = eventDoc.ref.collection('unassignedPlayers').doc(realUserId);
+        const realUnassignedDoc = await realUnassignedRef.get();
+
+        if (!realUnassignedDoc.exists) {
+          batch.set(realUnassignedRef, {
+            userId: realUserId,
+            pseudo: realUserData.pseudo,
+            level: realUserData.level,
+            updatedAt: new Date(),
+          });
+        }
+      }
+    }
+
+    // Delete virtual user document
+    batch.delete(adminDb.collection('users').doc(virtualUserId));
+
+    // Commit all changes
+    await batch.commit();
+
+    // Delete virtual user from Firebase Auth
+    const { adminAuth } = await import('../config/firebase.config');
+    try {
+      await adminAuth.deleteUser(virtualUserId);
+    } catch (error) {
+      console.warn('Failed to delete virtual user from Firebase Auth:', error);
+    }
+
+    res.json({
+      success: true,
+      message: 'Virtual account successfully linked to real account',
+    });
+  } catch (error) {
+    console.error('Error linking virtual to real user:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error linking virtual account', 500);
+  }
+};

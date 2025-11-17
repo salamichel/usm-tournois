@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@contexts/AuthContext';
 import teamService from '@services/team.service';
-import type { Team, AddTeamMemberDto } from '@shared/types';
+import type { Team, AddTeamMemberDto, AddVirtualMemberDto, UserLevel } from '@shared/types';
 import toast from 'react-hot-toast';
 import { Users, UserPlus, UserMinus, Settings, ArrowLeft } from 'lucide-react';
 
 const TeamManagementPage = () => {
-  const { id } = useParams<{ id: string }>();
+  const { tournamentId, id } = useParams<{ tournamentId: string; id: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [team, setTeam] = useState<Team | null>(null);
@@ -15,25 +15,29 @@ const TeamManagementPage = () => {
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [processingAction, setProcessingAction] = useState(false);
-  const [memberFormData, setMemberFormData] = useState<AddTeamMemberDto>({
-    userId: '',
+  const [addMemberFormData, setAddMemberFormData] = useState({
+    memberId: '',
+  });
+  const [addVirtualMemberFormData, setAddVirtualMemberFormData] = useState({
     pseudo: '',
+    level: 'P10' as UserLevel,
+    email: '',
   });
   const [settingsFormData, setSettingsFormData] = useState({
     recruitmentOpen: false,
   });
 
   useEffect(() => {
-    if (id) {
+    if (id && tournamentId) {
       fetchTeam();
     }
-  }, [id]);
+  }, [id, tournamentId]);
 
   const fetchTeam = async () => {
-    if (!id) return;
+    if (!id || !tournamentId) return;
     try {
       setIsLoading(true);
-      const response = await teamService.getTeamById(id);
+      const response = await teamService.getTeamById(id, tournamentId);
       if (response.success && response.data) {
         const teamData = response.data.team;
         setTeam(teamData);
@@ -51,15 +55,18 @@ const TeamManagementPage = () => {
 
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id) return;
+    if (!id || !tournamentId || !addMemberFormData.memberId) return;
 
     try {
       setProcessingAction(true);
-      const response = await teamService.addMember(id, memberFormData);
+      const response = await teamService.addMember(id, {
+        tournamentId,
+        memberId: addMemberFormData.memberId,
+      });
       if (response.success) {
         toast.success('Membre ajouté avec succès !');
         setShowAddMemberModal(false);
-        setMemberFormData({ userId: '', pseudo: '' });
+        setAddMemberFormData({ memberId: '' });
         fetchTeam();
       }
     } catch (error: any) {
@@ -74,15 +81,20 @@ const TeamManagementPage = () => {
 
   const handleAddVirtualMember = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id || !memberFormData.pseudo) return;
+    if (!id || !tournamentId || !addVirtualMemberFormData.pseudo) return;
 
     try {
       setProcessingAction(true);
-      const response = await teamService.addVirtualMember(id, memberFormData);
+      const response = await teamService.addVirtualMember(id, {
+        tournamentId,
+        pseudo: addVirtualMemberFormData.pseudo,
+        level: addVirtualMemberFormData.level,
+        email: addVirtualMemberFormData.email || undefined,
+      });
       if (response.success) {
         toast.success('Membre virtuel ajouté avec succès !');
         setShowAddMemberModal(false);
-        setMemberFormData({ userId: '', pseudo: '' });
+        setAddVirtualMemberFormData({ pseudo: '', level: 'P10' as UserLevel, email: '' });
         fetchTeam();
       }
     } catch (error: any) {
@@ -96,11 +108,14 @@ const TeamManagementPage = () => {
   };
 
   const handleRemoveMember = async (userId: string) => {
-    if (!id || !confirm('Voulez-vous vraiment retirer ce membre ?')) return;
+    if (!id || !tournamentId || !confirm('Voulez-vous vraiment retirer ce membre ?')) return;
 
     try {
       setProcessingAction(true);
-      const response = await teamService.removeMember(id, userId);
+      const response = await teamService.removeMember(id, {
+        tournamentId,
+        memberId: userId,
+      });
       if (response.success) {
         toast.success('Membre retiré avec succès !');
         fetchTeam();
@@ -117,11 +132,14 @@ const TeamManagementPage = () => {
 
   const handleUpdateSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id) return;
+    if (!id || !tournamentId) return;
 
     try {
       setProcessingAction(true);
-      const response = await teamService.updateTeamSettings(id, settingsFormData);
+      const response = await teamService.updateTeamSettings(id, {
+        tournamentId,
+        recruitmentOpen: settingsFormData.recruitmentOpen,
+      });
       if (response.success) {
         toast.success('Paramètres mis à jour !');
         setShowSettingsModal(false);
@@ -250,16 +268,16 @@ const TeamManagementPage = () => {
                   <input
                     type="text"
                     className="input"
-                    value={memberFormData.userId}
+                    value={addMemberFormData.memberId}
                     onChange={(e) =>
-                      setMemberFormData({ ...memberFormData, userId: e.target.value })
+                      setAddMemberFormData({ ...addMemberFormData, memberId: e.target.value })
                     }
                     placeholder="UID du joueur"
                   />
                 </div>
                 <button
                   type="submit"
-                  disabled={processingAction || !memberFormData.userId}
+                  disabled={processingAction || !addMemberFormData.memberId}
                   className="btn-primary w-full"
                 >
                   Ajouter
@@ -273,21 +291,62 @@ const TeamManagementPage = () => {
                 <form onSubmit={handleAddVirtualMember}>
                   <div className="mb-4">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Pseudo du joueur
+                      Pseudo du joueur *
                     </label>
                     <input
                       type="text"
                       className="input"
-                      value={memberFormData.pseudo}
+                      value={addVirtualMemberFormData.pseudo}
                       onChange={(e) =>
-                        setMemberFormData({ ...memberFormData, pseudo: e.target.value })
+                        setAddVirtualMemberFormData({ ...addVirtualMemberFormData, pseudo: e.target.value })
                       }
                       placeholder="Nom du joueur"
+                      required
+                    />
+                  </div>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Niveau *
+                    </label>
+                    <select
+                      className="input"
+                      value={addVirtualMemberFormData.level}
+                      onChange={(e) =>
+                        setAddVirtualMemberFormData({ ...addVirtualMemberFormData, level: e.target.value as UserLevel })
+                      }
+                      required
+                    >
+                      <option value="P10">P10</option>
+                      <option value="P11">P11</option>
+                      <option value="P12">P12</option>
+                      <option value="D7">D7</option>
+                      <option value="D8">D8</option>
+                      <option value="D9">D9</option>
+                      <option value="R4">R4</option>
+                      <option value="R5">R5</option>
+                      <option value="R6">R6</option>
+                      <option value="N1">N1</option>
+                      <option value="N2">N2</option>
+                      <option value="N3">N3</option>
+                    </select>
+                  </div>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Email (optionnel)
+                    </label>
+                    <input
+                      type="email"
+                      className="input"
+                      value={addVirtualMemberFormData.email}
+                      onChange={(e) =>
+                        setAddVirtualMemberFormData({ ...addVirtualMemberFormData, email: e.target.value })
+                      }
+                      placeholder="email@example.com"
                     />
                   </div>
                   <button
                     type="submit"
-                    disabled={processingAction || !memberFormData.pseudo}
+                    disabled={processingAction || !addVirtualMemberFormData.pseudo}
                     className="btn-secondary w-full"
                   >
                     Ajouter joueur virtuel
@@ -299,7 +358,8 @@ const TeamManagementPage = () => {
             <button
               onClick={() => {
                 setShowAddMemberModal(false);
-                setMemberFormData({ userId: '', pseudo: '' });
+                setAddMemberFormData({ memberId: '' });
+                setAddVirtualMemberFormData({ pseudo: '', level: 'P10' as UserLevel, email: '' });
               }}
               className="btn-secondary w-full mt-4"
             >

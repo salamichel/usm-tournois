@@ -19,6 +19,7 @@ export interface Team {
   captainPseudo?: string;
   members: TeamMember[];
   recruitmentOpen: boolean;
+  tournamentId?: string; // Tournament this team belongs to
   registeredAt: string; // ISO date string
   poolId?: string;
   poolName?: string;
@@ -34,19 +35,26 @@ export interface CreateTeamDto {
 }
 
 export interface UpdateTeamDto {
-  name?: string;
+  tournamentId: string;
+  teamName?: string;
   recruitmentOpen?: boolean;
 }
 
 export interface AddTeamMemberDto {
-  userId: string;
+  tournamentId: string;
+  memberId: string; // User ID of the member to add
+}
+
+export interface AddVirtualMemberDto {
+  tournamentId: string;
   pseudo: string;
   level: UserLevel;
-  isVirtual?: boolean;
+  email?: string;
 }
 
 export interface RemoveTeamMemberDto {
-  userId: string;
+  tournamentId: string;
+  memberId: string;
 }
 
 export interface TeamWithStats extends Team {
