@@ -40,13 +40,21 @@ app.use(cors({
   credentials: true,
 }));
 
-// Rate limiting
+// Rate limiting - more permissive in development
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: process.env.NODE_ENV === 'production' ? 100 : 500, // 500 in dev, 100 in prod
   message: 'Too many requests from this IP, please try again later.',
 });
-app.use('/api/', limiter);
+
+// Apply rate limiting to all API routes except auth check endpoint
+app.use('/api/', (req, res, next) => {
+  // Skip rate limiting for auth check endpoint which is called frequently
+  if (req.path === '/auth/me') {
+    return next();
+  }
+  return limiter(req, res, next);
+});
 
 // Compression
 app.use(compression());
