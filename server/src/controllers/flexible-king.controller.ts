@@ -339,10 +339,19 @@ export const startFlexibleKingPhase = async (req: Request, res: Response) => {
     }
 
     // Generate pools and matches
+    console.log(`[startFlexibleKingPhase] Phase ${phaseNumber} config:`, JSON.stringify(phase.config, null, 2));
+    console.log(`[startFlexibleKingPhase] Participants: ${phase.participantIds.length}`);
+    console.log(`[startFlexibleKingPhase] Registered players: ${registeredPlayers.length}`);
+
     const { pools, matches } = flexibleKingService.generatePhasePoolsAndMatches(
       phase,
       registeredPlayers
     );
+
+    console.log(`[startFlexibleKingPhase] Generated ${pools.length} pools with ${matches.length} total matches`);
+    pools.forEach((pool, idx) => {
+      console.log(`  - Pool ${idx + 1}: ${pool.players.length} players, ${pool.matches.length} matches`);
+    });
 
     const batch = adminDb.batch();
 
