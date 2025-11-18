@@ -1084,10 +1084,23 @@ export const getAllUsers = async (req: Request, res: Response) => {
   try {
     const usersSnapshot = await adminDb.collection('users').orderBy('pseudo').get();
 
-    const users = usersSnapshot.docs.map((doc) => convertTimestamps({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    // Filter out virtual accounts and fake players
+    const users = usersSnapshot.docs
+      .map((doc) => convertTimestamps({
+        id: doc.id,
+        ...doc.data(),
+      }))
+      .filter((user: any) => {
+        // Exclude virtual accounts (emails ending with @virtual.tournoi.com)
+        if (user.email && user.email.endsWith('@virtual.tournoi.com')) {
+          return false;
+        }
+        // Exclude fake players (pseudo "JoueurFactice")
+        if (user.pseudo === 'JoueurFactice') {
+          return false;
+        }
+        return true;
+      });
 
     res.json({
       success: true,
