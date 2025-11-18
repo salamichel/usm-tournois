@@ -155,6 +155,10 @@ class AdminService {
     return apiService.post(`/admin/tournaments/${tournamentId}/freeze-ranking`);
   }
 
+  async freezeEliminationRanking(tournamentId: string) {
+    return apiService.post(`/admin/tournaments/${tournamentId}/freeze-elimination-ranking`);
+  }
+
   /**
    * Unassigned Players
    */

@@ -4,7 +4,7 @@ import AdminLayout from '@components/AdminLayout';
 import MatchScoreModal from '@components/admin/MatchScoreModal';
 import adminService from '@services/admin.service';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Trophy, Edit2 } from 'lucide-react';
+import { ArrowLeft, Trophy, Edit2, Lock } from 'lucide-react';
 
 const AdminEliminationManagement = () => {
   const { tournamentId } = useParams();
@@ -55,6 +55,27 @@ const AdminEliminationManagement = () => {
     }
   };
 
+  const handleFreezeRanking = async () => {
+    if (!tournamentId) return;
+    if (!confirm('Êtes-vous sûr de vouloir figer le classement ? Cette action est irréversible et finalisera le tournoi.')) return;
+
+    try {
+      const response = await adminService.freezeEliminationRanking(tournamentId);
+      if (response.success) {
+        toast.success(response.message || 'Classement figé avec succès !');
+        loadData();
+      } else {
+        toast.error(response.message || 'Erreur lors du gel du classement');
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || error.message || 'Erreur lors du gel du classement');
+    }
+  };
+
+  // Check if finale is completed
+  const isFinaleCompleted = matches.some(m => m.round === 'Finale' && m.status === 'completed');
+  const isTournamentFrozen = tournament?.isFrozen || tournament?.status === 'frozen';
+
   if (loading) {
     return (
       <AdminLayout>
@@ -79,14 +100,37 @@ const AdminEliminationManagement = () => {
   return (
     <AdminLayout>
       <div className="max-w-7xl mx-auto">
-        <div className="mb-6 flex items-center gap-4">
-          <Link to={`/admin/tournaments/${tournamentId}/pools`} className="text-gray-600 hover:text-gray-900">
-            <ArrowLeft size={24} />
-          </Link>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Trophy size={28} />
-            Phase d'Élimination - {tournament?.name}
-          </h1>
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link to={`/admin/tournaments/${tournamentId}/pools`} className="text-gray-600 hover:text-gray-900">
+              <ArrowLeft size={24} />
+            </Link>
+            <h1 className="text-3xl font-bold flex items-center gap-2">
+              <Trophy size={28} />
+              Phase d'Élimination - {tournament?.name}
+            </h1>
+          </div>
+          {matches.length > 0 && !isTournamentFrozen && (
+            <button
+              onClick={handleFreezeRanking}
+              disabled={!isFinaleCompleted}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors ${
+                isFinaleCompleted
+                  ? 'bg-red-600 text-white hover:bg-red-700'
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }`}
+              title={!isFinaleCompleted ? 'La finale doit être terminée pour figer le classement' : 'Figer le classement final'}
+            >
+              <Lock size={18} />
+              Figer le classement
+            </button>
+          )}
+          {isTournamentFrozen && (
+            <span className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-800 rounded-lg font-semibold">
+              <Lock size={18} />
+              Tournoi figé
+            </span>
+          )}
         </div>
 
         {matches.length === 0 ? (
