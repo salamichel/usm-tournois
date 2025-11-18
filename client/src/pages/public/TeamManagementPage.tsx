@@ -20,7 +20,7 @@ const TeamManagementPage = () => {
   });
   const [addVirtualMemberFormData, setAddVirtualMemberFormData] = useState({
     pseudo: '',
-    level: 'P10' as UserLevel,
+    level: 'Intermédiaire' as UserLevel,
     email: '',
   });
   const [settingsFormData, setSettingsFormData] = useState({
@@ -94,7 +94,7 @@ const TeamManagementPage = () => {
       if (response.success) {
         toast.success('Membre virtuel ajouté avec succès !');
         setShowAddMemberModal(false);
-        setAddVirtualMemberFormData({ pseudo: '', level: 'P10' as UserLevel, email: '' });
+        setAddVirtualMemberFormData({ pseudo: '', level: 'Intermédiaire' as UserLevel, email: '' });
         fetchTeam();
       }
     } catch (error: any) {
@@ -316,18 +316,9 @@ const TeamManagementPage = () => {
                       }
                       required
                     >
-                      <option value="P10">P10</option>
-                      <option value="P11">P11</option>
-                      <option value="P12">P12</option>
-                      <option value="D7">D7</option>
-                      <option value="D8">D8</option>
-                      <option value="D9">D9</option>
-                      <option value="R4">R4</option>
-                      <option value="R5">R5</option>
-                      <option value="R6">R6</option>
-                      <option value="N1">N1</option>
-                      <option value="N2">N2</option>
-                      <option value="N3">N3</option>
+                      <option value="Débutant">Débutant</option>
+                      <option value="Intermédiaire">Intermédiaire</option>
+                      <option value="Confirmé">Confirmé</option>
                     </select>
                   </div>
                   <div className="mb-4">
@@ -359,7 +350,7 @@ const TeamManagementPage = () => {
               onClick={() => {
                 setShowAddMemberModal(false);
                 setAddMemberFormData({ memberId: '' });
-                setAddVirtualMemberFormData({ pseudo: '', level: 'P10' as UserLevel, email: '' });
+                setAddVirtualMemberFormData({ pseudo: '', level: 'Intermédiaire' as UserLevel, email: '' });
               }}
               className="btn-secondary w-full mt-4"
             >
