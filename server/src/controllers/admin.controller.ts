@@ -148,6 +148,21 @@ export const getTournamentById = async (req: Request, res: Response) => {
       throw new AppError('Tournament not found', 404);
     }
 
+    // Get unassigned players
+    const unassignedPlayersSnapshot = await adminDb
+      .collection('events')
+      .doc(id)
+      .collection('unassignedPlayers')
+      .get();
+
+    const unassignedPlayers = unassignedPlayersSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      userId: doc.data().userId || doc.id,
+      pseudo: doc.data().pseudo || 'Unknown',
+      level: doc.data().level || 'N/A',
+      ...doc.data(),
+    }));
+
     const tournament = convertTimestamps({
       id: tournamentDoc.id,
       ...tournamentDoc.data(),
@@ -155,7 +170,7 @@ export const getTournamentById = async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      data: { tournament },
+      data: { tournament, unassignedPlayers },
     });
   } catch (error: any) {
     console.error('Error getting tournament by ID:', error);
