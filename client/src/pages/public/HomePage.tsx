@@ -1,16 +1,57 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useTournament } from '@contexts/TournamentContext';
 import { Link } from 'react-router-dom';
 import { Calendar, MapPin, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import TournamentFilters from '@components/TournamentFilters';
 
 const HomePage = () => {
   const { tournaments, fetchTournaments, isLoading } = useTournament();
 
+  // États pour les filtres
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedType, setSelectedType] = useState('all');
+  const [selectedStatus, setSelectedStatus] = useState('all');
+
   useEffect(() => {
     fetchTournaments();
   }, [fetchTournaments]);
+
+  // Filtrage des tournois
+  const filteredTournaments = useMemo(() => {
+    return tournaments.filter((tournament) => {
+      // Exclure automatiquement les tournois terminés
+      if (tournament.status === 'Terminé') {
+        return false;
+      }
+
+      // Filtre par recherche textuelle (nom ou lieu)
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesName = tournament.name.toLowerCase().includes(query);
+        const matchesLocation = tournament.location.toLowerCase().includes(query);
+        if (!matchesName && !matchesLocation) {
+          return false;
+        }
+      }
+
+      // Filtre par type (basé sur le nombre de joueurs par équipe)
+      if (selectedType !== 'all') {
+        const playersPerTeam = (tournament as any).playersPerTeam;
+        if (playersPerTeam && playersPerTeam.toString() !== selectedType) {
+          return false;
+        }
+      }
+
+      // Filtre par statut
+      if (selectedStatus !== 'all' && tournament.status !== selectedStatus) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [tournaments, searchQuery, selectedType, selectedStatus]);
 
   if (isLoading) {
     return (
@@ -27,13 +68,27 @@ const HomePage = () => {
         <p className="text-gray-600 mt-2">Découvrez et inscrivez-vous aux tournois à venir</p>
       </div>
 
-      {tournaments.length === 0 ? (
+      {/* Composant de filtres */}
+      <TournamentFilters
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        selectedType={selectedType}
+        setSelectedType={setSelectedType}
+        selectedStatus={selectedStatus}
+        setSelectedStatus={setSelectedStatus}
+      />
+
+      {filteredTournaments.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-gray-500 text-lg">Aucun tournoi disponible pour le moment.</p>
+          <p className="text-gray-500 text-lg">
+            {tournaments.length === 0
+              ? 'Aucun tournoi disponible pour le moment.'
+              : 'Aucun tournoi ne correspond à vos critères de recherche.'}
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {tournaments.map((tournament) => (
+          {filteredTournaments.map((tournament) => (
             <Link
               key={tournament.id}
               to={`/tournoi/${tournament.id}`}

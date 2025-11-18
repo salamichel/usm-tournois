@@ -108,6 +108,7 @@ export interface TournamentSummary {
   status: TournamentStatus;
   registeredTeamsCount: number;
   maxTeams: number;
+  playersPerTeam: number;
   coverImage?: string;
 }
 
