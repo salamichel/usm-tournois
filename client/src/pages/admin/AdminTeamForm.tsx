@@ -15,6 +15,9 @@ const AdminTeamForm = () => {
   const [formData, setFormData] = useState({
     name: '',
     members: [] as any[],
+    captainId: '',
+    captainPseudo: '',
+    recruitmentOpen: true,
   });
 
   useEffect(() => {
@@ -27,13 +30,22 @@ const AdminTeamForm = () => {
     try {
       setLoadingData(true);
       const response = await adminService.getTeams(tournamentId!);
-      const team = response.teams.find((t: any) => t.id === teamId);
 
-      if (team) {
-        setFormData({
-          name: team.name || '',
-          members: team.members || [],
-        });
+      if (response.success && response.data && response.data.teams) {
+        const team = response.data.teams.find((t: any) => t.id === teamId);
+
+        if (team) {
+          setFormData({
+            name: team.name || '',
+            members: team.members || [],
+            captainId: team.captainId || '',
+            captainPseudo: team.captainPseudo || '',
+            recruitmentOpen: team.recruitmentOpen !== false,
+          });
+        } else {
+          toast.error('Équipe non trouvée');
+          navigate(`/admin/tournaments/${tournamentId}/teams`);
+        }
       }
     } catch (error: any) {
       toast.error(error.message || 'Erreur lors du chargement');
@@ -115,20 +127,30 @@ const AdminTeamForm = () => {
           {isEditMode && formData.members.length > 0 && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Membres actuels
+                Membres actuels ({formData.members.length})
               </label>
               <div className="border border-gray-300 rounded-md divide-y divide-gray-200">
                 {formData.members.map((member, idx) => (
                   <div key={idx} className="p-3 flex items-center justify-between">
-                    <span className="text-sm">{member.pseudo || member.name || 'Joueur'}</span>
-                    {member.isCaptain && (
-                      <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">{member.pseudo || member.name || 'Joueur'}</span>
+                      {member.level && (
+                        <span className="text-xs text-gray-500">({member.level})</span>
+                      )}
+                    </div>
+                    {member.userId === formData.captainId && (
+                      <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full">
                         Capitaine
                       </span>
                     )}
                   </div>
                 ))}
               </div>
+              {formData.captainPseudo && (
+                <p className="mt-2 text-sm text-gray-500">
+                  Capitaine : {formData.captainPseudo}
+                </p>
+              )}
             </div>
           )}
 
