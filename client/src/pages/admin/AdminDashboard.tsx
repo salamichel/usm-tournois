@@ -12,14 +12,11 @@ import {
   Plus,
   Settings,
   Crown,
-  Shuffle,
-  Eye,
   Edit,
   Building2,
   UserPlus,
   ListChecks,
   Zap,
-  Play,
   BarChart3
 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -133,11 +130,25 @@ const AdminDashboard = () => {
                   <div key={tournament.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-gray-900 truncate">{tournament.name}</p>
-                      <p className="text-sm text-gray-500">
-                        {tournament.date
-                          ? format(new Date(tournament.date), 'PPP', { locale: fr })
-                          : 'Date à confirmer'}
-                      </p>
+                      <div className="flex items-center gap-3 text-sm text-gray-500">
+                        <span>
+                          {tournament.date
+                            ? format(new Date(tournament.date), 'PPP', { locale: fr })
+                            : 'Date à confirmer'}
+                        </span>
+                        {tournament.teamCount !== undefined && (
+                          <span className="flex items-center gap-1">
+                            <Trophy size={12} />
+                            {tournament.teamCount} éq.
+                          </span>
+                        )}
+                        {tournament.playerCount !== undefined && (
+                          <span className="flex items-center gap-1">
+                            <Users size={12} />
+                            {tournament.playerCount} j.
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center gap-2 ml-2">
                       <span className={`badge ${
@@ -146,13 +157,6 @@ const AdminDashboard = () => {
                         {tournament.isActive ? 'Actif' : 'Inactif'}
                       </span>
                       <div className="flex gap-1">
-                        <Link
-                          to={`/admin/tournaments/${tournament.id}/pools`}
-                          className="p-1.5 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors"
-                          title="Gérer les poules"
-                        >
-                          <Eye size={16} />
-                        </Link>
                         <Link
                           to={`/admin/tournaments/${tournament.id}/edit`}
                           className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
@@ -245,72 +249,29 @@ const AdminDashboard = () => {
             </div>
           </div>
 
-          {/* Tournament Tools */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="card">
-              <div className="flex items-center gap-2 mb-4">
-                <Trophy className="text-green-500" size={20} />
-                <h3 className="text-lg font-semibold text-gray-900">Outils Tournoi</h3>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <Link to="/admin/virtual-users" className="flex items-center gap-2 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-gray-700">
-                  <UserCog size={18} className="text-gray-500" />
-                  <span className="text-sm font-medium">Comptes Virtuels</span>
-                </Link>
-                {recentTournaments.length > 0 && (
-                  <Link
-                    to={`/admin/tournaments/${recentTournaments[0].id}/unassigned`}
-                    className="flex items-center gap-2 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-gray-700"
-                  >
-                    <Shuffle size={18} className="text-gray-500" />
-                    <span className="text-sm font-medium">Joueurs Non Assignés</span>
-                  </Link>
-                )}
-                {recentTournaments.length > 0 && recentTournaments[0].mode === 'king' && (
-                  <Link
-                    to={`/admin/tournaments/${recentTournaments[0].id}/king`}
-                    className="flex items-center gap-2 p-3 bg-yellow-50 hover:bg-yellow-100 rounded-lg transition-colors text-yellow-700"
-                  >
-                    <Crown size={18} />
-                    <span className="text-sm font-medium">Mode King</span>
-                  </Link>
-                )}
-                {recentTournaments.length > 0 && (
-                  <Link
-                    to={`/admin/tournaments/${recentTournaments[0].id}/pools`}
-                    className="flex items-center gap-2 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-gray-700"
-                  >
-                    <Play size={18} className="text-gray-500" />
-                    <span className="text-sm font-medium">Gérer Poules</span>
-                  </Link>
-                )}
-              </div>
+          {/* System Tools */}
+          <div className="card">
+            <div className="flex items-center gap-2 mb-4">
+              <Settings className="text-gray-500" size={20} />
+              <h3 className="text-lg font-semibold text-gray-900">Outils Système</h3>
             </div>
-
-            {/* System Tools */}
-            <div className="card">
-              <div className="flex items-center gap-2 mb-4">
-                <Settings className="text-gray-500" size={20} />
-                <h3 className="text-lg font-semibold text-gray-900">Outils Système</h3>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <Link to="/admin/users" className="flex items-center gap-2 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-gray-700">
-                  <Users size={18} className="text-gray-500" />
-                  <span className="text-sm font-medium">Liste Utilisateurs</span>
-                </Link>
-                <Link to="/admin/clubs" className="flex items-center gap-2 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-gray-700">
-                  <Building2 size={18} className="text-gray-500" />
-                  <span className="text-sm font-medium">Liste Clubs</span>
-                </Link>
-                <Link to="/admin/tournaments" className="flex items-center gap-2 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-gray-700">
-                  <BarChart3 size={18} className="text-gray-500" />
-                  <span className="text-sm font-medium">Tous les Tournois</span>
-                </Link>
-                <Link to="/admin/virtual-users" className="flex items-center gap-2 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-gray-700">
-                  <UserCog size={18} className="text-gray-500" />
-                  <span className="text-sm font-medium">Comptes Virtuels</span>
-                </Link>
-              </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <Link to="/admin/users" className="flex items-center gap-2 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-gray-700">
+                <Users size={18} className="text-gray-500" />
+                <span className="text-sm font-medium">Liste Utilisateurs</span>
+              </Link>
+              <Link to="/admin/clubs" className="flex items-center gap-2 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-gray-700">
+                <Building2 size={18} className="text-gray-500" />
+                <span className="text-sm font-medium">Liste Clubs</span>
+              </Link>
+              <Link to="/admin/tournaments" className="flex items-center gap-2 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-gray-700">
+                <BarChart3 size={18} className="text-gray-500" />
+                <span className="text-sm font-medium">Tous les Tournois</span>
+              </Link>
+              <Link to="/admin/virtual-users" className="flex items-center gap-2 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-gray-700">
+                <UserCog size={18} className="text-gray-500" />
+                <span className="text-sm font-medium">Comptes Virtuels</span>
+              </Link>
             </div>
           </div>
         </div>
