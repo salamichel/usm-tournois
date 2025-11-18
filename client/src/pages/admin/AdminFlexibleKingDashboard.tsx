@@ -352,6 +352,25 @@ const AdminFlexibleKingDashboard = () => {
           )}
         </div>
 
+        {/* Tournament Winner Card - Show when last phase is completed */}
+        {phases.length > 0 && phases[phases.length - 1].status === 'completed' && phases[phases.length - 1].ranking && (
+          <div className="card bg-gradient-to-r from-yellow-100 to-yellow-200 border-2 border-yellow-400">
+            <div className="text-center">
+              <Trophy className="w-16 h-16 text-yellow-600 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-yellow-800 mb-2">Tournoi Terminé !</h2>
+              <p className="text-lg text-yellow-700 mb-4">Le King du Tournoi est :</p>
+              <div className="bg-white rounded-lg p-4 inline-block shadow-lg">
+                <p className="text-3xl font-bold text-primary-600">
+                  🏆 {phases[phases.length - 1].ranking[0]?.playerPseudo || 'Vainqueur'}
+                </p>
+                <p className="text-sm text-gray-600 mt-2">
+                  {phases[phases.length - 1].ranking[0]?.wins || 0} victoires - {phases[phases.length - 1].ranking[0]?.losses || 0} défaites
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Phases Overview */}
         <div className="card">
           <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
@@ -661,7 +680,7 @@ const AdminFlexibleKingDashboard = () => {
                         <tbody>
                           {displayPhase.ranking.slice(0, 20).map((player: any, index: number) => (
                             <tr
-                              key={player.id || index}
+                              key={player.playerId || index}
                               className={`border-b ${index < displayPhase.config.totalQualified ? 'bg-green-50' : ''}`}
                             >
                               <td className="px-3 py-2 font-medium">
@@ -674,7 +693,7 @@ const AdminFlexibleKingDashboard = () => {
                                   </span>
                                 )}
                               </td>
-                              <td className="px-3 py-2">{player.pseudo || player.name || player.id}</td>
+                              <td className="px-3 py-2">{player.playerPseudo || player.playerId}</td>
                               <td className="px-3 py-2 text-center text-green-600 font-medium">{player.wins || 0}</td>
                               <td className="px-3 py-2 text-center text-red-600 font-medium">{player.losses || 0}</td>
                               <td className="px-3 py-2 text-center">
@@ -698,30 +717,63 @@ const AdminFlexibleKingDashboard = () => {
                   </div>
                 )}
 
-                {/* Qualified Players */}
+                {/* Qualified Players or Final Podium */}
                 {displayPhase.qualifiedIds && displayPhase.qualifiedIds.length > 0 && (
-                  <div className="border border-green-200 rounded-lg p-4 bg-green-50 mt-6">
-                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                      <Award className="text-green-600" />
-                      Joueurs Qualifiés pour la Phase Suivante ({displayPhase.qualifiedIds.length})
-                    </h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
-                      {displayPhase.qualifiedIds.map((playerId: string, index: number) => {
-                        // Try to find player info from ranking
-                        const playerInfo = displayPhase.ranking?.find((p: any) => p.id === playerId);
-                        return (
+                  displayPhase.phaseNumber === phases.length ? (
+                    // Final Phase - Show Podium
+                    <div className="border border-yellow-300 rounded-lg p-4 bg-yellow-50 mt-6">
+                      <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                        <Trophy className="text-yellow-600" />
+                        Podium Final
+                      </h3>
+                      <div className="flex flex-wrap justify-center gap-4">
+                        {displayPhase.ranking?.slice(0, 3).map((player: any, index: number) => (
                           <div
-                            key={playerId}
-                            className="bg-white p-2 rounded border border-green-300 text-center"
+                            key={player.playerId}
+                            className={`p-4 rounded-lg text-center ${
+                              index === 0 ? 'bg-yellow-200 border-2 border-yellow-400' :
+                              index === 1 ? 'bg-gray-200 border-2 border-gray-400' :
+                              'bg-orange-200 border-2 border-orange-400'
+                            }`}
                           >
-                            <p className="text-xs font-medium text-green-700 truncate">
-                              {index + 1}. {playerInfo?.pseudo || playerInfo?.name || playerId.slice(0, 8)}
+                            <p className="text-3xl mb-2">
+                              {index === 0 && '🥇'}
+                              {index === 1 && '🥈'}
+                              {index === 2 && '🥉'}
+                            </p>
+                            <p className="font-bold">{player.playerPseudo || player.playerId}</p>
+                            <p className="text-sm text-gray-600">
+                              {player.wins}V - {player.losses}D
                             </p>
                           </div>
-                        );
-                      })}
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    // Not final phase - Show qualified players
+                    <div className="border border-green-200 rounded-lg p-4 bg-green-50 mt-6">
+                      <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                        <Award className="text-green-600" />
+                        Joueurs Qualifiés pour la Phase Suivante ({displayPhase.qualifiedIds.length})
+                      </h3>
+                      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                        {displayPhase.qualifiedIds.map((playerId: string, index: number) => {
+                          // Try to find player info from ranking
+                          const playerInfo = displayPhase.ranking?.find((p: any) => p.playerId === playerId);
+                          return (
+                            <div
+                              key={playerId}
+                              className="bg-white p-2 rounded border border-green-300 text-center"
+                            >
+                              <p className="text-xs font-medium text-green-700 truncate">
+                                {index + 1}. {playerInfo?.playerPseudo || playerId.slice(0, 8)}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )
                 )}
 
               </div>
