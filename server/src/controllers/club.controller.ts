@@ -99,12 +99,16 @@ export const createClub = async (req: Request, res: Response) => {
     // Handle uploaded logo file (if any)
     const logoPath = (req as any).file ? `/uploads/${(req as any).file.filename}` : undefined;
 
-    const clubData = {
+    const clubData: any = {
       name: name.trim(),
-      logo: logoPath,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
+
+    // Only add logo field if logoPath is defined (Firestore doesn't accept undefined values)
+    if (logoPath) {
+      clubData.logo = logoPath;
+    }
 
     const clubRef = await adminDb.collection('clubs').add(clubData);
 

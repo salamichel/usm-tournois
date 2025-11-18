@@ -175,7 +175,7 @@ const AdminKingDashboard = () => {
     );
   }
 
-  const { tournament, kingData, allPhases, stats } = data;
+  const { tournament, kingData, allPhases, stats, unassignedPlayers } = data;
   const currentKingPhase = tournament.currentKingPhase || 0;
 
   // Get the selected phase to display
@@ -221,6 +221,44 @@ const AdminKingDashboard = () => {
             </div>
           </div>
         </div>
+
+        {/* Unassigned Players Card */}
+        {unassignedPlayers && unassignedPlayers.length > 0 && (
+          <div className="card">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <Users className="text-green-500" size={24} />
+              Joueurs Libres Inscrits ({unassignedPlayers.length})
+            </h2>
+            {currentKingPhase === 0 && (
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-sm text-green-700">
+                  Ces joueurs seront utilisés pour générer les équipes de la Phase 1.
+                </p>
+              </div>
+            )}
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+              {unassignedPlayers.map((player: any, index: number) => (
+                <div key={player.id} className="bg-gray-50 p-2 rounded-lg border border-gray-200">
+                  <p className="text-sm font-medium text-gray-900 truncate">{player.pseudo || 'Inconnu'}</p>
+                  <p className="text-xs text-gray-500">{player.level || player.niveau || 'N/A'}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* No Players Warning */}
+        {currentKingPhase === 0 && (!unassignedPlayers || unassignedPlayers.length === 0) && (
+          <div className="card bg-yellow-50 border-yellow-200">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <Users className="text-yellow-500" size={24} />
+              Aucun Joueur Inscrit
+            </h2>
+            <p className="text-yellow-700">
+              Aucun joueur libre n'est inscrit à ce tournoi. Les joueurs doivent s'inscrire en mode aléatoire pour participer au Mode King.
+            </p>
+          </div>
+        )}
 
         {/* Statistics Card */}
         {stats && (

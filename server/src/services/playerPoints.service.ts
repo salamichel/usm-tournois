@@ -263,3 +263,56 @@ export async function recalculateAllGlobalRankings(): Promise<void> {
 
   await updateGlobalRankings(playerIds);
 }
+
+/**
+ * Award points to individual players based on their ranking in Flexible King tournament
+ */
+export async function awardPointsToFlexibleKingPlayers(
+  tournamentId: string,
+  tournamentName: string,
+  tournamentDate: Date,
+  ranking: Array<{ playerId: string; playerPseudo: string; wins: number; losses: number }>
+): Promise<{ playersUpdated: number; totalPoints: number }> {
+  const batch = adminDb.batch();
+  let totalPoints = 0;
+
+  // Award points to each player based on their rank
+  for (let i = 0; i < ranking.length; i++) {
+    const player = ranking[i];
+    const rank = i + 1;
+    const points = getPointsForRank(rank);
+    totalPoints += points;
+
+    const playerPoints: PlayerTournamentPoints = {
+      playerId: player.playerId,
+      playerPseudo: player.playerPseudo,
+      tournamentId,
+      tournamentName,
+      tournamentDate,
+      teamName: 'Individuel', // Individual player in King mode
+      rank,
+      points,
+      earnedAt: new Date(),
+    };
+
+    // Store in playerTournamentPoints collection
+    const pointsRef = adminDb
+      .collection('playerTournamentPoints')
+      .doc(player.playerId)
+      .collection('tournaments')
+      .doc(tournamentId);
+
+    batch.set(pointsRef, playerPoints);
+  }
+
+  await batch.commit();
+
+  // Update global rankings for all players
+  const playerIds = ranking.map(p => p.playerId);
+  await updateGlobalRankings(playerIds);
+
+  return {
+    playersUpdated: ranking.length,
+    totalPoints
+  };
+}

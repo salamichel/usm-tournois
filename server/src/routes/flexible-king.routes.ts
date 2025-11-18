@@ -138,4 +138,24 @@ router.post(
   asyncHandler(flexibleKingController.resetFlexibleKingPhase)
 );
 
+/**
+ * @route   POST /api/flexible-king/tournaments/:tournamentId/set-random-scores
+ * @desc    Set random scores for all incomplete matches in current phase (testing)
+ * @access  Admin
+ */
+router.post(
+  '/tournaments/:tournamentId/set-random-scores',
+  asyncHandler(flexibleKingController.setAllMatchesRandomScores)
+);
+
+/**
+ * @route   POST /api/flexible-king/tournaments/:tournamentId/freeze
+ * @desc    Freeze tournament and award ranking points to players
+ * @access  Admin
+ */
+router.post(
+  '/tournaments/:tournamentId/freeze',
+  asyncHandler(flexibleKingController.freezeFlexibleKingTournament)
+);
+
 export default router;
