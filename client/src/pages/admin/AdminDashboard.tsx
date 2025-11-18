@@ -3,7 +3,25 @@ import { Link } from 'react-router-dom';
 import AdminLayout from '@components/AdminLayout';
 import adminService from '@services/admin.service';
 import toast from 'react-hot-toast';
-import { Trophy, Users, Calendar, TrendingUp, UserCog } from 'lucide-react';
+import {
+  Trophy,
+  Users,
+  Calendar,
+  TrendingUp,
+  UserCog,
+  Plus,
+  Settings,
+  Crown,
+  Shuffle,
+  Eye,
+  Edit,
+  Building2,
+  UserPlus,
+  ListChecks,
+  Zap,
+  Play,
+  BarChart3
+} from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -112,20 +130,47 @@ const AdminDashboard = () => {
             <div className="space-y-3">
               {recentTournaments.length > 0 ? (
                 recentTournaments.map((tournament) => (
-                  <div key={tournament.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900">{tournament.name}</p>
+                  <div key={tournament.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900 truncate">{tournament.name}</p>
                       <p className="text-sm text-gray-500">
                         {tournament.date
                           ? format(new Date(tournament.date), 'PPP', { locale: fr })
                           : 'Date à confirmer'}
                       </p>
                     </div>
-                    <span className={`badge ${
-                      tournament.isActive ? 'badge-success' : 'badge-default'
-                    }`}>
-                      {tournament.isActive ? 'Actif' : 'Inactif'}
-                    </span>
+                    <div className="flex items-center gap-2 ml-2">
+                      <span className={`badge ${
+                        tournament.isActive ? 'badge-success' : 'badge-default'
+                      }`}>
+                        {tournament.isActive ? 'Actif' : 'Inactif'}
+                      </span>
+                      <div className="flex gap-1">
+                        <Link
+                          to={`/admin/tournaments/${tournament.id}/pools`}
+                          className="p-1.5 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors"
+                          title="Gérer les poules"
+                        >
+                          <Eye size={16} />
+                        </Link>
+                        <Link
+                          to={`/admin/tournaments/${tournament.id}/edit`}
+                          className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                          title="Modifier"
+                        >
+                          <Edit size={16} />
+                        </Link>
+                        {tournament.mode === 'king' && (
+                          <Link
+                            to={`/admin/tournaments/${tournament.id}/king`}
+                            className="p-1.5 text-gray-500 hover:text-yellow-600 hover:bg-yellow-50 rounded transition-colors"
+                            title="Mode King"
+                          >
+                            <Crown size={16} />
+                          </Link>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 ))
               ) : (
@@ -164,26 +209,109 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="card">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Actions Rapides</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Link to="/admin/tournaments/new" className="btn-primary text-center">
-              <Trophy size={20} className="inline mr-2" />
-              Créer un Tournoi
-            </Link>
-            <Link to="/admin/users/new" className="btn-secondary text-center">
-              <Users size={20} className="inline mr-2" />
-              Créer un Utilisateur
-            </Link>
-            <Link to="/admin/tournaments" className="btn-secondary text-center">
-              <Calendar size={20} className="inline mr-2" />
-              Gérer les Tournois
-            </Link>
-            <Link to="/admin/virtual-users" className="btn-secondary text-center">
-              <UserCog size={20} className="inline mr-2" />
-              Comptes Virtuels
-            </Link>
+        {/* Quick Actions - Organized by Category */}
+        <div className="space-y-4">
+          {/* Primary Actions */}
+          <div className="card border-l-4 border-primary-500">
+            <div className="flex items-center gap-2 mb-4">
+              <Zap className="text-primary-500" size={24} />
+              <h2 className="text-xl font-bold text-gray-900">Actions Rapides</h2>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              <Link to="/admin/tournaments/new" className="flex flex-col items-center gap-2 p-4 bg-primary-50 hover:bg-primary-100 rounded-lg transition-colors text-primary-700 font-medium">
+                <Plus size={24} />
+                <span className="text-sm text-center">Nouveau Tournoi</span>
+              </Link>
+              <Link to="/admin/users/new" className="flex flex-col items-center gap-2 p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors text-blue-700 font-medium">
+                <UserPlus size={24} />
+                <span className="text-sm text-center">Nouvel Utilisateur</span>
+              </Link>
+              <Link to="/admin/clubs/new" className="flex flex-col items-center gap-2 p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors text-purple-700 font-medium">
+                <Building2 size={24} />
+                <span className="text-sm text-center">Nouveau Club</span>
+              </Link>
+              <Link to="/admin/tournaments" className="flex flex-col items-center gap-2 p-4 bg-green-50 hover:bg-green-100 rounded-lg transition-colors text-green-700 font-medium">
+                <ListChecks size={24} />
+                <span className="text-sm text-center">Gérer Tournois</span>
+              </Link>
+              <Link to="/admin/users" className="flex flex-col items-center gap-2 p-4 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors text-orange-700 font-medium">
+                <Users size={24} />
+                <span className="text-sm text-center">Gérer Utilisateurs</span>
+              </Link>
+              <Link to="/admin/clubs" className="flex flex-col items-center gap-2 p-4 bg-pink-50 hover:bg-pink-100 rounded-lg transition-colors text-pink-700 font-medium">
+                <Building2 size={24} />
+                <span className="text-sm text-center">Gérer Clubs</span>
+              </Link>
+            </div>
+          </div>
+
+          {/* Tournament Tools */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="card">
+              <div className="flex items-center gap-2 mb-4">
+                <Trophy className="text-green-500" size={20} />
+                <h3 className="text-lg font-semibold text-gray-900">Outils Tournoi</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Link to="/admin/virtual-users" className="flex items-center gap-2 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-gray-700">
+                  <UserCog size={18} className="text-gray-500" />
+                  <span className="text-sm font-medium">Comptes Virtuels</span>
+                </Link>
+                {recentTournaments.length > 0 && (
+                  <Link
+                    to={`/admin/tournaments/${recentTournaments[0].id}/unassigned`}
+                    className="flex items-center gap-2 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-gray-700"
+                  >
+                    <Shuffle size={18} className="text-gray-500" />
+                    <span className="text-sm font-medium">Joueurs Non Assignés</span>
+                  </Link>
+                )}
+                {recentTournaments.length > 0 && recentTournaments[0].mode === 'king' && (
+                  <Link
+                    to={`/admin/tournaments/${recentTournaments[0].id}/king`}
+                    className="flex items-center gap-2 p-3 bg-yellow-50 hover:bg-yellow-100 rounded-lg transition-colors text-yellow-700"
+                  >
+                    <Crown size={18} />
+                    <span className="text-sm font-medium">Mode King</span>
+                  </Link>
+                )}
+                {recentTournaments.length > 0 && (
+                  <Link
+                    to={`/admin/tournaments/${recentTournaments[0].id}/pools`}
+                    className="flex items-center gap-2 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-gray-700"
+                  >
+                    <Play size={18} className="text-gray-500" />
+                    <span className="text-sm font-medium">Gérer Poules</span>
+                  </Link>
+                )}
+              </div>
+            </div>
+
+            {/* System Tools */}
+            <div className="card">
+              <div className="flex items-center gap-2 mb-4">
+                <Settings className="text-gray-500" size={20} />
+                <h3 className="text-lg font-semibold text-gray-900">Outils Système</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Link to="/admin/users" className="flex items-center gap-2 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-gray-700">
+                  <Users size={18} className="text-gray-500" />
+                  <span className="text-sm font-medium">Liste Utilisateurs</span>
+                </Link>
+                <Link to="/admin/clubs" className="flex items-center gap-2 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-gray-700">
+                  <Building2 size={18} className="text-gray-500" />
+                  <span className="text-sm font-medium">Liste Clubs</span>
+                </Link>
+                <Link to="/admin/tournaments" className="flex items-center gap-2 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-gray-700">
+                  <BarChart3 size={18} className="text-gray-500" />
+                  <span className="text-sm font-medium">Tous les Tournois</span>
+                </Link>
+                <Link to="/admin/virtual-users" className="flex items-center gap-2 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-gray-700">
+                  <UserCog size={18} className="text-gray-500" />
+                  <span className="text-sm font-medium">Comptes Virtuels</span>
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       </div>
