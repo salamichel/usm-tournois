@@ -1237,7 +1237,7 @@ export const getUnassignedPlayers = async (req: Request, res: Response) => {
       .collection('unassignedPlayers')
       .get();
 
-    const unassignedPlayers = unassignedPlayersSnapshot.docs.map((doc) =>
+    const players = unassignedPlayersSnapshot.docs.map((doc) =>
       convertTimestamps({
         id: doc.id,
         ...doc.data(),
@@ -1246,7 +1246,7 @@ export const getUnassignedPlayers = async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      data: { unassignedPlayers },
+      data: { players },
     });
   } catch (error) {
     console.error('Error getting unassigned players:', error);
