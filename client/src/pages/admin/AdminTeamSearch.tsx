@@ -46,7 +46,7 @@ const AdminTeamSearch = () => {
       setHasSearched(true);
 
       // Fetch all tournaments
-      const tournamentsResponse = await adminService.getTournaments();
+      const tournamentsResponse = await adminService.getAllTournaments();
 
       if (tournamentsResponse.success && tournamentsResponse.data) {
         const searchResults: SearchResult[] = [];
