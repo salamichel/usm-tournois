@@ -674,6 +674,7 @@ const AdminFlexibleKingDashboard = () => {
                             <th className="px-3 py-2 text-left font-medium text-gray-700">Joueur</th>
                             <th className="px-3 py-2 text-center font-medium text-gray-700">V</th>
                             <th className="px-3 py-2 text-center font-medium text-gray-700">D</th>
+                            <th className="px-3 py-2 text-center font-medium text-gray-700">+/-</th>
                             <th className="px-3 py-2 text-center font-medium text-gray-700">%</th>
                           </tr>
                         </thead>
@@ -696,6 +697,12 @@ const AdminFlexibleKingDashboard = () => {
                               <td className="px-3 py-2">{player.playerPseudo || player.playerId}</td>
                               <td className="px-3 py-2 text-center text-green-600 font-medium">{player.wins || 0}</td>
                               <td className="px-3 py-2 text-center text-red-600 font-medium">{player.losses || 0}</td>
+                              <td className={`px-3 py-2 text-center font-medium ${
+                                (player.setsDiff || 0) > 0 ? 'text-green-600' :
+                                (player.setsDiff || 0) < 0 ? 'text-red-600' : 'text-gray-600'
+                              }`}>
+                                {(player.setsDiff || 0) >= 0 ? '+' : ''}{player.setsDiff || 0}
+                              </td>
                               <td className="px-3 py-2 text-center">
                                 {player.wins + player.losses > 0
                                   ? Math.round((player.wins / (player.wins + player.losses)) * 100)
@@ -745,9 +752,15 @@ const AdminFlexibleKingDashboard = () => {
                             <p className="text-sm text-gray-600">
                               {player.wins}V - {player.losses}D
                             </p>
+                            <p className="text-xs text-gray-500">
+                              Sets: {player.setsDiff >= 0 ? '+' : ''}{player.setsDiff || 0} ({player.setsWon || 0}-{player.setsLost || 0})
+                            </p>
                           </div>
                         ))}
                       </div>
+                      <p className="text-xs text-gray-500 mt-3 text-center">
+                        Départage : Victoires → Différence de sets → Sets gagnés
+                      </p>
                     </div>
                   ) : (
                     // Not final phase - Show qualified players
