@@ -1625,20 +1625,18 @@ export const generateRandomTeams = async (req: Request, res: Response) => {
 
     // Define level ranking (higher = better)
     const levelRanking: { [key: string]: number } = {
-      'expert': 5,
-      'confirme': 4,
-      'confirmé': 4,
-      'moyen': 3,
-      'intermediaire': 2,
+      'confirmé': 3,
+      'confirme': 3,
       'intermédiaire': 2,
-      'debutant': 1,
+      'intermediaire': 2,
       'débutant': 1,
+      'debutant': 1,
     };
 
     // Sort players by level (best to worst), with random shuffle for same levels
     const sortedPlayers = [...players].sort((a, b) => {
-      const levelA = levelRanking[(a.level || a.niveau)?.toLowerCase()] || 0;
-      const levelB = levelRanking[(b.level || b.niveau)?.toLowerCase()] || 0;
+      const levelA = levelRanking[a.level?.toLowerCase()] || 0;
+      const levelB = levelRanking[b.level?.toLowerCase()] || 0;
 
       if (levelA !== levelB) {
         return levelB - levelA; // Descending order (best first)
@@ -1693,7 +1691,7 @@ export const generateRandomTeams = async (req: Request, res: Response) => {
       const members = teamPlayers.map((player: any) => ({
         userId: player.userId || player.id,
         pseudo: player.pseudo,
-        level: player.level || player.niveau || 'N/A',
+        level: player.level || 'N/A',
         isVirtual: player.isVirtual || false,
       }));
 
