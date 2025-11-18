@@ -156,40 +156,8 @@ function generateRoundRobinMatches(
 }
 
 /**
- * Generates rotation grid for KOB format with team support
- * For team formats (2v2, 3v3, 4v4), we need to ensure teams don't overlap
- */
-function generateKOBRotationGrid(numPlayers: number, numRounds: number, teamSize: number = 1): number[][][] {
-  const grid: number[][][] = [];
-  const numTeams = Math.floor(numPlayers / teamSize);
-  const numMatchesPerRound = Math.floor(numTeams / 2);
-
-  for (let round = 0; round < numRounds; round++) {
-    const roundMatches: number[][] = [];
-
-    // Create team assignments for this round using rotation
-    const teamAssignments: number[] = [];
-    for (let team = 0; team < numTeams; team++) {
-      // Rotate team positions based on round number
-      const rotatedPosition = (team + round) % numTeams;
-      teamAssignments.push(rotatedPosition * teamSize);
-    }
-
-    // Pair up teams for matches
-    for (let match = 0; match < numMatchesPerRound; match++) {
-      const team1StartIdx = teamAssignments[match * 2];
-      const team2StartIdx = teamAssignments[match * 2 + 1];
-      roundMatches.push([team1StartIdx, team2StartIdx]);
-    }
-
-    grid.push(roundMatches);
-  }
-
-  return grid;
-}
-
-/**
- * Generates pools and matches for a KOB phase
+ * Generates KOB matches with proper player rotation
+ * In KOB mode, players should have different teammates each round
  */
 function generateKOBMatches(
   poolPlayers: KingPlayer[],
@@ -201,28 +169,35 @@ function generateKOBMatches(
 ): KingMatch[] {
   const matches: KingMatch[] = [];
   const numPlayers = poolPlayers.length;
-
-  // Generate rotation grid with team size support
-  const rotationGrid = generateKOBRotationGrid(numPlayers, numRounds, teamSize);
+  const playersPerMatch = teamSize * 2;
+  const numMatchesPerRound = Math.floor(numPlayers / playersPerMatch);
 
   let matchNumber = 1;
 
+  // Use circle method for rotation: fix first player, rotate others
   for (let roundNum = 0; roundNum < numRounds; roundNum++) {
     const roundId = `round-${poolId}-${roundNum + 1}`;
     const roundName = `Phase ${phaseNumber} - Tour ${roundNum + 1}`;
 
-    const roundMatches = rotationGrid[roundNum];
+    // Create rotated player indices for this round
+    const rotatedIndices: number[] = [0]; // Player 0 stays fixed
+    for (let i = 1; i < numPlayers; i++) {
+      // Rotate players 1 to n-1
+      const rotatedPos = ((i - 1 + roundNum) % (numPlayers - 1)) + 1;
+      rotatedIndices.push(rotatedPos);
+    }
 
-    for (const [team1StartIdx, team2StartIdx] of roundMatches) {
+    // Form teams from rotated indices
+    for (let matchIdx = 0; matchIdx < numMatchesPerRound; matchIdx++) {
       const team1Members: KingPlayer[] = [];
       const team2Members: KingPlayer[] = [];
 
-      // Build teams using rotation indices
+      // Assign players to teams using the rotated indices
       for (let i = 0; i < teamSize; i++) {
-        const p1Idx = (team1StartIdx + i) % numPlayers;
-        const p2Idx = (team2StartIdx + i) % numPlayers;
-        team1Members.push(poolPlayers[p1Idx]);
-        team2Members.push(poolPlayers[p2Idx]);
+        const team1PlayerIdx = rotatedIndices[matchIdx * playersPerMatch + i];
+        const team2PlayerIdx = rotatedIndices[matchIdx * playersPerMatch + teamSize + i];
+        team1Members.push(poolPlayers[team1PlayerIdx]);
+        team2Members.push(poolPlayers[team2PlayerIdx]);
       }
 
       const team1: KingTeam = {
