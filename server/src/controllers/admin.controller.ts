@@ -1354,13 +1354,17 @@ export const getDashboard = async (req: Request, res: Response) => {
  */
 export const getAllVirtualUsers = async (req: Request, res: Response) => {
   try {
-    const usersSnapshot = await adminDb
-      .collection('users')
-      .where('isVirtual', '==', true)
-      .get();
+    // Get all users and filter by virtual email pattern
+    const usersSnapshot = await adminDb.collection('users').get();
+
+    // Filter virtual users by email pattern
+    const virtualUserDocs = usersSnapshot.docs.filter((doc) => {
+      const userData = doc.data();
+      return userData.email && userData.email.endsWith('@virtual.tournoi.com');
+    });
 
     const virtualUsers = await Promise.all(
-      usersSnapshot.docs.map(async (doc) => {
+      virtualUserDocs.map(async (doc) => {
         const userData = doc.data();
 
         // Find which teams this virtual user belongs to
