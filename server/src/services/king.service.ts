@@ -44,6 +44,34 @@ export const PHASE3_NUM_ROUNDS = 7; // 7 tours KOB
 // ========================================
 
 /**
+ * Recursively removes all undefined values from an object or array.
+ * This ensures that data saved to Firestore doesn't contain undefined values.
+ */
+export function removeUndefinedValues<T>(obj: T): T {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj
+      .filter((item) => item !== undefined)
+      .map((item) => removeUndefinedValues(item)) as T;
+  }
+
+  if (typeof obj === 'object' && !(obj instanceof Date)) {
+    const cleaned: any = {};
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key) && obj[key] !== undefined) {
+        cleaned[key] = removeUndefinedValues(obj[key]);
+      }
+    }
+    return cleaned as T;
+  }
+
+  return obj;
+}
+
+/**
  * Mélange un tableau de manière aléatoire (algorithme de Fisher-Yates).
  */
 export function shuffleArray<T>(array: T[]): T[] {
@@ -377,8 +405,12 @@ export function generatePhase2(qualifiedPlayers: KingPlayer[], tournament: any):
       const roundName = `Phase 2 - Tour ${roundNum + 1}`;
 
       const [team1Indices, team2Indices] = kob3v3Grid[roundNum];
-      const team1Members = team1Indices.map((idx) => poolPlayers[idx]);
-      const team2Members = team2Indices.map((idx) => poolPlayers[idx]);
+      const team1Members = team1Indices
+        .map((idx) => poolPlayers[idx])
+        .filter((player) => player !== undefined);
+      const team2Members = team2Indices
+        .map((idx) => poolPlayers[idx])
+        .filter((player) => player !== undefined);
 
       const team1: KingTeam = {
         name: `${pool.name} - Tour ${roundNum + 1}A`,
@@ -522,8 +554,12 @@ export function generatePhase3(finalists: KingPlayer[], tournament: any): KingPh
 
     for (let matchIdx = 0; matchIdx < currentRoundMatches.length; matchIdx++) {
       const [team1Indices, team2Indices] = currentRoundMatches[matchIdx];
-      const team1Members = team1Indices.map((idx) => finalists[idx]);
-      const team2Members = team2Indices.map((idx) => finalists[idx]);
+      const team1Members = team1Indices
+        .map((idx) => finalists[idx])
+        .filter((player) => player !== undefined);
+      const team2Members = team2Indices
+        .map((idx) => finalists[idx])
+        .filter((player) => player !== undefined);
 
       const team1: KingTeam = {
         name: `Équipe Finale ${roundNum + 1}-${String.fromCharCode(65 + matchIdx)}`,
