@@ -3,6 +3,7 @@ import { adminDb } from '../config/firebase.config';
 import { AppError } from '../middlewares/error.middleware';
 import { convertTimestamps } from '../utils/firestore.utils';
 import { calculateMatchOutcome } from '../services/match.service';
+import { generateEliminationBracket as generateEliminationBracketService, QualifiedTeam, EliminationTournamentConfig } from '../services/elimination.service';
 
 /**
  * Tournament Management
@@ -622,7 +623,7 @@ export const getEliminationMatches = async (req: Request, res: Response) => {
       .orderBy('matchNumber')
       .get();
 
-    const eliminationMatches = eliminationMatchesSnapshot.docs.map((doc) =>
+    const matches = eliminationMatchesSnapshot.docs.map((doc) =>
       convertTimestamps({
         id: doc.id,
         ...doc.data(),
@@ -631,7 +632,7 @@ export const getEliminationMatches = async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      data: { eliminationMatches },
+      data: { matches },
     });
   } catch (error) {
     console.error('Error getting elimination matches:', error);
@@ -664,7 +665,7 @@ export const generateEliminationBracket = async (req: Request, res: Response) =>
       .collection('pools')
       .get();
 
-    const qualifiedTeams: any[] = [];
+    const qualifiedTeams: QualifiedTeam[] = [];
 
     for (const poolDoc of poolsSnapshot.docs) {
       const poolData = poolDoc.data();
@@ -681,7 +682,7 @@ export const generateEliminationBracket = async (req: Request, res: Response) =>
 
       const matches = matchesSnapshot.docs.map((doc) => doc.data());
 
-      // Simple ranking calculation (you may want to use a service for this)
+      // Simple ranking calculation
       const teamStats: any = {};
       poolTeams.forEach((team: any) => {
         teamStats[team.id] = {
@@ -731,21 +732,98 @@ export const generateEliminationBracket = async (req: Request, res: Response) =>
 
       // Take top teams
       const topTeams = rankedTeams.slice(0, teamsQualifiedPerPool);
-      qualifiedTeams.push(...topTeams);
+      qualifiedTeams.push(...topTeams.map((t: any) => ({
+        id: t.id,
+        name: t.name,
+        poolName: t.poolName,
+      })));
     }
 
     if (qualifiedTeams.length < 2) {
       throw new AppError('At least 2 qualified teams are required to generate elimination bracket', 400);
     }
 
-    // Sort all qualified teams
+    // Sort all qualified teams by their stats
+    // Re-fetch stats for global sorting
+    const allTeamStats: any = {};
+    for (const poolDoc of poolsSnapshot.docs) {
+      const poolData = poolDoc.data();
+      const poolTeams = poolData.teams || [];
+
+      const matchesSnapshot = await adminDb
+        .collection('events')
+        .doc(tournamentId)
+        .collection('pools')
+        .doc(poolDoc.id)
+        .collection('matches')
+        .get();
+
+      const matches = matchesSnapshot.docs.map((doc) => doc.data());
+
+      poolTeams.forEach((team: any) => {
+        allTeamStats[team.id] = {
+          id: team.id,
+          name: team.name,
+          poolName: poolData.name,
+          wins: 0,
+          points: 0,
+          setsWon: 0,
+          setsLost: 0,
+        };
+      });
+
+      matches.forEach((match: any) => {
+        if (match.status === 'completed') {
+          const team1Id = match.team1?.id;
+          const team2Id = match.team2?.id;
+          const setsWonTeam1 = match.setsWonTeam1 || 0;
+          const setsWonTeam2 = match.setsWonTeam2 || 0;
+
+          if (team1Id && allTeamStats[team1Id]) {
+            allTeamStats[team1Id].setsWon += setsWonTeam1;
+            allTeamStats[team1Id].setsLost += setsWonTeam2;
+            if (setsWonTeam1 > setsWonTeam2) {
+              allTeamStats[team1Id].wins++;
+              allTeamStats[team1Id].points += 3;
+            }
+          }
+
+          if (team2Id && allTeamStats[team2Id]) {
+            allTeamStats[team2Id].setsWon += setsWonTeam2;
+            allTeamStats[team2Id].setsLost += setsWonTeam1;
+            if (setsWonTeam2 > setsWonTeam1) {
+              allTeamStats[team2Id].wins++;
+              allTeamStats[team2Id].points += 3;
+            }
+          }
+        }
+      });
+    }
+
+    // Sort qualified teams globally by stats
     qualifiedTeams.sort((a, b) => {
-      if (b.points !== a.points) return b.points - a.points;
-      if (b.setsWon !== a.setsWon) return b.setsWon - a.setsWon;
-      return a.setsLost - b.setsLost;
+      const statsA = allTeamStats[a.id] || { points: 0, setsWon: 0, setsLost: 0 };
+      const statsB = allTeamStats[b.id] || { points: 0, setsWon: 0, setsLost: 0 };
+      if (statsB.points !== statsA.points) return statsB.points - statsA.points;
+      if (statsB.setsWon !== statsA.setsWon) return statsB.setsWon - statsA.setsWon;
+      return statsA.setsLost - statsB.setsLost;
     });
 
-    // Generate bracket structure (simplified version)
+    // Prepare tournament configuration for the service
+    const tournamentConfig: EliminationTournamentConfig = {
+      setsPerMatchElimination: tournament.setsPerMatchElimination || 3,
+      pointsPerSetElimination: tournament.pointsPerSetElimination || 21,
+      tieBreakEnabledElimination: tournament.tieBreakEnabledElimination || false,
+    };
+
+    // Generate bracket using the service (handles any number of teams)
+    const generatedMatches = generateEliminationBracketService(qualifiedTeams, tournamentConfig);
+
+    if (generatedMatches.length === 0) {
+      throw new AppError('No matches could be generated. Please check your tournament configuration.', 400);
+    }
+
+    // Save matches to Firestore
     const batch = adminDb.batch();
     const eliminationMatchesRef = adminDb
       .collection('events')
@@ -758,160 +836,40 @@ export const generateEliminationBracket = async (req: Request, res: Response) =>
       batch.delete(doc.ref);
     });
 
-    const setsPerMatchElimination = tournament.setsPerMatchElimination || 3;
-    const pointsPerSetElimination = tournament.pointsPerSetElimination || 21;
-    const tieBreakEnabledElimination = tournament.tieBreakEnabledElimination || false;
-
-    // Create matches based on number of teams (simplified for common cases)
-    const numTeams = qualifiedTeams.length;
-    let matchNumber = 1;
-
-    if (numTeams === 2) {
-      // Direct final
-      const matchData = {
-        matchNumber: matchNumber++,
-        round: 'Finale',
-        team1: { id: qualifiedTeams[0].id, name: qualifiedTeams[0].name },
-        team2: { id: qualifiedTeams[1].id, name: qualifiedTeams[1].name },
-        sets: Array.from({ length: setsPerMatchElimination }, () => ({ score1: null, score2: null })),
-        status: 'scheduled',
+    // Add new matches
+    for (const match of generatedMatches) {
+      const matchRef = eliminationMatchesRef.doc(match.id || undefined);
+      // Cast to any to access service-specific fields not in shared type
+      const matchAny = match as any;
+      // Remove undefined values and use the document ID
+      const matchData: any = {
+        matchNumber: match.matchNumber,
+        round: match.round,
+        team1: match.team1,
+        team2: match.team2,
+        sets: match.sets,
+        status: match.status,
         type: 'elimination',
-        setsToWin: setsPerMatchElimination,
-        pointsPerSet: pointsPerSetElimination,
-        tieBreakEnabled: tieBreakEnabledElimination,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        setsToWin: match.setsToWin,
+        pointsPerSet: match.pointsPerSet,
+        tieBreakEnabled: match.tieBreakEnabled,
+        createdAt: match.createdAt,
+        updatedAt: match.updatedAt,
       };
-      batch.set(eliminationMatchesRef.doc(), matchData);
-    } else if (numTeams === 4) {
-      // Semi-finals
-      for (let i = 0; i < 2; i++) {
-        const matchData = {
-          matchNumber: matchNumber++,
-          round: 'Demi-finale',
-          team1: { id: qualifiedTeams[i * 2].id, name: qualifiedTeams[i * 2].name },
-          team2: { id: qualifiedTeams[i * 2 + 1].id, name: qualifiedTeams[i * 2 + 1].name },
-          sets: Array.from({ length: setsPerMatchElimination }, () => ({ score1: null, score2: null })),
-          status: 'scheduled',
-          type: 'elimination',
-          setsToWin: setsPerMatchElimination,
-          pointsPerSet: pointsPerSetElimination,
-          tieBreakEnabled: tieBreakEnabledElimination,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-        batch.set(eliminationMatchesRef.doc(), matchData);
-      }
+      // Add optional fields for match progression
+      if (match.nextMatchId) matchData.nextMatchId = match.nextMatchId;
+      if (matchAny.nextMatchTeamSlot) matchData.nextMatchTeamSlot = matchAny.nextMatchTeamSlot;
+      if (matchAny.nextMatchLoserId) matchData.nextMatchLoserId = matchAny.nextMatchLoserId;
+      if (matchAny.nextMatchLoserTeamSlot) matchData.nextMatchLoserTeamSlot = matchAny.nextMatchLoserTeamSlot;
 
-      // 3rd place match and final (to be determined from semi-finals)
-      const m3pMatchData = {
-        matchNumber: matchNumber++,
-        round: 'Match 3ème place',
-        team1: { name: 'À déterminer' },
-        team2: { name: 'À déterminer' },
-        sets: Array.from({ length: setsPerMatchElimination }, () => ({ score1: null, score2: null })),
-        status: 'scheduled',
-        type: 'elimination',
-        setsToWin: setsPerMatchElimination,
-        pointsPerSet: pointsPerSetElimination,
-        tieBreakEnabled: tieBreakEnabledElimination,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      batch.set(eliminationMatchesRef.doc(), m3pMatchData);
-
-      const finalMatchData = {
-        matchNumber: matchNumber++,
-        round: 'Finale',
-        team1: { name: 'À déterminer' },
-        team2: { name: 'À déterminer' },
-        sets: Array.from({ length: setsPerMatchElimination }, () => ({ score1: null, score2: null })),
-        status: 'scheduled',
-        type: 'elimination',
-        setsToWin: setsPerMatchElimination,
-        pointsPerSet: pointsPerSetElimination,
-        tieBreakEnabled: tieBreakEnabledElimination,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      batch.set(eliminationMatchesRef.doc(), finalMatchData);
-    } else if (numTeams === 8) {
-      // Quarter-finals
-      for (let i = 0; i < 4; i++) {
-        const matchData = {
-          matchNumber: matchNumber++,
-          round: 'Quart de finale',
-          team1: { id: qualifiedTeams[i * 2].id, name: qualifiedTeams[i * 2].name },
-          team2: { id: qualifiedTeams[i * 2 + 1].id, name: qualifiedTeams[i * 2 + 1].name },
-          sets: Array.from({ length: setsPerMatchElimination }, () => ({ score1: null, score2: null })),
-          status: 'scheduled',
-          type: 'elimination',
-          setsToWin: setsPerMatchElimination,
-          pointsPerSet: pointsPerSetElimination,
-          tieBreakEnabled: tieBreakEnabledElimination,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-        batch.set(eliminationMatchesRef.doc(), matchData);
-      }
-
-      // Semi-finals, 3rd place, and final (to be determined)
-      for (let i = 0; i < 2; i++) {
-        const matchData = {
-          matchNumber: matchNumber++,
-          round: 'Demi-finale',
-          team1: { name: 'À déterminer' },
-          team2: { name: 'À déterminer' },
-          sets: Array.from({ length: setsPerMatchElimination }, () => ({ score1: null, score2: null })),
-          status: 'scheduled',
-          type: 'elimination',
-          setsToWin: setsPerMatchElimination,
-          pointsPerSet: pointsPerSetElimination,
-          tieBreakEnabled: tieBreakEnabledElimination,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-        batch.set(eliminationMatchesRef.doc(), matchData);
-      }
-
-      const m3pMatchData = {
-        matchNumber: matchNumber++,
-        round: 'Match 3ème place',
-        team1: { name: 'À déterminer' },
-        team2: { name: 'À déterminer' },
-        sets: Array.from({ length: setsPerMatchElimination }, () => ({ score1: null, score2: null })),
-        status: 'scheduled',
-        type: 'elimination',
-        setsToWin: setsPerMatchElimination,
-        pointsPerSet: pointsPerSetElimination,
-        tieBreakEnabled: tieBreakEnabledElimination,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      batch.set(eliminationMatchesRef.doc(), m3pMatchData);
-
-      const finalMatchData = {
-        matchNumber: matchNumber++,
-        round: 'Finale',
-        team1: { name: 'À déterminer' },
-        team2: { name: 'À déterminer' },
-        sets: Array.from({ length: setsPerMatchElimination }, () => ({ score1: null, score2: null })),
-        status: 'scheduled',
-        type: 'elimination',
-        setsToWin: setsPerMatchElimination,
-        pointsPerSet: pointsPerSetElimination,
-        tieBreakEnabled: tieBreakEnabledElimination,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      batch.set(eliminationMatchesRef.doc(), finalMatchData);
+      batch.set(matchRef, matchData);
     }
 
     await batch.commit();
 
     res.json({
       success: true,
-      message: 'Elimination bracket generated successfully',
+      message: `Elimination bracket generated successfully with ${generatedMatches.length} matches for ${qualifiedTeams.length} teams`,
     });
   } catch (error: any) {
     console.error('Error generating elimination bracket:', error);
