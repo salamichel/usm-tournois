@@ -148,4 +148,14 @@ router.post(
   asyncHandler(flexibleKingController.setAllMatchesRandomScores)
 );
 
+/**
+ * @route   POST /api/flexible-king/tournaments/:tournamentId/freeze
+ * @desc    Freeze tournament and award ranking points to players
+ * @access  Admin
+ */
+router.post(
+  '/tournaments/:tournamentId/freeze',
+  asyncHandler(flexibleKingController.freezeFlexibleKingTournament)
+);
+
 export default router;

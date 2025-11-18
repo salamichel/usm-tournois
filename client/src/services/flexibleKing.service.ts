@@ -125,6 +125,13 @@ class FlexibleKingService {
   async setRandomScores(tournamentId: string) {
     return apiService.post(`/flexible-king/tournaments/${tournamentId}/set-random-scores`);
   }
+
+  /**
+   * Freeze tournament and award ranking points to players
+   */
+  async freezeTournament(tournamentId: string) {
+    return apiService.post(`/flexible-king/tournaments/${tournamentId}/freeze`);
+  }
 }
 
 export default new FlexibleKingService();

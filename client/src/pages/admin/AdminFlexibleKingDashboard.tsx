@@ -4,7 +4,7 @@ import AdminLayout from '@components/AdminLayout';
 import flexibleKingService from '@services/flexibleKing.service';
 import adminService from '@services/admin.service';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Play, Settings, CheckCircle, RotateCcw, Trophy, TrendingUp, Users, BarChart3, Award } from 'lucide-react';
+import { ArrowLeft, Play, Settings, CheckCircle, RotateCcw, Trophy, TrendingUp, Users, BarChart3, Award, Lock } from 'lucide-react';
 import type { FlexibleKingPhase } from '@shared/types';
 import FlexibleKingConfigModal from '@components/FlexibleKingConfigModal';
 import MatchResultModal from '@components/MatchResultModal';
@@ -176,6 +176,23 @@ const AdminFlexibleKingDashboard = () => {
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Erreur lors de la définition des scores');
+    }
+  };
+
+  const handleFreezeTournament = async () => {
+    if (!tournamentId) return;
+    if (!confirm('Êtes-vous sûr de vouloir figer le tournoi ? Cette action attribuera les points de classement à tous les joueurs et ne pourra pas être annulée.')) return;
+
+    try {
+      const response = await flexibleKingService.freezeTournament(tournamentId);
+      if (response.success) {
+        toast.success(response.message || 'Tournoi figé !');
+        loadDashboard();
+      } else {
+        toast.error(response.message || 'Erreur');
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Erreur lors du gel du tournoi');
     }
   };
 
@@ -359,7 +376,7 @@ const AdminFlexibleKingDashboard = () => {
               <Trophy className="w-16 h-16 text-yellow-600 mx-auto mb-4" />
               <h2 className="text-2xl font-bold text-yellow-800 mb-2">Tournoi Terminé !</h2>
               <p className="text-lg text-yellow-700 mb-4">Le King du Tournoi est :</p>
-              <div className="bg-white rounded-lg p-4 inline-block shadow-lg">
+              <div className="bg-white rounded-lg p-4 inline-block shadow-lg mb-4">
                 <p className="text-3xl font-bold text-primary-600">
                   🏆 {phases[phases.length - 1].ranking[0]?.playerPseudo || 'Vainqueur'}
                 </p>
@@ -367,6 +384,29 @@ const AdminFlexibleKingDashboard = () => {
                   {phases[phases.length - 1].ranking[0]?.wins || 0} victoires - {phases[phases.length - 1].ranking[0]?.losses || 0} défaites
                 </p>
               </div>
+
+              {/* Freeze Tournament Button */}
+              {kingData?.status === 'frozen' ? (
+                <div className="mt-4">
+                  <div className="inline-flex items-center gap-2 bg-green-100 text-green-800 px-4 py-2 rounded-lg">
+                    <Lock size={18} />
+                    <span className="font-medium">Tournoi figé - Points attribués</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-4">
+                  <button
+                    onClick={handleFreezeTournament}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 mx-auto"
+                  >
+                    <Lock size={18} />
+                    Figer le Tournoi et Attribuer les Points
+                  </button>
+                  <p className="text-xs text-yellow-700 mt-2">
+                    Cette action attribuera les points de classement à tous les joueurs
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}

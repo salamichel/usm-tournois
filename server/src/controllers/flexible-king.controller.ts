@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { adminDb } from '../config/firebase.config';
 import * as flexibleKingService from '../services/flexible-king.service';
 import * as kingService from '../services/king.service';
+import * as playerPointsService from '../services/playerPoints.service';
 import type {
   FlexibleKingPhase,
   FlexibleKingTournamentData,
@@ -1187,6 +1188,103 @@ export const setAllMatchesRandomScores = async (req: Request, res: Response) => 
     res.status(500).json({
       success: false,
       message: 'Error setting random scores',
+    });
+  }
+};
+
+/**
+ * Freeze tournament and award ranking points to players
+ */
+export const freezeFlexibleKingTournament = async (req: Request, res: Response) => {
+  const { tournamentId } = req.params;
+
+  try {
+    const tournamentRef = adminDb.collection('events').doc(tournamentId);
+    const tournamentDoc = await tournamentRef.get();
+
+    if (!tournamentDoc.exists) {
+      return res.status(404).json({ success: false, message: 'Tournament not found' });
+    }
+
+    const tournament = tournamentDoc.data();
+
+    const flexKingDocRef = tournamentRef.collection('flexibleKing').doc('mainData');
+    const flexKingDoc = await flexKingDocRef.get();
+
+    if (!flexKingDoc.exists) {
+      return res.status(404).json({ success: false, message: 'Flexible King Mode not initialized' });
+    }
+
+    const kingData = flexKingDoc.data();
+
+    // Check if already frozen
+    if (kingData?.status === 'frozen') {
+      return res.status(400).json({ success: false, message: 'Tournament is already frozen' });
+    }
+
+    // Get all phases
+    const phasesSnapshot = await flexKingDocRef.collection('phases').get();
+    const phases = phasesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as FlexibleKingPhase[];
+
+    // Find the last phase
+    const lastPhase = phases.sort((a, b) => b.phaseNumber - a.phaseNumber)[0];
+
+    if (!lastPhase || lastPhase.status !== 'completed') {
+      return res.status(400).json({
+        success: false,
+        message: 'La dernière phase doit être terminée pour figer le tournoi'
+      });
+    }
+
+    // Get final ranking from last phase
+    const finalRanking = lastPhase.ranking;
+
+    if (!finalRanking || finalRanking.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Pas de classement disponible pour la dernière phase'
+      });
+    }
+
+    // Award points to all players based on final ranking
+    const result = await playerPointsService.awardPointsToFlexibleKingPlayers(
+      tournamentId,
+      tournament?.name || 'Tournoi Flexible King',
+      tournament?.date?.toDate() || new Date(),
+      finalRanking
+    );
+
+    // Update tournament status to frozen
+    await flexKingDocRef.update({
+      status: 'frozen',
+      frozenAt: new Date(),
+      finalRanking: finalRanking,
+      pointsAwarded: true
+    });
+
+    // Also update main tournament document
+    await tournamentRef.update({
+      status: 'frozen',
+      isFrozen: true,
+      frozenAt: new Date()
+    });
+
+    console.log(`✅ Frozen Flexible King tournament ${tournamentId}: ${result.playersUpdated} players awarded points`);
+
+    res.json({
+      success: true,
+      message: `Tournoi figé ! ${result.playersUpdated} joueurs ont reçu leurs points de classement`,
+      data: {
+        playersUpdated: result.playersUpdated,
+        totalPointsAwarded: result.totalPoints,
+        winner: finalRanking[0]?.playerPseudo || 'Unknown'
+      }
+    });
+  } catch (error) {
+    console.error('Error freezing tournament:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error freezing tournament',
     });
   }
 };
