@@ -367,7 +367,17 @@ const PoolCard = ({
               <tbody>
                 {pool.ranking.map((team: any, idx: number) => (
                   <tr key={idx} className="border-t border-gray-200">
-                    <td className="py-2 px-3">{team.name}</td>
+                    <td className="py-2 px-3">
+                      <div className="font-medium">{team.name}</div>
+                      {(team.player1 || team.player2) && (
+                        <div className="text-xs text-gray-500">
+                          {team.player1?.name || team.player1?.displayName || 'Joueur 1'}
+                          {team.player2 && (
+                            <> / {team.player2?.name || team.player2?.displayName || 'Joueur 2'}</>
+                          )}
+                        </div>
+                      )}
+                    </td>
                     <td className="py-2 px-2 text-center">{team.wins || 0}</td>
                     <td className="py-2 px-2 text-center">{team.losses || 0}</td>
                     <td className="py-2 px-2 text-center">{team.setsWon || 0}-{team.setsLost || 0}</td>
@@ -393,19 +403,29 @@ const PoolCard = ({
               return (
                 <label
                   key={team.id}
-                  className={`flex items-center gap-2 mb-2 cursor-pointer ${isInOtherPool ? 'opacity-50' : ''}`}
+                  className={`flex items-start gap-2 mb-3 cursor-pointer ${isInOtherPool ? 'opacity-50' : ''}`}
                 >
                   <input
                     type="checkbox"
                     checked={selectedTeams.includes(team.id)}
                     onChange={() => handleToggleTeam(team.id)}
                     disabled={isInOtherPool}
-                    className="h-4 w-4"
+                    className="h-4 w-4 mt-0.5"
                   />
-                  <span className="text-sm">
-                    {team.name}
-                    {isInOtherPool && <span className="text-gray-500 ml-1">(Assignée)</span>}
-                  </span>
+                  <div className="flex-1">
+                    <span className="text-sm font-medium">
+                      {team.name}
+                      {isInOtherPool && <span className="text-gray-500 ml-1">(Assignée)</span>}
+                    </span>
+                    {(team.player1 || team.player2) && (
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        {team.player1?.name || team.player1?.displayName || 'Joueur 1'}
+                        {team.player2 && (
+                          <> / {team.player2?.name || team.player2?.displayName || 'Joueur 2'}</>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </label>
               );
             })}
