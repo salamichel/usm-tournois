@@ -3,6 +3,7 @@ import { adminDb } from '../config/firebase.config';
 import { AppError } from '../middlewares/error.middleware';
 import type { Tournament, UnassignedPlayer, Team, TeamMember } from '@shared/types';
 import { convertTimestamps } from '../utils/firestore.utils';
+import { calculateTournamentStatus } from '../utils/tournament.status.utils';
 
 /**
  * Get all active tournaments
@@ -25,10 +26,29 @@ export const getAllTournaments = async (req: Request, res: Response) => {
           .collection('teams')
           .get();
 
+        // Count complete teams (teams with required number of players)
+        let completeTeamsCount = 0;
+        for (const teamDoc of teamsSnapshot.docs) {
+          const teamData = teamDoc.data();
+          const membersCount = teamData.members?.length || 0;
+          const minPlayers = tournamentData.minPlayersPerTeam || tournamentData.playersPerTeam;
+          if (membersCount >= minPlayers) {
+            completeTeamsCount++;
+          }
+        }
+
+        // Calculate tournament status
+        const statusInfo = calculateTournamentStatus(
+          tournamentData,
+          completeTeamsCount,
+          teamsSnapshot.size
+        );
+
         return convertTimestamps({
           id: doc.id,
           ...tournamentData,
           registeredTeamsCount: teamsSnapshot.size,
+          status: statusInfo.status,
         });
       })
     );
