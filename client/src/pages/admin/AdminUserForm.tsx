@@ -4,6 +4,7 @@ import AdminLayout from '@components/AdminLayout';
 import adminService from '@services/admin.service';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Save, User } from 'lucide-react';
+import type { UserLevel } from '@shared/types';
 
 const AdminUserForm = () => {
   const { id } = useParams();
@@ -15,8 +16,7 @@ const AdminUserForm = () => {
   const [formData, setFormData] = useState({
     pseudo: '',
     email: '',
-    sexe: 'homme',
-    niveau: 'moyen',
+    level: 'Intermédiaire' as UserLevel,
     password: '',
     confirmPassword: '',
     isAdmin: false,
@@ -32,16 +32,19 @@ const AdminUserForm = () => {
     try {
       setLoadingData(true);
       const response = await adminService.getUserById(id!);
-      const user = response.user;
+      const user = response.data?.user;
+
+      if (!user) {
+        throw new Error('User not found');
+      }
 
       setFormData({
         pseudo: user.pseudo || '',
         email: user.email || '',
-        sexe: user.sexe || 'homme',
-        niveau: user.niveau || 'moyen',
+        level: (user.level || 'Intermédiaire') as UserLevel,
         password: '',
         confirmPassword: '',
-        isAdmin: user.isAdmin || false,
+        isAdmin: user.role === 'admin',
       });
     } catch (error: any) {
       toast.error(error.message || 'Erreur lors du chargement');
@@ -84,9 +87,8 @@ const AdminUserForm = () => {
       const dataToSend: any = {
         pseudo: formData.pseudo,
         email: formData.email,
-        sexe: formData.sexe,
-        niveau: formData.niveau,
-        isAdmin: formData.isAdmin,
+        level: formData.level,
+        role: formData.isAdmin ? 'admin' : 'player',
       };
 
       // Ajouter le mot de passe seulement s'il est renseigné
@@ -166,39 +168,20 @@ const AdminUserForm = () => {
             </div>
 
             <div>
-              <label htmlFor="sexe" className="block text-sm font-medium text-gray-700 mb-1">
-                Sexe *
-              </label>
-              <select
-                id="sexe"
-                name="sexe"
-                value={formData.sexe}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              >
-                <option value="homme">Homme</option>
-                <option value="femme">Femme</option>
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="niveau" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="level" className="block text-sm font-medium text-gray-700 mb-1">
                 Niveau *
               </label>
               <select
-                id="niveau"
-                name="niveau"
-                value={formData.niveau}
+                id="level"
+                name="level"
+                value={formData.level}
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               >
-                <option value="debutant">Débutant</option>
-                <option value="intermediaire">Intermédiaire</option>
-                <option value="moyen">Moyen</option>
-                <option value="confirme">Confirmé</option>
-                <option value="expert">Expert</option>
+                <option value="Débutant">Débutant</option>
+                <option value="Intermédiaire">Intermédiaire</option>
+                <option value="Confirmé">Confirmé</option>
               </select>
             </div>
 

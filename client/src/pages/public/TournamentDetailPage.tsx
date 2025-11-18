@@ -19,6 +19,7 @@ import {
   Share2,
   CheckCircle,
   XCircle,
+  Settings,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -701,14 +702,25 @@ const TournamentDetailPage = () => {
                       </div>
                     )}
 
-                    <button
-                      onClick={handleLeaveTournament}
-                      disabled={processingAction}
-                      className="btn-danger mt-4"
-                    >
-                      <UserMinus size={20} className="mr-2" />
-                      Se désinscrire
-                    </button>
+                    <div className="flex gap-3 mt-4">
+                      {userTeam && userTeam.captainId === user?.uid && (
+                        <button
+                          onClick={() => navigate(`/gestion-equipe/${tournament.id}/${userTeam.id}`)}
+                          className="btn-primary"
+                        >
+                          <Settings size={20} className="mr-2" />
+                          Gérer mon équipe
+                        </button>
+                      )}
+                      <button
+                        onClick={handleLeaveTournament}
+                        disabled={processingAction}
+                        className="btn-danger"
+                      >
+                        <UserMinus size={20} className="mr-2" />
+                        Se désinscrire
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -817,17 +829,28 @@ const TournamentDetailPage = () => {
                               {team.members?.length || 0} / {tournament.playersPerTeam}{' '}
                               joueurs
                             </div>
-                            {registrationButtons.showRegister &&
-                              team.recruitmentOpen &&
-                              (team.members?.length || 0) < tournament.playersPerTeam && (
+                            <div className="flex gap-2">
+                              {user?.uid === team.captainId && (
                                 <button
-                                  onClick={() => handleJoinTeam(team.id)}
-                                  disabled={processingAction}
-                                  className="btn-primary text-sm"
+                                  onClick={() => navigate(`/gestion-equipe/${tournament.id}/${team.id}`)}
+                                  className="btn-secondary text-sm"
                                 >
-                                  Rejoindre
+                                  <Settings size={16} className="mr-1" />
+                                  Gérer
                                 </button>
                               )}
+                              {registrationButtons.showRegister &&
+                                team.recruitmentOpen &&
+                                (team.members?.length || 0) < tournament.playersPerTeam && (
+                                  <button
+                                    onClick={() => handleJoinTeam(team.id)}
+                                    disabled={processingAction}
+                                    className="btn-primary text-sm"
+                                  >
+                                    Rejoindre
+                                  </button>
+                                )}
+                            </div>
                           </div>
                         </div>
                         );

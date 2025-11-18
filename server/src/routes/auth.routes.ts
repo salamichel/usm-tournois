@@ -40,4 +40,11 @@ router.get('/me', isAuthenticated, asyncHandler(authController.getCurrentUser));
  */
 router.put('/change-password', isAuthenticated, asyncHandler(authController.changePassword));
 
+/**
+ * @route   POST /api/auth/claim-virtual-account
+ * @desc    Claim a virtual account and convert it to a real account
+ * @access  Public
+ */
+router.post('/claim-virtual-account', asyncHandler(authController.claimVirtualAccount));
+
 export default router;

@@ -29,6 +29,7 @@ import AdminTeamForm from '@pages/admin/AdminTeamForm';
 import AdminUsersList from '@pages/admin/AdminUsersList';
 import AdminUserForm from '@pages/admin/AdminUserForm';
 import AdminUnassignedPlayers from '@pages/admin/AdminUnassignedPlayers';
+import AdminVirtualUsers from '@pages/admin/AdminVirtualUsers';
 
 function App() {
   return (
@@ -60,7 +61,7 @@ function App() {
               }
             />
             <Route
-              path="/gestion-equipe/:id"
+              path="/gestion-equipe/:tournamentId/:id"
               element={
                 <ProtectedRoute>
                   <TeamManagementPage />
@@ -186,6 +187,14 @@ function App() {
               element={
                 <AdminRoute>
                   <AdminUnassignedPlayers />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/virtual-users"
+              element={
+                <AdminRoute>
+                  <AdminVirtualUsers />
                 </AdminRoute>
               }
             />

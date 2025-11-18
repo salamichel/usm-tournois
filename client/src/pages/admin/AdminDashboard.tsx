@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import AdminLayout from '@components/AdminLayout';
 import adminService from '@services/admin.service';
 import toast from 'react-hot-toast';
-import { Trophy, Users, Calendar, TrendingUp } from 'lucide-react';
+import { Trophy, Users, Calendar, TrendingUp, UserCog } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -167,7 +167,7 @@ const AdminDashboard = () => {
         {/* Quick Actions */}
         <div className="card">
           <h2 className="text-xl font-bold text-gray-900 mb-4">Actions Rapides</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Link to="/admin/tournaments/new" className="btn-primary text-center">
               <Trophy size={20} className="inline mr-2" />
               Créer un Tournoi
@@ -179,6 +179,10 @@ const AdminDashboard = () => {
             <Link to="/admin/tournaments" className="btn-secondary text-center">
               <Calendar size={20} className="inline mr-2" />
               Gérer les Tournois
+            </Link>
+            <Link to="/admin/virtual-users" className="btn-secondary text-center">
+              <UserCog size={20} className="inline mr-2" />
+              Comptes Virtuels
             </Link>
           </div>
         </div>

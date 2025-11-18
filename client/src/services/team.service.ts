@@ -1,12 +1,12 @@
 import apiService from './api.service';
-import type { Team, UpdateTeamDto, AddTeamMemberDto } from '@shared/types';
+import type { Team, UpdateTeamDto, AddTeamMemberDto, AddVirtualMemberDto, RemoveTeamMemberDto } from '@shared/types';
 
 class TeamService {
   /**
    * Get team by ID
    */
-  async getTeamById(id: string) {
-    return apiService.get<{ team: Team }>(`/teams/${id}`);
+  async getTeamById(id: string, tournamentId: string) {
+    return apiService.get<{ team: Team }>(`/teams/${id}?tournamentId=${tournamentId}`);
   }
 
   /**
@@ -26,14 +26,14 @@ class TeamService {
   /**
    * Remove member from team
    */
-  async removeMember(id: string, userId: string) {
-    return apiService.delete(`/teams/${id}/members/${userId}`);
+  async removeMember(id: string, data: RemoveTeamMemberDto) {
+    return apiService.delete(`/teams/${id}/members/${data.memberId}`, data);
   }
 
   /**
    * Add virtual member to team
    */
-  async addVirtualMember(id: string, memberData: AddTeamMemberDto) {
+  async addVirtualMember(id: string, memberData: AddVirtualMemberDto) {
     return apiService.post(`/teams/${id}/virtual-member`, memberData);
   }
 }

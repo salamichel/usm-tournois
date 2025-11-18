@@ -42,6 +42,19 @@ class AuthService {
   async changePassword(data: ChangePasswordDto) {
     return apiService.put('/auth/change-password', data);
   }
+
+  /**
+   * Claim virtual account
+   */
+  async claimVirtualAccount(data: {
+    email: string;
+    password: string;
+    pseudo: string;
+    level: string;
+    virtualUserId: string;
+  }) {
+    return apiService.post<AuthResponse>('/auth/claim-virtual-account', data);
+  }
 }
 
 export default new AuthService();

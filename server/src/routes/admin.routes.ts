@@ -75,6 +75,12 @@ router.delete('/tournaments/:tournamentId/unassigned-players/:userId', asyncHand
 router.get('/dashboard', asyncHandler(adminController.getDashboard));
 
 /**
+ * Virtual Accounts Management
+ */
+router.get('/virtual-users', asyncHandler(adminController.getAllVirtualUsers));
+router.post('/virtual-users/link', asyncHandler(adminController.linkVirtualToRealUser));
+
+/**
  * King Mode Management
  */
 router.get('/tournaments/:tournamentId/king', asyncHandler(getTournament), asyncHandler(kingController.getKingDashboard));
