@@ -270,6 +270,16 @@ export function generatePhasePoolsAndMatches(
   const poolDistribution = config.poolDistribution ||
     distributeTeamsInPools(config.totalTeams, config.numberOfPools);
 
+  // Ensure estimatedRounds has a valid value (default to 3 for round-robin, 5 for KOB)
+  const estimatedRounds = config.estimatedRounds || (config.phaseFormat === 'round-robin' ? 3 : 5);
+
+  console.log(`[generatePhasePoolsAndMatches] Phase ${config.phaseNumber}:`);
+  console.log(`  - config.estimatedRounds: ${config.estimatedRounds}`);
+  console.log(`  - using estimatedRounds: ${estimatedRounds}`);
+  console.log(`  - phaseFormat: ${config.phaseFormat}`);
+  console.log(`  - numberOfPools: ${config.numberOfPools}`);
+  console.log(`  - teamsPerPool: ${config.teamsPerPool}`);
+
   const pools: KingPool[] = [];
   const allMatches: KingMatch[] = [];
   let playerIndex = 0;
@@ -293,7 +303,7 @@ export function generatePhasePoolsAndMatches(
         poolName,
         config.playersPerTeam,
         teamsInThisPool,
-        config.estimatedRounds,
+        estimatedRounds,
         config.phaseNumber
       );
     } else {
@@ -302,7 +312,7 @@ export function generatePhasePoolsAndMatches(
         poolId,
         poolName,
         config.playersPerTeam,
-        config.estimatedRounds,
+        estimatedRounds,
         config.phaseNumber
       );
     }
