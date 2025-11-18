@@ -36,32 +36,33 @@ export const getFlexibleKingDashboard = async (req: Request, res: Response) => {
       });
     }
 
-    const kingData = flexKingDoc.data() as FlexibleKingTournamentData;
+    const kingData = (flexKingDoc.data() || {}) as FlexibleKingTournamentData;
 
     // Load all phases with their pools and matches
     const phasesSnapshot = await flexKingDocRef.collection('phases').get();
     const phases: FlexibleKingPhase[] = [];
 
     for (const phaseDoc of phasesSnapshot.docs) {
-      const phase = { id: phaseDoc.id, ...phaseDoc.data() } as FlexibleKingPhase;
+      const phaseData = phaseDoc.data() || {};
+      const phase = { id: phaseDoc.id, ...phaseData } as FlexibleKingPhase;
 
       // Load pools if phase is configured or in progress
-      if (phase.status !== 'not_configured') {
+      if (phase.status && phase.status !== 'not_configured') {
         const poolsSnapshot = await phaseDoc.ref.collection('pools').get();
         const pools: KingPool[] = [];
         const matches: KingMatch[] = [];
 
         for (const poolDoc of poolsSnapshot.docs) {
-          const poolData = poolDoc.data();
+          const poolData = poolDoc.data() || {};
           const matchesSnapshot = await poolDoc.ref.collection('matches').get();
-          const poolMatches = matchesSnapshot.docs.map((m) => ({ id: m.id, ...m.data() })) as KingMatch[];
+          const poolMatches = matchesSnapshot.docs.map((m) => ({ id: m.id, ...(m.data() || {}) })) as KingMatch[];
 
           pools.push({
             id: poolDoc.id,
-            name: poolData.name,
+            name: poolData.name || `Pool ${poolDoc.id}`,
             players: poolData.players || [],
             matches: poolMatches,
-            playerCount: poolData.playerCount,
+            playerCount: poolData.playerCount || 0,
             createdAt: poolData.createdAt,
           });
 

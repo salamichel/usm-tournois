@@ -621,33 +621,6 @@ const AdminTournamentForm = () => {
             </div>
           </div>
 
-          {/* King Mode Configuration */}
-          {formData.tournamentFormat === 'king' && (
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                <Users size={20} />
-                Configuration King Mode
-              </h2>
-
-              <KingConfigAssistant
-                totalPlayers={formData.maxTeams * 4} // Estimation basée sur maxTeams
-                availableFields={formData.fields}
-                onConfigSelect={(config) => setKingConfig(config)}
-              />
-
-              {kingConfig && (
-                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-blue-900">
-                    ✓ Configuration King sélectionnée : {kingConfig.phases.length} phases
-                  </p>
-                  <p className="text-xs text-blue-700 mt-1">
-                    Cette configuration sera sauvegardée avec le tournoi
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-
           {/* Paramètres des Matchs */}
           <div className="bg-white rounded-lg shadow-md p-6">
             <h2 className="text-xl font-bold mb-4">Paramètres des Matchs</h2>
