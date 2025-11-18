@@ -116,7 +116,7 @@ async function createDummyPlayers(options: DummyPlayerOptions): Promise<void> {
   console.log(`   Préfixe: "${prefix}"`);
   console.log('');
 
-  const levels = ['Débutant', 'Intermédiaire', 'Confirmé', 'Expert'];
+  const levels = ['Débutant', 'Intermédiaire', 'Confirmé'];
   const unassignedPlayersRef = adminDb
     .collection('events')
     .doc(tournamentId)
