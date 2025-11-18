@@ -304,11 +304,12 @@ export const startKingPhase1 = async (req: Request, res: Response) => {
 
       for (const match of pool.matches) {
         const matchDocRef = poolDocRef.collection('matches').doc(match.id);
-        batch.set(matchDocRef, {
+        const cleanMatch = kingService.removeUndefinedValues({
           ...match,
           createdAt: new Date(),
           updatedAt: new Date(),
         });
+        batch.set(matchDocRef, cleanMatch);
       }
     }
 
@@ -467,11 +468,12 @@ export const startKingPhase2 = async (req: Request, res: Response) => {
 
       for (const match of pool.matches) {
         const matchDocRef = poolDocRef.collection('matches').doc(match.id);
-        batch.set(matchDocRef, {
+        const cleanMatch = kingService.removeUndefinedValues({
           ...match,
           createdAt: new Date(),
           updatedAt: new Date(),
         });
+        batch.set(matchDocRef, cleanMatch);
       }
     }
 
@@ -642,11 +644,12 @@ export const startKingPhase3 = async (req: Request, res: Response) => {
 
       for (const match of pool.matches) {
         const matchDocRef = poolDocRef.collection('matches').doc(match.id);
-        batch.set(matchDocRef, {
+        const cleanMatch = kingService.removeUndefinedValues({
           ...match,
           createdAt: new Date(),
           updatedAt: new Date(),
         });
+        batch.set(matchDocRef, cleanMatch);
       }
     }
 
