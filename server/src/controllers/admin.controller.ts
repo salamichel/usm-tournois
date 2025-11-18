@@ -953,16 +953,38 @@ export const getTeams = async (req: Request, res: Response) => {
   try {
     const { tournamentId } = req.params;
 
+    // Get all teams
     const teamsSnapshot = await adminDb
       .collection('events')
       .doc(tournamentId)
       .collection('teams')
       .get();
 
+    // Get all pools to check which teams are already assigned
+    const poolsSnapshot = await adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('pools')
+      .get();
+
+    // Create a set of team IDs that are already assigned to pools
+    const assignedTeamIds = new Set<string>();
+    poolsSnapshot.docs.forEach((poolDoc) => {
+      const poolData = poolDoc.data();
+      const poolTeams = poolData.teams || [];
+      poolTeams.forEach((team: any) => {
+        if (team.id) {
+          assignedTeamIds.add(team.id);
+        }
+      });
+    });
+
+    // Map teams with isAssigned field
     const teams = teamsSnapshot.docs.map((doc) =>
       convertTimestamps({
         id: doc.id,
         ...doc.data(),
+        isAssigned: assignedTeamIds.has(doc.id),
       })
     );
 
