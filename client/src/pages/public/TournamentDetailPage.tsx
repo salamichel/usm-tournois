@@ -523,9 +523,9 @@ const TournamentDetailPage = () => {
               </div>
               <div className="card text-center">
                 <Users className="text-primary-600 mx-auto mb-2" size={24} />
-                <p className="text-sm text-gray-500">Équipes</p>
+                <p className="text-sm text-gray-500">Équipes complètes</p>
                 <p className="font-semibold">
-                  {tournament.teams?.length || 0} / {tournament.maxTeams}
+                  {completeTeams} / {tournament.maxTeams}
                 </p>
               </div>
               <div className="card text-center">

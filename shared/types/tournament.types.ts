@@ -113,8 +113,14 @@ export interface TournamentSummary {
   location: string;
   status: TournamentStatus;
   registeredTeamsCount: number;
+  completeTeamsCount: number;
   maxTeams: number;
+  playersPerTeam: number;
   coverImage?: string;
+  // User registration status (optional, only if user is authenticated)
+  userRegistered?: boolean;
+  userTeamName?: string;
+  userRegistrationType?: 'team' | 'freeAgent';
 }
 
 export interface TournamentDetails extends Tournament {

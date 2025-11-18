@@ -26,6 +26,19 @@ export default defineConfig({
     allowedHosts: ['usm-tournois.moka-web.net', '.moka-web.net'], // Allow specific domain and all subdomains
     watch: {
       usePolling: true, // Necessary for Docker on some systems
+      interval: 1000, // Polling interval in ms (default: 100ms) - reduces CPU and false positives
+      ignored: [
+        '**/node_modules/**',
+        '**/.git/**',
+        '**/dist/**',
+        '**/build/**',
+        '**/*.log',
+      ],
+    },
+    hmr: {
+      // Reduce HMR reconnection attempts to avoid refresh loops
+      timeout: 5000,
+      overlay: true,
     },
     proxy: {
       '/api': {
