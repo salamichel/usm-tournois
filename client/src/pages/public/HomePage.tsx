@@ -92,81 +92,86 @@ const HomePage = () => {
             <Link
               key={tournament.id}
               to={`/tournoi/${tournament.id}`}
-              className="card hover:shadow-lg transition-shadow"
+              className="card hover:shadow-lg transition-transform hover:-translate-y-1 overflow-hidden"
             >
+              {/* Image de couverture */}
               {tournament.coverImage && (
                 <img
                   src={tournament.coverImage}
                   alt={tournament.name}
-                  className="w-full h-48 object-cover rounded-t-lg"
+                  className="w-full h-48 object-cover"
                 />
               )}
-              <div className="p-4">
-                <h3 className="text-xl font-bold text-gray-900 mb-2">{tournament.name}</h3>
 
-                <div className="space-y-2 text-sm text-gray-600 mb-3">
-                  <div className="flex items-center gap-2">
-                    <Calendar size={16} />
-                    <span>
-                      {tournament.date
-                        ? format(new Date(tournament.date), 'PPP', { locale: fr })
-                        : 'Date à confirmer'}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <MapPin size={16} />
-                    <span>{tournament.location}</span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Users size={16} />
-                    <span>
-                      {tournament.registeredTeamsCount} / {tournament.maxTeams} équipes
-                    </span>
-                  </div>
-                </div>
-
-                {/* Bandeaux de statut */}
-                <div className="flex flex-col gap-2">
-                  {/* Bandeau d'inscription utilisateur */}
-                  {(tournament as any).userRegistered && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
-                      <div className="flex items-center gap-2 text-blue-700 text-sm font-medium">
-                        <span>✓</span>
-                        <span>
-                          {(tournament as any).userRegistrationType === 'team'
-                            ? `Inscrit avec l'équipe ${(tournament as any).userTeamName}`
-                            : 'Inscrit en tant que joueur libre'}
-                        </span>
-                      </div>
-                    </div>
+              {/* Bandeau d'inscription utilisateur (comme dans l'ancien design) */}
+              {(tournament as any).userRegistered && (
+                <div className="p-3 bg-gray-100 border-b border-gray-300 text-sm text-gray-700 flex items-center justify-center">
+                  {(tournament as any).userRegistrationType === 'team' ? (
+                    <>
+                      <Users size={16} className="mr-2 text-blue-600" />
+                      Inscrit avec l'équipe: <span className="font-semibold ml-1">{(tournament as any).userTeamName}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Users size={16} className="mr-2 text-green-600" />
+                      Inscrit en tant que joueur libre
+                    </>
                   )}
+                </div>
+              )}
 
-                  {/* Bandeau de statut du tournoi */}
-                  <div
-                    className={`rounded-lg px-3 py-2 ${
+              {/* Contenu principal */}
+              <div className="p-5 border-b border-gray-200">
+                <div className="flex justify-between items-start mb-2">
+                  <h3 className="text-lg font-bold text-gray-900 pr-4">{tournament.name}</h3>
+                  {/* Badge de statut à droite du titre (comme dans l'ancien design) */}
+                  <span
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium flex-shrink-0 ${
                       tournament.status === 'Ouvert'
-                        ? 'bg-green-50 border border-green-200'
+                        ? 'bg-green-100 text-green-800 border border-green-200'
                         : tournament.status === 'Complet'
-                        ? 'bg-red-50 border border-red-200'
+                        ? 'bg-red-100 text-red-800 border border-red-200'
                         : tournament.status === 'Liste d\'attente'
-                        ? 'bg-yellow-50 border border-yellow-200'
-                        : 'bg-blue-50 border border-blue-200'
+                        ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                        : 'bg-gray-100 text-gray-800 border border-gray-200'
                     }`}
                   >
-                    <div
-                      className={`text-sm font-semibold ${
-                        tournament.status === 'Ouvert'
-                          ? 'text-green-700'
-                          : tournament.status === 'Complet'
-                          ? 'text-red-700'
-                          : tournament.status === 'Liste d\'attente'
-                          ? 'text-yellow-700'
-                          : 'text-blue-700'
-                      }`}
-                    >
-                      {tournament.status}
+                    {tournament.status}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-4 text-sm text-gray-600">
+                  <div className="flex items-center gap-1">
+                    <Calendar size={14} />
+                    <span>
+                      {tournament.date
+                        ? format(new Date(tournament.date), 'dd MMM', { locale: fr })
+                        : 'N/A'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <MapPin size={14} />
+                    <span>{tournament.location}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section des barres de progression */}
+              <div className="p-5">
+                <div className="space-y-4">
+                  {/* Barre équipes */}
+                  <div>
+                    <div className="text-sm text-gray-700 mb-1 flex justify-between">
+                      <span>Équipes</span>
+                      <span>{tournament.registeredTeamsCount} / {tournament.maxTeams}</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2.5">
+                      <div
+                        className="bg-blue-600 h-2.5 rounded-full"
+                        style={{
+                          width: `${Math.min((tournament.registeredTeamsCount / tournament.maxTeams) * 100, 100)}%`
+                        }}
+                      ></div>
                     </div>
                   </div>
                 </div>
