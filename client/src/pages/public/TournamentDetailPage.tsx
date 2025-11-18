@@ -631,7 +631,9 @@ const TournamentDetailPage = () => {
                   S'inscrire au tournoi
                 </h2>
                 <p className="text-gray-600 mb-4">
-                  Choisissez votre mode d'inscription
+                  {tournament?.registrationMode === 'random'
+                    ? 'Inscrivez-vous comme joueur. Les équipes seront générées de manière équilibrée par niveau par l\'admin.'
+                    : 'Choisissez votre mode d\'inscription'}
                 </p>
                 <div className="flex flex-wrap gap-4">
                   <button
@@ -642,14 +644,16 @@ const TournamentDetailPage = () => {
                     <UserPlus size={20} className="mr-2" />
                     S'inscrire comme joueur
                   </button>
-                  <button
-                    onClick={() => setShowCreateTeamModal(true)}
-                    disabled={processingAction}
-                    className="btn-secondary"
-                  >
-                    <Trophy size={20} className="mr-2" />
-                    Créer une équipe
-                  </button>
+                  {tournament?.registrationMode !== 'random' && (
+                    <button
+                      onClick={() => setShowCreateTeamModal(true)}
+                      disabled={processingAction}
+                      className="btn-secondary"
+                    >
+                      <Trophy size={20} className="mr-2" />
+                      Créer une équipe
+                    </button>
+                  )}
                 </div>
               </div>
             )}

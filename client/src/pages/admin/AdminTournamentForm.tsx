@@ -64,6 +64,7 @@ const AdminTournamentForm = () => {
     waitingListSize: 0,
     type: '4x4',
     tournamentFormat: 'classic',
+    registrationMode: 'teams',
     mixity: 'none',
     requiresFemalePlayer: false,
     setsPerMatchPool: 1,
@@ -116,6 +117,7 @@ const AdminTournamentForm = () => {
         waitingListSize: tournament.waitingListSize || 0,
         type: tournament.type || '4x4',
         tournamentFormat: tournament.tournamentFormat || 'classic',
+        registrationMode: tournament.registrationMode || 'teams',
         mixity: tournament.mixity || 'none',
         requiresFemalePlayer: tournament.requiresFemalePlayer || false,
         setsPerMatchPool: tournament.setsPerMatchPool || 1,
@@ -543,6 +545,23 @@ const AdminTournamentForm = () => {
                 >
                   <option value="classic">Classique</option>
                   <option value="king">King</option>
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="registrationMode" className="block text-sm font-medium text-gray-700 mb-1">
+                  Mode d'inscription *
+                </label>
+                <select
+                  id="registrationMode"
+                  name="registrationMode"
+                  value={formData.registrationMode}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                >
+                  <option value="teams">Équipes (joueurs créent leurs équipes)</option>
+                  <option value="random">Joueurs aléatoires (équipes générées par admin)</option>
                 </select>
               </div>
 

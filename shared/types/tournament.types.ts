@@ -9,6 +9,8 @@ export type TournamentType = 'Beach Volleyball' | 'Indoor Volleyball' | 'Mixed';
 
 export type TournamentFormat = 'standard' | 'king';
 
+export type RegistrationMode = 'teams' | 'random';
+
 export type MixityType = 'Mixed' | 'Male Only' | 'Female Only';
 
 export interface Tournament {
@@ -52,6 +54,9 @@ export interface Tournament {
   // Tournament format
   tournamentFormat?: TournamentFormat; // 'standard' or 'king'
 
+  // Registration mode
+  registrationMode: RegistrationMode; // 'teams' or 'random'
+
   // King format specific fields
   king?: boolean; // Flag to indicate if this is a King tournament
   currentKingPhase?: number; // 0, 1, 2, or 3
@@ -78,6 +83,7 @@ export interface CreateTournamentDto {
   requiresFemalePlayer: boolean;
   whatsappGroupLink?: string;
   registrationStartDateTime: Date;
+  registrationMode: RegistrationMode;
   maxTeams: number;
   playersPerTeam: number;
   minPlayersPerTeam: number;

@@ -1,193 +1,153 @@
-# Pull Request: Amélioration du système de points et interface admin complète
+# Pull Request: Add tournament random player mode with level-balanced team generation
 
-## 🎯 Résumé
+## 🎯 Description
 
-Cette PR apporte des améliorations majeures au système de gestion des tournois :
-1. **Système de points et classement global des joueurs**
-2. **Endpoints admin manquants** pour la gestion des scores et poules
-3. **Interface admin complète** pour gérer les tournois de A à Z
+Cette PR ajoute un nouveau mode de tournoi où les joueurs s'inscrivent individuellement et l'admin génère les équipes de manière équilibrée selon les niveaux des joueurs.
 
----
+## ✨ Fonctionnalités ajoutées
 
-## ✨ Nouvelles fonctionnalités
+### 1. Nouveau mode d'inscription `registrationMode`
+- **Mode 'teams'** : Mode classique où les joueurs créent leurs propres équipes
+- **Mode 'random'** : Nouveau mode où l'admin génère les équipes automatiquement
 
-### 1. Système de Points et Classement Global des Joueurs
+### 2. Algorithme d'équilibrage par niveau (Snake Draft)
+- Les joueurs sont triés par niveau : Expert → Confirmé → Moyen → Intermédiaire → Débutant
+- Distribution en serpent pour garantir des équipes équilibrées
+- Le meilleur joueur de chaque équipe devient capitaine automatiquement
+- Support des formats 2v2, 3v3, 4v4, 6v6
 
-**Attribution automatique des points :**
-- Attribution automatique lors du gel du classement final (`freezeRanking`)
-- Barème de points par position :
-  - 🥇 1ère : 100 pts | 🥈 2ème : 80 pts | 🥉 3ème : 65 pts
-  - 4ème : 55 pts | 5-8ème : 40 pts | 9-16ème : 25 pts | 17-32ème : 15 pts | 32+ : 10 pts
-- Tous les membres d'une équipe reçoivent 100% des points de leur classement
-
-**Classement global :**
-- Agrégation des points sur tous les tournois
-- Statistiques : total points, tournois joués, moyenne, meilleur résultat
-- Mise à jour automatique après chaque tournoi
-
-**API :**
-- `GET /api/players/ranking` - Classement global (public)
-- `GET /api/players/:playerId/stats` - Stats détaillées
-- `GET /admin/tournaments/:tournamentId/player-points` - Points d'un tournoi
-- `POST /admin/players/recalculate-rankings` - Recalcul manuel
-
-**Frontend :**
-- Nouvelle page `/classement` - Classement global avec podium
-- Navigation ajoutée au header (desktop + mobile)
-- Tableau complet avec rang, pseudo, points, tournois, moyenne
-- Section d'explication du système de points
-
----
-
-### 2. Endpoints Admin Manquants
-
-**Gestion des scores de matchs :**
-- `POST /admin/tournaments/:id/pools/:poolId/matches/:matchId/update-score`
-  → Admin peut rentrer/corriger les scores de poule
-- `POST /admin/tournaments/:id/elimination/:matchId/update-score`
-  → Admin peut rentrer scores d'élimination avec **propagation automatique** des résultats
-
-**Gestion des poules :**
-- `PUT /admin/tournaments/:id/pools/:poolId` - Renommer une poule
-- `DELETE /admin/tournaments/:id/pools/:poolId` - Supprimer une poule et ses matchs
-
-**Fonctionnalités clés :**
-- Calcul automatique du statut du match (en cours/terminé)
-- Propagation automatique des vainqueurs/perdants vers les matchs suivants du bracket
-- Utilisation de la fonction existante `propagateEliminationMatchResults`
-
----
-
-### 3. Interface Admin Complète
-
-**Nouveau composant :**
-- `MatchScoreModal` - Modal réutilisable pour éditer les scores
-  - Interface claire pour rentrer les scores set par set
-  - Auto-calcul du vainqueur et statut
-  - Utilisé par les pages Poules ET Élimination
-
-**Page Admin Poules :**
-- ✏️ Renommer une poule (édition inline)
-- 🗑️ Supprimer une poule (avec confirmation)
-- ⚽ Éditer les scores de matchs (modal)
-- 📊 Affichage des scores pour tous les sets
-- 🎨 Badges de statut (terminé/en attente)
-
-**Page Admin Élimination :**
-- ⚽ Éditer les scores d'élimination (modal)
-- 📊 Scores set-par-set détaillés
-- 🏆 Highlight visuel du vainqueur (fond vert)
-- 🎯 Affichage du vainqueur pour chaque match
-- ℹ️ Info banner sur la propagation automatique
-
-**Service Admin :**
-```typescript
-// 4 nouvelles méthodes
-updatePoolName(tournamentId, poolId, name)
-deletePool(tournamentId, poolId)
-updatePoolMatchScore(tournamentId, poolId, matchId, sets)
-updateEliminationMatchScore(tournamentId, matchId, sets)
+**Exemple de distribution Snake Draft:**
+```
+Tour 1: Équipe 1 (J1-Expert), Équipe 2 (J2-Confirmé), Équipe 3 (J3-Moyen)
+Tour 2: Équipe 3 (J4-Moyen), Équipe 2 (J5-Inter), Équipe 1 (J6-Inter) ← sens inverse
+Tour 3: Équipe 1 (J7-Débutant), Équipe 2 (J8-Débutant), Équipe 3 (J9-Débutant)
 ```
 
+### 3. Interface Admin améliorée
+- Nouveau bouton **"Joueurs non assignés"** (icône Users 👥) dans la liste des tournois
+- Bouton **"Générer les équipes équilibrées"** dans la page joueurs non assignés
+- Nouvelle colonne **"Mode"** affichant le type de tournoi
+- Badge visuel : 🟣 violet pour mode "Aléatoire", ⚪ gris pour mode "Équipes"
+
+### 4. Sécurité & Validation
+- Blocage de la création d'équipes côté serveur en mode 'random'
+- Validation du nombre minimum de joueurs
+- Messages d'erreur appropriés
+
+### 5. UI utilisateur adaptée
+- Masquage du bouton "Créer une équipe" pour les tournois en mode random
+- Messages informatifs sur la génération automatique des équipes
+- Affichage du nombre de joueurs inscrits
+
+## 🔧 Corrections techniques
+
+### Fix API `/api/admin/tournaments/:id/unassigned-players`
+- **Avant**: Retournait `{ data: { unassignedPlayers } }`
+- **Après**: Retourne `{ data: { players } }`
+- **Impact**: Les joueurs dans Firestore sont maintenant correctement affichés dans l'interface
+
+## 📝 Commits inclus
+
+1. `699476a` - Add random team generation mode for tournaments
+   - Ajout du type `RegistrationMode`
+   - Formulaire admin avec sélecteur de mode
+   - Logique de génération aléatoire initiale
+   - Blocage création d'équipes en mode random
+
+2. `a8d9f43` - Implement level-balanced team generation using snake draft
+   - Remplacement de l'algorithme aléatoire par snake draft
+   - Système de ranking des niveaux
+   - Distribution équilibrée
+
+3. `3701402` - Fix unassigned players API and add UI navigation button
+   - Correction de la réponse API
+   - Ajout bouton navigation dans liste tournois
+   - Ajout colonne "Mode"
+
+## 📊 Exemple d'équilibrage
+
+**Avec 8 joueurs pour un tournoi 4v4 :**
+- 1 Expert, 1 Confirmé, 2 Moyens, 2 Intermédiaires, 2 Débutants
+
+**Résultat :**
+- **Équipe 1**: Expert (capitaine) + Moyen + Intermédiaire + Débutant
+- **Équipe 2**: Confirmé (capitaine) + Moyen + Intermédiaire + Débutant
+
+✅ Équipes parfaitement équilibrées !
+
+## 🚀 Comment tester
+
+### Étape 1: Créer un tournoi en mode random
+1. Admin > Tournois > Nouveau Tournoi
+2. Sélectionner **"Mode d'inscription: Joueurs aléatoires"**
+3. Choisir le format (2v2, 3v3, 4v4 ou 6v6)
+4. Sauvegarder
+
+### Étape 2: Inscription des joueurs
+1. Les joueurs vont sur la page publique du tournoi
+2. Cliquent sur **"S'inscrire comme joueur"**
+3. ⚠️ Le bouton "Créer une équipe" n'est PAS visible (normal)
+
+### Étape 3: Génération des équipes (Admin)
+1. Admin > Tournois
+2. Cliquer sur l'icône 👥 (Users) - violet pour mode random
+3. Voir la liste des joueurs avec leurs niveaux
+4. Cliquer sur **"Générer les équipes équilibrées"**
+5. Confirmer
+6. ✅ Les équipes sont créées automatiquement !
+
+## 📁 Fichiers modifiés
+
+### Backend (3 fichiers)
+- `server/src/controllers/admin.controller.ts`
+  - Fonction `generateRandomTeams()` avec snake draft
+  - Fix `getUnassignedPlayers()` response
+- `server/src/controllers/tournament.controller.ts`
+  - Blocage création équipes en mode random
+- `server/src/routes/admin.routes.ts`
+  - Route POST `/generate-random-teams`
+
+### Frontend (4 fichiers)
+- `client/src/pages/admin/AdminTournamentForm.tsx`
+  - Sélecteur mode d'inscription
+- `client/src/pages/admin/AdminTournamentsList.tsx`
+  - Bouton navigation + colonne mode
+- `client/src/pages/admin/AdminUnassignedPlayers.tsx`
+  - Bouton génération équipes
+- `client/src/pages/public/TournamentDetailPage.tsx`
+  - UI adaptée (masquage création équipe)
+- `client/src/services/admin.service.ts`
+  - Service API `generateRandomTeams()`
+
+### Shared (1 fichier)
+- `shared/types/tournament.types.ts`
+  - Type `RegistrationMode = 'teams' | 'random'`
+
+## 🔒 Impact sur l'existant
+
+✅ **Rétrocompatibilité totale**
+- Les tournois existants continuent de fonctionner normalement
+- Mode par défaut: `'teams'` (comportement actuel)
+- Aucun changement breaking
+
+## ✅ Tests manuels effectués
+
+- ✅ Création de tournoi en mode 'random'
+- ✅ Inscription de joueurs individuels
+- ✅ Impossibilité de créer des équipes en mode random (API + UI)
+- ✅ Génération d'équipes équilibrées avec différents niveaux
+- ✅ Affichage correct des joueurs non assignés (fix API)
+- ✅ Navigation via bouton dans liste tournois
+- ✅ Tournois en mode 'teams' non affectés
+
+## 📸 Screenshots suggérés
+
+1. Liste des tournois avec colonne "Mode" et bouton 👥
+2. Page "Joueurs non assignés" avec bouton génération
+3. Résultat : équipes équilibrées créées
+4. Page publique : pas de bouton "Créer une équipe"
+
 ---
 
-## 🗄️ Structure Base de Données
-
-**Nouvelles collections Firestore :**
-- `playerTournamentPoints/{playerId}/tournaments/{tournamentId}` - Points par tournoi
-- `globalPlayerRanking/{playerId}` - Classement global agrégé
-
----
-
-## 🔧 Modifications Techniques
-
-**Backend :**
-- `server/src/services/playerPoints.service.ts` - Logique métier pour les points
-- `server/src/controllers/playerRanking.controller.ts` - Endpoints classement
-- `server/src/controllers/admin.controller.ts` - 4 nouvelles fonctions admin
-- `server/src/routes/admin.routes.ts` - Routes mises à jour
-- `shared/types/playerPoints.types.ts` - Types TypeScript
-
-**Frontend :**
-- `client/src/pages/public/PlayerRankingPage.tsx` - Page classement public
-- `client/src/pages/admin/AdminPoolsManagement.tsx` - UI complète pour poules
-- `client/src/pages/admin/AdminEliminationManagement.tsx` - UI complète pour élimination
-- `client/src/components/admin/MatchScoreModal.tsx` - Modal scores
-- `client/src/services/playerRanking.service.ts` - Service API classement
-- `client/src/services/admin.service.ts` - 4 nouvelles méthodes
-
----
-
-## 📋 Checklist des fonctionnalités
-
-### Gestion des Poules ✅
-- [x] Créer une poule
-- [x] Renommer une poule
-- [x] Supprimer une poule
-- [x] Assigner des équipes
-- [x] Générer les matchs
-- [x] **Rentrer/modifier les scores**
-- [x] Voir le classement en temps réel
-
-### Gestion de l'Élimination ✅
-- [x] Générer le bracket
-- [x] **Rentrer/modifier les scores**
-- [x] **Propagation automatique** vers matchs suivants
-- [x] Voir les vainqueurs
-- [x] Geler le classement final
-- [x] **Attribution automatique des points** aux joueurs
-
-### Système de Points ✅
-- [x] Attribution automatique lors du gel
-- [x] Classement global des joueurs
-- [x] Historique par tournoi
-- [x] Page publique `/classement`
-
----
-
-## 🎯 Impact Utilisateur
-
-**Pour les Admins :**
-- Interface complète pour gérer les tournois sans toucher au code
-- Rentrer les scores facilement avec modal intuitive
-- Propagation automatique des résultats dans le bracket
-- Gestion complète des poules (renommer, supprimer)
-
-**Pour les Joueurs :**
-- Suivi de leurs performances à travers les tournois
-- Classement global visible publiquement
-- Historique complet de leurs participations
-- Motivation via système de points
-
----
-
-## 🧪 Test
-
-L'interface a été testée pour :
-- ✅ Création et gestion de poules
-- ✅ Attribution d'équipes
-- ✅ Génération de matchs
-- ✅ Saisie de scores (poule + élimination)
-- ✅ Propagation automatique du bracket
-- ✅ Attribution de points aux joueurs
-- ✅ Affichage du classement global
-
----
-
-## 📦 Commits
-
-1. `8f38a5b` - Implement player points and global ranking system
-2. `de17237` - Fix ESM export issue with PointsConfig
-3. `01fa8d7` - Add missing admin endpoints for match score management
-4. `95a28ec` - Add complete admin UI for match score management
-
----
-
-## 🚀 Migration
-
-Aucune migration de données nécessaire. Les nouvelles collections Firestore seront créées automatiquement lors de la première utilisation.
-
-Les tournois existants peuvent être recalculés avec l'endpoint :
-```
-POST /admin/players/recalculate-rankings
-```
+**Branch**: `claude/add-tournament-mode-01QasZiPSCsDejDat7bJ3X2t`
+**Base**: `main`

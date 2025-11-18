@@ -94,6 +94,14 @@ class AdminService {
     return apiService.delete(`/admin/tournaments/${tournamentId}/teams/${teamId}`);
   }
 
+  async generateRandomTeams(tournamentId: string) {
+    return apiService.post<{
+      teamsCreated: number;
+      playersAssigned: number;
+      remainingPlayers: number;
+    }>(`/admin/tournaments/${tournamentId}/generate-random-teams`);
+  }
+
   /**
    * Pool Management
    */
