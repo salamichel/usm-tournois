@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@contexts/AuthContext';
-import { Menu, X, User, LogOut, Settings, Shield } from 'lucide-react';
+import { Menu, X, User, LogOut, Settings, Shield, TrendingUp } from 'lucide-react';
 import { useState } from 'react';
 
 const Header = () => {
@@ -32,6 +32,10 @@ const Header = () => {
           <div className="hidden md:flex items-center space-x-4">
             <Link to="/" className="text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium">
               Tournois
+            </Link>
+            <Link to="/classement" className="text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1">
+              <TrendingUp size={16} />
+              Classement
             </Link>
 
             {isAuthenticated ? (
@@ -104,6 +108,13 @@ const Header = () => {
               onClick={() => setMobileMenuOpen(false)}
             >
               Tournois
+            </Link>
+            <Link
+              to="/classement"
+              className="block text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-base font-medium"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Classement
             </Link>
 
             {isAuthenticated ? (

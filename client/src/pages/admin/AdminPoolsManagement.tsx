@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import AdminLayout from '@components/AdminLayout';
+import MatchScoreModal from '@components/admin/MatchScoreModal';
 import adminService from '@services/admin.service';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Plus, Edit2, Trash2, Users, Trophy } from 'lucide-react';
+import { ArrowLeft, Plus, Edit2, Trash2, Users, Trophy, Save, X as XIcon } from 'lucide-react';
 
 const AdminPoolsManagement = () => {
   const { tournamentId } = useParams();
@@ -12,6 +13,11 @@ const AdminPoolsManagement = () => {
   const [teams, setTeams] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [newPoolName, setNewPoolName] = useState('');
+
+  // Modal states
+  const [scoreModalOpen, setScoreModalOpen] = useState(false);
+  const [selectedMatch, setSelectedMatch] = useState<any>(null);
+  const [selectedPoolId, setSelectedPoolId] = useState<string>('');
 
   useEffect(() => {
     loadData();
@@ -26,9 +32,9 @@ const AdminPoolsManagement = () => {
         adminService.getTeams(tournamentId!),
       ]);
 
-      setTournament(tournamentRes.tournament);
-      setPools(poolsRes.pools || []);
-      setTeams(teamsRes.teams || []);
+      setTournament(tournamentRes.tournament || tournamentRes.data?.tournament);
+      setPools(poolsRes.pools || poolsRes.data?.pools || []);
+      setTeams(teamsRes.teams || teamsRes.data?.teams || []);
     } catch (error: any) {
       toast.error(error.message || 'Erreur lors du chargement');
     } finally {
@@ -69,6 +75,45 @@ const AdminPoolsManagement = () => {
       loadData();
     } catch (error: any) {
       toast.error(error.message || 'Erreur lors de l\'assignation');
+    }
+  };
+
+  const handleUpdatePoolName = async (poolId: string, newName: string) => {
+    try {
+      await adminService.updatePoolName(tournamentId!, poolId, newName);
+      toast.success('Nom de la poule mis à jour');
+      loadData();
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur lors de la mise à jour');
+    }
+  };
+
+  const handleDeletePool = async (poolId: string, poolName: string) => {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer la poule "${poolName}" ? Tous les matchs associés seront également supprimés.`)) return;
+
+    try {
+      await adminService.deletePool(tournamentId!, poolId);
+      toast.success('Poule supprimée avec succès');
+      loadData();
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur lors de la suppression');
+    }
+  };
+
+  const handleEditMatchScore = (match: any, poolId: string) => {
+    setSelectedMatch(match);
+    setSelectedPoolId(poolId);
+    setScoreModalOpen(true);
+  };
+
+  const handleSaveMatchScore = async (sets: any[]) => {
+    try {
+      await adminService.updatePoolMatchScore(tournamentId!, selectedPoolId, selectedMatch.id, sets);
+      toast.success('Score mis à jour avec succès');
+      loadData();
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur lors de la mise à jour du score');
+      throw error;
     }
   };
 
@@ -160,8 +205,12 @@ const AdminPoolsManagement = () => {
               teams={teams}
               tournamentId={tournamentId!}
               colorIndex={index}
+              tournament={tournament}
               onGenerateMatches={handleGenerateMatches}
               onAssignTeams={handleAssignTeams}
+              onUpdateName={handleUpdatePoolName}
+              onDelete={handleDeletePool}
+              onEditMatchScore={handleEditMatchScore}
             />
           ))}
         </div>
@@ -172,6 +221,16 @@ const AdminPoolsManagement = () => {
           </div>
         )}
       </div>
+
+      {/* Score Modal */}
+      <MatchScoreModal
+        isOpen={scoreModalOpen}
+        onClose={() => setScoreModalOpen(false)}
+        onSave={handleSaveMatchScore}
+        match={selectedMatch}
+        setsToWin={tournament?.setsPerMatchPool || 1}
+        pointsPerSet={tournament?.pointsPerSetPool || 21}
+      />
     </AdminLayout>
   );
 };
@@ -180,12 +239,27 @@ interface PoolCardProps {
   pool: any;
   teams: any[];
   tournamentId: string;
+  tournament: any;
   colorIndex: number;
   onGenerateMatches: (poolId: string) => void;
   onAssignTeams: (poolId: string, teamIds: string[]) => void;
+  onUpdateName: (poolId: string, newName: string) => void;
+  onDelete: (poolId: string, poolName: string) => void;
+  onEditMatchScore: (match: any, poolId: string) => void;
 }
 
-const PoolCard = ({ pool, teams, tournamentId, colorIndex, onGenerateMatches, onAssignTeams }: PoolCardProps) => {
+const PoolCard = ({
+  pool,
+  teams,
+  tournamentId,
+  tournament,
+  colorIndex,
+  onGenerateMatches,
+  onAssignTeams,
+  onUpdateName,
+  onDelete,
+  onEditMatchScore,
+}: PoolCardProps) => {
   const colors = ['bg-blue-50', 'bg-green-50', 'bg-purple-50', 'bg-red-50', 'bg-yellow-50'];
   const borderColors = ['border-blue-200', 'border-green-200', 'border-purple-200', 'border-red-200', 'border-yellow-200'];
   const colorClass = colors[colorIndex % colors.length];
@@ -194,6 +268,8 @@ const PoolCard = ({ pool, teams, tournamentId, colorIndex, onGenerateMatches, on
   const [selectedTeams, setSelectedTeams] = useState<string[]>(
     pool.teams?.map((t: any) => t.id) || []
   );
+  const [editingName, setEditingName] = useState(false);
+  const [newName, setNewName] = useState(pool.name);
 
   const handleToggleTeam = (teamId: string) => {
     setSelectedTeams(prev =>
@@ -206,13 +282,72 @@ const PoolCard = ({ pool, teams, tournamentId, colorIndex, onGenerateMatches, on
     onAssignTeams(pool.id, selectedTeams);
   };
 
+  const handleSaveName = () => {
+    if (newName.trim() && newName !== pool.name) {
+      onUpdateName(pool.id, newName.trim());
+    }
+    setEditingName(false);
+  };
+
   return (
     <div className={`${colorClass} border ${borderClass} rounded-lg p-6`}>
+      {/* Header with name edit */}
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-2xl font-bold">{pool.name}</h3>
-        <button className="text-red-600 hover:text-red-800">
-          <Trash2 size={20} />
-        </button>
+        {editingName ? (
+          <div className="flex items-center gap-2 flex-1">
+            <input
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              className="flex-1 px-2 py-1 border border-gray-300 rounded text-xl font-bold"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSaveName();
+                if (e.key === 'Escape') {
+                  setEditingName(false);
+                  setNewName(pool.name);
+                }
+              }}
+            />
+            <button
+              onClick={handleSaveName}
+              className="text-green-600 hover:text-green-800"
+              title="Enregistrer"
+            >
+              <Save size={20} />
+            </button>
+            <button
+              onClick={() => {
+                setEditingName(false);
+                setNewName(pool.name);
+              }}
+              className="text-gray-600 hover:text-gray-800"
+              title="Annuler"
+            >
+              <XIcon size={20} />
+            </button>
+          </div>
+        ) : (
+          <>
+            <h3 className="text-2xl font-bold">{pool.name}</h3>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setEditingName(true)}
+                className="text-blue-600 hover:text-blue-800"
+                title="Renommer"
+              >
+                <Edit2 size={20} />
+              </button>
+              <button
+                onClick={() => onDelete(pool.id, pool.name)}
+                className="text-red-600 hover:text-red-800"
+                title="Supprimer"
+              >
+                <Trash2 size={20} />
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Classement */}
@@ -281,7 +416,7 @@ const PoolCard = ({ pool, teams, tournamentId, colorIndex, onGenerateMatches, on
         </form>
       </div>
 
-      {/* Génération des matchs */}
+      {/* Matchs */}
       <div>
         <h4 className="text-lg font-semibold mb-2">Matchs</h4>
         <button
@@ -293,25 +428,44 @@ const PoolCard = ({ pool, teams, tournamentId, colorIndex, onGenerateMatches, on
 
         {pool.matches && pool.matches.length > 0 && (
           <div className="text-sm space-y-2">
-            {pool.matches.slice(0, 5).map((match: any, idx: number) => (
-              <div key={idx} className="bg-white p-2 rounded border border-gray-200">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs">{match.team1?.name || 'Équipe 1'}</span>
-                  <span className="text-xs font-semibold">vs</span>
-                  <span className="text-xs">{match.team2?.name || 'Équipe 2'}</span>
+            {pool.matches.map((match: any) => (
+              <div key={match.id} className="bg-white p-3 rounded border border-gray-200">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-xs font-medium">{match.team1?.name || 'Équipe 1'}</span>
+                  <span className="text-xs font-semibold text-gray-400">VS</span>
+                  <span className="text-xs font-medium">{match.team2?.name || 'Équipe 2'}</span>
                 </div>
-                {match.status === 'completed' && (
-                  <div className="text-center text-xs text-gray-600 mt-1">
-                    Score: {match.score1}-{match.score2}
+
+                {/* Score display */}
+                {match.sets && match.sets.length > 0 && (
+                  <div className="flex justify-center gap-2 mb-2">
+                    {match.sets.map((set: any, idx: number) => (
+                      <div key={idx} className="text-xs">
+                        <span className={set.score1 > set.score2 ? 'font-bold' : ''}>{set.score1 ?? '-'}</span>
+                        <span className="mx-1">:</span>
+                        <span className={set.score2 > set.score1 ? 'font-bold' : ''}>{set.score2 ?? '-'}</span>
+                      </div>
+                    ))}
                   </div>
                 )}
+
+                {/* Status */}
+                <div className="flex justify-between items-center">
+                  <span className={`text-xs px-2 py-1 rounded ${
+                    match.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                  }`}>
+                    {match.status === 'completed' ? 'Terminé' : 'En attente'}
+                  </span>
+                  <button
+                    onClick={() => onEditMatchScore(match, pool.id)}
+                    className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                  >
+                    <Edit2 size={14} />
+                    Modifier
+                  </button>
+                </div>
               </div>
             ))}
-            {pool.matches.length > 5 && (
-              <p className="text-xs text-gray-600 text-center">
-                +{pool.matches.length - 5} autres matchs
-              </p>
-            )}
           </div>
         )}
       </div>
