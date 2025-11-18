@@ -171,31 +171,49 @@ const AdminEliminationManagement = () => {
 
                         {/* Teams and scores */}
                         <div className="space-y-2 mb-3">
-                          <div className={`flex justify-between items-center p-3 rounded ${
-                            match.winnerId === match.team1?.id ? 'bg-green-50 border-2 border-green-300 font-bold' : 'bg-gray-50 border border-gray-200'
+                          <div className={`p-3 rounded ${
+                            match.winnerId === match.team1?.id ? 'bg-green-50 border-2 border-green-300' : 'bg-gray-50 border border-gray-200'
                           }`}>
-                            <span className="flex-1">{match.team1?.name || 'À déterminer'}</span>
-                            {match.sets && match.sets.length > 0 && (
-                              <div className="flex gap-2">
-                                {match.sets.map((set: any, idx: number) => (
-                                  <span key={idx} className="text-sm min-w-[24px] text-center">
-                                    {set.score1 ?? '-'}
-                                  </span>
-                                ))}
+                            <div className="flex justify-between items-center">
+                              <span className={`flex-1 ${match.winnerId === match.team1?.id ? 'font-bold' : ''}`}>
+                                {match.team1?.name || 'À déterminer'}
+                              </span>
+                              {match.sets && match.sets.length > 0 && (
+                                <div className="flex gap-2">
+                                  {match.sets.map((set: any, idx: number) => (
+                                    <span key={idx} className="text-sm min-w-[24px] text-center">
+                                      {set.score1 ?? '-'}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            {match.team1?.members && match.team1.members.length > 0 && (
+                              <div className="mt-1 text-xs text-gray-500">
+                                {match.team1.members.map((m: any) => m.pseudo || m.name).join(' / ')}
                               </div>
                             )}
                           </div>
-                          <div className={`flex justify-between items-center p-3 rounded ${
-                            match.winnerId === match.team2?.id ? 'bg-green-50 border-2 border-green-300 font-bold' : 'bg-gray-50 border border-gray-200'
+                          <div className={`p-3 rounded ${
+                            match.winnerId === match.team2?.id ? 'bg-green-50 border-2 border-green-300' : 'bg-gray-50 border border-gray-200'
                           }`}>
-                            <span className="flex-1">{match.team2?.name || 'À déterminer'}</span>
-                            {match.sets && match.sets.length > 0 && (
-                              <div className="flex gap-2">
-                                {match.sets.map((set: any, idx: number) => (
-                                  <span key={idx} className="text-sm min-w-[24px] text-center">
-                                    {set.score2 ?? '-'}
-                                  </span>
-                                ))}
+                            <div className="flex justify-between items-center">
+                              <span className={`flex-1 ${match.winnerId === match.team2?.id ? 'font-bold' : ''}`}>
+                                {match.team2?.name || 'À déterminer'}
+                              </span>
+                              {match.sets && match.sets.length > 0 && (
+                                <div className="flex gap-2">
+                                  {match.sets.map((set: any, idx: number) => (
+                                    <span key={idx} className="text-sm min-w-[24px] text-center">
+                                      {set.score2 ?? '-'}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            {match.team2?.members && match.team2.members.length > 0 && (
+                              <div className="mt-1 text-xs text-gray-500">
+                                {match.team2.members.map((m: any) => m.pseudo || m.name).join(' / ')}
                               </div>
                             )}
                           </div>

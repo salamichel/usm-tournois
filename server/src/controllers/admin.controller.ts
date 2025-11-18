@@ -623,12 +623,43 @@ export const getEliminationMatches = async (req: Request, res: Response) => {
       .orderBy('matchNumber')
       .get();
 
-    const matches = eliminationMatchesSnapshot.docs.map((doc) =>
-      convertTimestamps({
+    // Fetch all teams to get player information
+    const teamsSnapshot = await adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('teams')
+      .get();
+
+    const teamsMap: Record<string, any> = {};
+    teamsSnapshot.docs.forEach((doc) => {
+      const teamData = doc.data();
+      teamsMap[doc.id] = {
         id: doc.id,
-        ...doc.data(),
-      })
-    );
+        name: teamData.name,
+        members: teamData.members || [],
+      };
+    });
+
+    // Enrich matches with player information
+    const matches = eliminationMatchesSnapshot.docs.map((doc) => {
+      const matchData = doc.data();
+      const enrichedMatch: any = convertTimestamps({
+        id: doc.id,
+        ...matchData,
+      });
+
+      // Add players to team1
+      if (enrichedMatch.team1?.id && teamsMap[enrichedMatch.team1.id]) {
+        enrichedMatch.team1.members = teamsMap[enrichedMatch.team1.id].members;
+      }
+
+      // Add players to team2
+      if (enrichedMatch.team2?.id && teamsMap[enrichedMatch.team2.id]) {
+        enrichedMatch.team2.members = teamsMap[enrichedMatch.team2.id].members;
+      }
+
+      return enrichedMatch;
+    });
 
     // Also fetch final ranking
     const finalRankingSnapshot = await adminDb
