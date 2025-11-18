@@ -92,8 +92,25 @@ const HomePage = () => {
             <Link
               key={tournament.id}
               to={`/tournoi/${tournament.id}`}
-              className="card hover:shadow-lg transition-shadow"
+              className="card hover:shadow-lg transition-shadow relative"
             >
+              {/* Badge de statut en position absolue en haut à droite */}
+              <div className="absolute top-3 right-3 z-10">
+                <span
+                  className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold shadow-lg ${
+                    tournament.status === 'Ouvert'
+                      ? 'bg-green-500 text-white'
+                      : tournament.status === 'Complet'
+                      ? 'bg-red-500 text-white'
+                      : tournament.status === 'Liste d\'attente'
+                      ? 'bg-yellow-500 text-white'
+                      : 'bg-blue-500 text-white'
+                  }`}
+                >
+                  {tournament.status}
+                </span>
+              </div>
+
               {tournament.coverImage && (
                 <img
                   src={tournament.coverImage}
@@ -125,22 +142,6 @@ const HomePage = () => {
                       {tournament.registeredTeamsCount} / {tournament.maxTeams} équipes
                     </span>
                   </div>
-                </div>
-
-                <div className="mt-4">
-                  <span
-                    className={`badge ${
-                      tournament.status === 'Ouvert'
-                        ? 'badge-success'
-                        : tournament.status === 'Complet'
-                        ? 'badge-danger'
-                        : tournament.status === 'Liste d\'attente'
-                        ? 'badge-warning'
-                        : 'badge-info'
-                    }`}
-                  >
-                    {tournament.status}
-                  </span>
                 </div>
               </div>
             </Link>
