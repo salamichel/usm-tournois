@@ -159,17 +159,17 @@ const HomePage = () => {
               {/* Section des barres de progression */}
               <div className="p-5">
                 <div className="space-y-4">
-                  {/* Barre équipes */}
+                  {/* Barre équipes complètes */}
                   <div>
                     <div className="text-sm text-gray-700 mb-1 flex justify-between">
-                      <span>Équipes</span>
-                      <span>{tournament.registeredTeamsCount} / {tournament.maxTeams}</span>
+                      <span>Équipes complètes</span>
+                      <span>{(tournament as any).completeTeamsCount || 0} / {tournament.maxTeams}</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2.5">
                       <div
                         className="bg-blue-600 h-2.5 rounded-full"
                         style={{
-                          width: `${Math.min((tournament.registeredTeamsCount / tournament.maxTeams) * 100, 100)}%`
+                          width: `${Math.min((((tournament as any).completeTeamsCount || 0) / tournament.maxTeams) * 100, 100)}%`
                         }}
                       ></div>
                     </div>

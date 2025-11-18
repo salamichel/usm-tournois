@@ -50,6 +50,7 @@ export const getAllTournaments = async (req: Request, res: Response) => {
           id: doc.id,
           ...tournamentData,
           registeredTeamsCount: teamsSnapshot.size,
+          completeTeamsCount: completeTeamsCount,
           status: statusInfo.status,
         };
 
