@@ -18,6 +18,7 @@ import adminRoutes from './routes/admin.routes';
 import kingRoutes from './routes/king.routes';
 import playerRankingRoutes from './routes/playerRanking.routes';
 import clubRoutes from './routes/club.routes';
+import flexibleKingRoutes from './routes/flexible-king.routes';
 
 // Middlewares
 import { errorHandler } from './middlewares/error.middleware';
@@ -107,6 +108,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/king', kingRoutes);
 app.use('/api/players', playerRankingRoutes);
 app.use('/api/clubs', clubRoutes);
+app.use('/api/flexible-king', flexibleKingRoutes);
 
 // --- Error Handler ---
 app.use(errorHandler);
