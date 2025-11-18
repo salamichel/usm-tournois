@@ -9,7 +9,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isAdmin: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
-  signup: (data: CreateUserDto) => Promise<void>;
+  signup: (data: CreateUserDto) => Promise<{ virtualAccountFound?: boolean; virtualUserId?: string; pseudo?: string; level?: string }>;
+  claimVirtualAccount: (data: { email: string; password: string; pseudo: string; level: string; virtualUserId: string }) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -71,12 +72,46 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signup = async (data: CreateUserDto) => {
     try {
       const response = await authService.signup(data);
+
+      // Check if virtual account was found
+      if (!response.success && (response as any).virtualAccountFound) {
+        return {
+          virtualAccountFound: true,
+          virtualUserId: (response as any).data?.virtualUserId,
+          pseudo: (response as any).data?.pseudo,
+          level: (response as any).data?.level,
+        };
+      }
+
       if (response.success && response.data) {
         setUser(response.data.user);
         toast.success('Compte créé avec succès !');
+        return {};
       }
+
+      return {};
     } catch (error: any) {
       const message = error.response?.data?.error?.message || 'Erreur lors de l\'inscription';
+      toast.error(message);
+      throw error;
+    }
+  };
+
+  const claimVirtualAccount = async (data: {
+    email: string;
+    password: string;
+    pseudo: string;
+    level: string;
+    virtualUserId: string;
+  }) => {
+    try {
+      const response = await authService.claimVirtualAccount(data);
+      if (response.success && response.data) {
+        setUser(response.data.user);
+        toast.success('Compte virtuel récupéré avec succès !');
+      }
+    } catch (error: any) {
+      const message = error.response?.data?.error?.message || 'Erreur lors de la récupération du compte';
       toast.error(message);
       throw error;
     }
@@ -105,6 +140,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAdmin,
     login,
     signup,
+    claimVirtualAccount,
     logout,
     refreshUser,
   };
