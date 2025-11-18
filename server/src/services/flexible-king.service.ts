@@ -476,13 +476,14 @@ export function initializeFlexibleKingTournament(
     id: `phase-${index + 1}`,
     tournamentId: '', // Will be set when saved
     phaseNumber: config.phaseNumber,
-    status: 'not_configured' as FlexiblePhaseStatus,
+    status: 'configured' as FlexiblePhaseStatus, // Set to configured since config is provided
     config,
     participantIds: [],
     qualifiedIds: [],
     withdrawnIds: [],
     repechedIds: [],
     createdAt: new Date(),
+    configuredAt: new Date(),
   }));
 
   return {
