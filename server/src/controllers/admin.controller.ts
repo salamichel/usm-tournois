@@ -1095,8 +1095,8 @@ export const getAllUsers = async (req: Request, res: Response) => {
         if (user.email && user.email.endsWith('@virtual.tournoi.com')) {
           return false;
         }
-        // Exclude fake players (pseudo "JoueurFactice")
-        if (user.pseudo === 'JoueurFactice') {
+        // Exclude fake players (pseudo starting with "JoueurFactice")
+        if (user.pseudo && user.pseudo.startsWith('JoueurFactice')) {
           return false;
         }
         return true;
