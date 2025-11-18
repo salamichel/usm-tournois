@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { adminDb } from '../config/firebase.config';
 import * as flexibleKingService from '../services/flexible-king.service';
 import * as kingService from '../services/king.service';
+import * as playerPointsService from '../services/playerPoints.service';
 import type {
   FlexibleKingPhase,
   FlexibleKingTournamentData,
@@ -36,32 +37,33 @@ export const getFlexibleKingDashboard = async (req: Request, res: Response) => {
       });
     }
 
-    const kingData = flexKingDoc.data() as FlexibleKingTournamentData;
+    const kingData = (flexKingDoc.data() || {}) as FlexibleKingTournamentData;
 
     // Load all phases with their pools and matches
     const phasesSnapshot = await flexKingDocRef.collection('phases').get();
     const phases: FlexibleKingPhase[] = [];
 
     for (const phaseDoc of phasesSnapshot.docs) {
-      const phase = { id: phaseDoc.id, ...phaseDoc.data() } as FlexibleKingPhase;
+      const phaseData = phaseDoc.data() || {};
+      const phase = { id: phaseDoc.id, ...phaseData } as FlexibleKingPhase;
 
       // Load pools if phase is configured or in progress
-      if (phase.status !== 'not_configured') {
+      if (phase.status && phase.status !== 'not_configured') {
         const poolsSnapshot = await phaseDoc.ref.collection('pools').get();
         const pools: KingPool[] = [];
         const matches: KingMatch[] = [];
 
         for (const poolDoc of poolsSnapshot.docs) {
-          const poolData = poolDoc.data();
+          const poolData = poolDoc.data() || {};
           const matchesSnapshot = await poolDoc.ref.collection('matches').get();
-          const poolMatches = matchesSnapshot.docs.map((m) => ({ id: m.id, ...m.data() })) as KingMatch[];
+          const poolMatches = matchesSnapshot.docs.map((m) => ({ id: m.id, ...(m.data() || {}) })) as KingMatch[];
 
           pools.push({
             id: poolDoc.id,
-            name: poolData.name,
+            name: poolData.name || `Pool ${poolDoc.id}`,
             players: poolData.players || [],
             matches: poolMatches,
-            playerCount: poolData.playerCount,
+            playerCount: poolData.playerCount || 0,
             createdAt: poolData.createdAt,
           });
 
@@ -86,6 +88,10 @@ export const getFlexibleKingDashboard = async (req: Request, res: Response) => {
       .collection('unassignedPlayers')
       .get();
     const registeredPlayersCount = unassignedPlayersSnapshot.size;
+
+    console.log(`[Flexible King Dashboard] Tournament: ${tournamentId}`);
+    console.log(`[Flexible King Dashboard] Registered players count: ${registeredPlayersCount}`);
+    console.log(`[Flexible King Dashboard] Unassigned players path: events/${tournamentId}/unassignedPlayers`);
 
     res.json({
       success: true,
@@ -334,10 +340,19 @@ export const startFlexibleKingPhase = async (req: Request, res: Response) => {
     }
 
     // Generate pools and matches
+    console.log(`[startFlexibleKingPhase] Phase ${phaseNumber} config:`, JSON.stringify(phase.config, null, 2));
+    console.log(`[startFlexibleKingPhase] Participants: ${phase.participantIds.length}`);
+    console.log(`[startFlexibleKingPhase] Registered players: ${registeredPlayers.length}`);
+
     const { pools, matches } = flexibleKingService.generatePhasePoolsAndMatches(
       phase,
       registeredPlayers
     );
+
+    console.log(`[startFlexibleKingPhase] Generated ${pools.length} pools with ${matches.length} total matches`);
+    pools.forEach((pool, idx) => {
+      console.log(`  - Pool ${idx + 1}: ${pool.players.length} players, ${pool.matches.length} matches`);
+    });
 
     const batch = adminDb.batch();
 
@@ -1057,6 +1072,219 @@ export const getRepechageCandidates = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: 'Error getting repechage candidates',
+    });
+  }
+};
+
+/**
+ * Set random scores for all incomplete matches in current phase
+ * For testing purposes only
+ */
+export const setAllMatchesRandomScores = async (req: Request, res: Response) => {
+  const { tournamentId } = req.params;
+
+  try {
+    const tournamentRef = adminDb.collection('events').doc(tournamentId);
+    const tournamentDoc = await tournamentRef.get();
+
+    if (!tournamentDoc.exists) {
+      return res.status(404).json({ success: false, message: 'Tournament not found' });
+    }
+
+    const flexKingDocRef = tournamentRef.collection('flexibleKing').doc('mainData');
+    const flexKingDoc = await flexKingDocRef.get();
+
+    if (!flexKingDoc.exists) {
+      return res.status(404).json({ success: false, message: 'Flexible King Mode not initialized' });
+    }
+
+    const kingData = flexKingDoc.data();
+    const currentPhaseNumber = kingData?.currentPhaseNumber;
+
+    if (!currentPhaseNumber) {
+      return res.status(400).json({ success: false, message: 'No active phase to set scores for' });
+    }
+
+    const phaseDocRef = flexKingDocRef.collection('phases').doc(`phase-${currentPhaseNumber}`);
+    const phaseDoc = await phaseDocRef.get();
+
+    if (!phaseDoc.exists) {
+      return res.status(404).json({ success: false, message: `Phase ${currentPhaseNumber} not found` });
+    }
+
+    const phase = phaseDoc.data();
+    if (phase?.status !== 'in_progress') {
+      return res.status(400).json({ success: false, message: 'Phase must be in progress to set scores' });
+    }
+
+    const batch = adminDb.batch();
+    let matchesUpdatedCount = 0;
+    const allPhaseMatches: any[] = [];
+
+    // Random score options (2-0, 2-1, 0-2, 1-2)
+    const scoreOptions = [
+      { s1: 2, s2: 0 }, { s1: 2, s2: 1 },
+      { s1: 0, s2: 2 }, { s1: 1, s2: 2 }
+    ];
+
+    const poolsSnapshot = await phaseDocRef.collection('pools').get();
+    for (const poolDoc of poolsSnapshot.docs) {
+      const matchesSnapshot = await poolDoc.ref.collection('matches').get();
+      for (const matchDoc of matchesSnapshot.docs) {
+        const matchData: any = { id: matchDoc.id, ...matchDoc.data() };
+
+        if (matchData.status !== 'completed') {
+          // Generate random score
+          const randomScore = scoreOptions[Math.floor(Math.random() * scoreOptions.length)];
+
+          matchData.setsWonTeam1 = randomScore.s1;
+          matchData.setsWonTeam2 = randomScore.s2;
+          matchData.status = 'completed';
+          matchData.updatedAt = new Date();
+
+          // Determine winner
+          let winnerTeam = null;
+          if (matchData.setsWonTeam1 > matchData.setsWonTeam2) {
+            winnerTeam = matchData.team1;
+          } else if (matchData.setsWonTeam2 > matchData.setsWonTeam1) {
+            winnerTeam = matchData.team2;
+          }
+          matchData.winnerTeam = winnerTeam;
+          matchData.winnerName = winnerTeam ? winnerTeam.name : null;
+          matchData.winnerPlayerIds = winnerTeam ? winnerTeam.members.map((m: any) => m.id) : [];
+
+          batch.update(matchDoc.ref, matchData);
+          matchesUpdatedCount++;
+        }
+        allPhaseMatches.push(matchData);
+      }
+    }
+
+    if (matchesUpdatedCount === 0) {
+      return res.json({ success: true, message: 'Tous les matchs sont déjà terminés' });
+    }
+
+    // Update phase ranking
+    const ranking = kingService.calculateKingRanking(allPhaseMatches);
+    batch.update(phaseDocRef, {
+      ranking,
+      updatedAt: new Date()
+    });
+
+    await batch.commit();
+
+    console.log(`✅ Set random scores for ${matchesUpdatedCount} matches in phase ${currentPhaseNumber}`);
+
+    res.json({
+      success: true,
+      message: `${matchesUpdatedCount} matchs mis à jour avec des scores aléatoires`,
+      data: {
+        matchesUpdated: matchesUpdatedCount,
+        totalMatches: allPhaseMatches.length
+      }
+    });
+  } catch (error) {
+    console.error('Error setting random scores:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error setting random scores',
+    });
+  }
+};
+
+/**
+ * Freeze tournament and award ranking points to players
+ */
+export const freezeFlexibleKingTournament = async (req: Request, res: Response) => {
+  const { tournamentId } = req.params;
+
+  try {
+    const tournamentRef = adminDb.collection('events').doc(tournamentId);
+    const tournamentDoc = await tournamentRef.get();
+
+    if (!tournamentDoc.exists) {
+      return res.status(404).json({ success: false, message: 'Tournament not found' });
+    }
+
+    const tournament = tournamentDoc.data();
+
+    const flexKingDocRef = tournamentRef.collection('flexibleKing').doc('mainData');
+    const flexKingDoc = await flexKingDocRef.get();
+
+    if (!flexKingDoc.exists) {
+      return res.status(404).json({ success: false, message: 'Flexible King Mode not initialized' });
+    }
+
+    const kingData = flexKingDoc.data();
+
+    // Check if already frozen
+    if (kingData?.status === 'frozen') {
+      return res.status(400).json({ success: false, message: 'Tournament is already frozen' });
+    }
+
+    // Get all phases
+    const phasesSnapshot = await flexKingDocRef.collection('phases').get();
+    const phases = phasesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as FlexibleKingPhase[];
+
+    // Find the last phase
+    const lastPhase = phases.sort((a, b) => b.phaseNumber - a.phaseNumber)[0];
+
+    if (!lastPhase || lastPhase.status !== 'completed') {
+      return res.status(400).json({
+        success: false,
+        message: 'La dernière phase doit être terminée pour figer le tournoi'
+      });
+    }
+
+    // Get final ranking from last phase
+    const finalRanking = lastPhase.ranking;
+
+    if (!finalRanking || finalRanking.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Pas de classement disponible pour la dernière phase'
+      });
+    }
+
+    // Award points to all players based on final ranking
+    const result = await playerPointsService.awardPointsToFlexibleKingPlayers(
+      tournamentId,
+      tournament?.name || 'Tournoi Flexible King',
+      tournament?.date?.toDate() || new Date(),
+      finalRanking
+    );
+
+    // Update tournament status to frozen
+    await flexKingDocRef.update({
+      status: 'frozen',
+      frozenAt: new Date(),
+      finalRanking: finalRanking,
+      pointsAwarded: true
+    });
+
+    // Also update main tournament document
+    await tournamentRef.update({
+      status: 'frozen',
+      isFrozen: true,
+      frozenAt: new Date()
+    });
+
+    console.log(`✅ Frozen Flexible King tournament ${tournamentId}: ${result.playersUpdated} players awarded points`);
+
+    res.json({
+      success: true,
+      message: `Tournoi figé ! ${result.playersUpdated} joueurs ont reçu leurs points de classement`,
+      data: {
+        playersUpdated: result.playersUpdated,
+        totalPointsAwarded: result.totalPoints,
+        winner: finalRanking[0]?.playerPseudo || 'Unknown'
+      }
+    });
+  } catch (error) {
+    console.error('Error freezing tournament:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error freezing tournament',
     });
   }
 };

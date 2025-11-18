@@ -167,6 +167,18 @@ export const getKingDashboard = async (req: Request, res: Response) => {
       }
     }
 
+    // Get unassigned players (free players)
+    const unassignedPlayersSnapshot = await adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('unassignedPlayers')
+      .get();
+
+    const unassignedPlayers = unassignedPlayersSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
     // Calculate statistics
     const stats = {
       totalPlayers: 0,
@@ -175,6 +187,7 @@ export const getKingDashboard = async (req: Request, res: Response) => {
       pendingMatches: 0,
       totalPools: 0,
       totalRounds: 0,
+      unassignedPlayersCount: unassignedPlayers.length,
     };
 
     allPhases.forEach((phase) => {
@@ -206,6 +219,7 @@ export const getKingDashboard = async (req: Request, res: Response) => {
         currentPhase,
         allPhases,
         stats,
+        unassignedPlayers,
       },
     });
   } catch (error: any) {

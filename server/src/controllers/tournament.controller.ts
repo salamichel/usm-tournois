@@ -127,10 +127,16 @@ export const getTournamentById = async (req: Request, res: Response) => {
       .doc(id)
       .collection('unassignedPlayers')
       .get();
-    const unassignedPlayers = unassignedPlayersSnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    const unassignedPlayers = unassignedPlayersSnapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        userId: data.userId || doc.id, // Ensure userId is set
+        pseudo: data.pseudo || 'Unknown',
+        level: data.level || 'N/A',
+        ...data,
+      };
+    });
 
     // Get pools and matches
     const poolsSnapshot = await adminDb

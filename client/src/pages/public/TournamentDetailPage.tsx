@@ -632,7 +632,7 @@ const TournamentDetailPage = () => {
                   S'inscrire au tournoi
                 </h2>
                 <p className="text-gray-600 mb-4">
-                  {tournament?.registrationMode === 'random'
+                  {tournament?.registrationMode === 'random' || tournament?.tournamentFormat === 'king'
                     ? 'Inscrivez-vous comme joueur. Les équipes seront générées de manière équilibrée par niveau par l\'admin.'
                     : 'Choisissez votre mode d\'inscription'}
                 </p>
@@ -645,7 +645,7 @@ const TournamentDetailPage = () => {
                     <UserPlus size={20} className="mr-2" />
                     S'inscrire comme joueur
                   </button>
-                  {tournament?.registrationMode !== 'random' && (
+                  {tournament?.registrationMode !== 'random' && tournament?.tournamentFormat !== 'king' && (
                     <button
                       onClick={() => setShowCreateTeamModal(true)}
                       disabled={processingAction}
