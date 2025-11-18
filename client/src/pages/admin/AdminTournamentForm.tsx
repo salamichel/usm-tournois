@@ -665,169 +665,171 @@ const AdminTournamentForm = () => {
             </div>
           </div>
 
-          {/* Paramètres des Matchs */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-bold mb-4">Paramètres des Matchs</h2>
+          {/* Paramètres des Matchs - Seulement en mode Classic */}
+          {formData.tournamentFormat === 'classic' && (
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h2 className="text-xl font-bold mb-4">Paramètres des Matchs</h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="setsPerMatchPool" className="block text-sm font-medium text-gray-700 mb-1">
-                  Sets par match (Poules)
-                </label>
-                <input
-                  type="number"
-                  id="setsPerMatchPool"
-                  name="setsPerMatchPool"
-                  value={formData.setsPerMatchPool}
-                  onChange={handleChange}
-                  min="1"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="pointsPerSetPool" className="block text-sm font-medium text-gray-700 mb-1">
-                  Points par set (Poules)
-                </label>
-                <input
-                  type="number"
-                  id="pointsPerSetPool"
-                  name="pointsPerSetPool"
-                  value={formData.pointsPerSetPool}
-                  onChange={handleChange}
-                  min="1"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="matchFormat" className="block text-sm font-medium text-gray-700 mb-1">
-                  Format des matchs *
-                </label>
-                <select
-                  id="matchFormat"
-                  name="matchFormat"
-                  value={formData.matchFormat}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  <option value="aller">Aller simple</option>
-                  <option value="aller_retour">Aller/retour</option>
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="maxTeamsPerPool" className="block text-sm font-medium text-gray-700 mb-1">
-                  Nombre maximum d'équipes par poule
-                </label>
-                <input
-                  type="number"
-                  id="maxTeamsPerPool"
-                  name="maxTeamsPerPool"
-                  value={formData.maxTeamsPerPool}
-                  onChange={handleChange}
-                  min="2"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="teamsQualifiedPerPool" className="block text-sm font-medium text-gray-700 mb-1">
-                  Équipes qualifiées par poule
-                </label>
-                <input
-                  type="number"
-                  id="teamsQualifiedPerPool"
-                  name="teamsQualifiedPerPool"
-                  value={formData.teamsQualifiedPerPool}
-                  onChange={handleChange}
-                  min="1"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-
-            <div className="mt-4 space-y-4">
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="tieBreakEnabledPools"
-                  name="tieBreakEnabledPools"
-                  checked={formData.tieBreakEnabledPools}
-                  onChange={handleChange}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label htmlFor="tieBreakEnabledPools" className="ml-2 block text-sm font-medium text-gray-700">
-                  Activer le tie-break (Poules)
-                </label>
-              </div>
-
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="eliminationPhaseEnabled"
-                  name="eliminationPhaseEnabled"
-                  checked={formData.eliminationPhaseEnabled}
-                  onChange={handleChange}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label htmlFor="eliminationPhaseEnabled" className="ml-2 block text-sm font-medium text-gray-700">
-                  Activer la phase d'élimination
-                </label>
-              </div>
-
-              {formData.eliminationPhaseEnabled && (
-                <div className="pl-6 space-y-4 border-l-2 border-blue-500">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="setsPerMatchElimination" className="block text-sm font-medium text-gray-700 mb-1">
-                        Sets par match (Élimination)
-                      </label>
-                      <input
-                        type="number"
-                        id="setsPerMatchElimination"
-                        name="setsPerMatchElimination"
-                        value={formData.setsPerMatchElimination}
-                        onChange={handleChange}
-                        min="1"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label htmlFor="pointsPerSetElimination" className="block text-sm font-medium text-gray-700 mb-1">
-                        Points par set (Élimination)
-                      </label>
-                      <input
-                        type="number"
-                        id="pointsPerSetElimination"
-                        name="pointsPerSetElimination"
-                        value={formData.pointsPerSetElimination}
-                        onChange={handleChange}
-                        min="1"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="tieBreakEnabledElimination"
-                      name="tieBreakEnabledElimination"
-                      checked={formData.tieBreakEnabledElimination}
-                      onChange={handleChange}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="tieBreakEnabledElimination" className="ml-2 block text-sm font-medium text-gray-700">
-                      Activer le tie-break (Élimination)
-                    </label>
-                  </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="setsPerMatchPool" className="block text-sm font-medium text-gray-700 mb-1">
+                    Sets par match (Poules)
+                  </label>
+                  <input
+                    type="number"
+                    id="setsPerMatchPool"
+                    name="setsPerMatchPool"
+                    value={formData.setsPerMatchPool}
+                    onChange={handleChange}
+                    min="1"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
                 </div>
-              )}
+
+                <div>
+                  <label htmlFor="pointsPerSetPool" className="block text-sm font-medium text-gray-700 mb-1">
+                    Points par set (Poules)
+                  </label>
+                  <input
+                    type="number"
+                    id="pointsPerSetPool"
+                    name="pointsPerSetPool"
+                    value={formData.pointsPerSetPool}
+                    onChange={handleChange}
+                    min="1"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="matchFormat" className="block text-sm font-medium text-gray-700 mb-1">
+                    Format des matchs *
+                  </label>
+                  <select
+                    id="matchFormat"
+                    name="matchFormat"
+                    value={formData.matchFormat}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  >
+                    <option value="aller">Aller simple</option>
+                    <option value="aller_retour">Aller/retour</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="maxTeamsPerPool" className="block text-sm font-medium text-gray-700 mb-1">
+                    Nombre maximum d'équipes par poule
+                  </label>
+                  <input
+                    type="number"
+                    id="maxTeamsPerPool"
+                    name="maxTeamsPerPool"
+                    value={formData.maxTeamsPerPool}
+                    onChange={handleChange}
+                    min="2"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="teamsQualifiedPerPool" className="block text-sm font-medium text-gray-700 mb-1">
+                    Équipes qualifiées par poule
+                  </label>
+                  <input
+                    type="number"
+                    id="teamsQualifiedPerPool"
+                    name="teamsQualifiedPerPool"
+                    value={formData.teamsQualifiedPerPool}
+                    onChange={handleChange}
+                    min="1"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-4">
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="tieBreakEnabledPools"
+                    name="tieBreakEnabledPools"
+                    checked={formData.tieBreakEnabledPools}
+                    onChange={handleChange}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="tieBreakEnabledPools" className="ml-2 block text-sm font-medium text-gray-700">
+                    Activer le tie-break (Poules)
+                  </label>
+                </div>
+
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="eliminationPhaseEnabled"
+                    name="eliminationPhaseEnabled"
+                    checked={formData.eliminationPhaseEnabled}
+                    onChange={handleChange}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="eliminationPhaseEnabled" className="ml-2 block text-sm font-medium text-gray-700">
+                    Activer la phase d'élimination
+                  </label>
+                </div>
+
+                {formData.eliminationPhaseEnabled && (
+                  <div className="pl-6 space-y-4 border-l-2 border-blue-500">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label htmlFor="setsPerMatchElimination" className="block text-sm font-medium text-gray-700 mb-1">
+                          Sets par match (Élimination)
+                        </label>
+                        <input
+                          type="number"
+                          id="setsPerMatchElimination"
+                          name="setsPerMatchElimination"
+                          value={formData.setsPerMatchElimination}
+                          onChange={handleChange}
+                          min="1"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="pointsPerSetElimination" className="block text-sm font-medium text-gray-700 mb-1">
+                          Points par set (Élimination)
+                        </label>
+                        <input
+                          type="number"
+                          id="pointsPerSetElimination"
+                          name="pointsPerSetElimination"
+                          value={formData.pointsPerSetElimination}
+                          onChange={handleChange}
+                          min="1"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="tieBreakEnabledElimination"
+                        name="tieBreakEnabledElimination"
+                        checked={formData.tieBreakEnabledElimination}
+                        onChange={handleChange}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="tieBreakEnabledElimination" className="ml-2 block text-sm font-medium text-gray-700">
+                        Activer le tie-break (Élimination)
+                      </label>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Détails Logistiques et Financiers */}
           <div className="bg-white rounded-lg shadow-md p-6">

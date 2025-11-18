@@ -88,6 +88,10 @@ export const getFlexibleKingDashboard = async (req: Request, res: Response) => {
       .get();
     const registeredPlayersCount = unassignedPlayersSnapshot.size;
 
+    console.log(`[Flexible King Dashboard] Tournament: ${tournamentId}`);
+    console.log(`[Flexible King Dashboard] Registered players count: ${registeredPlayersCount}`);
+    console.log(`[Flexible King Dashboard] Unassigned players path: events/${tournamentId}/unassignedPlayers`);
+
     res.json({
       success: true,
       data: {
