@@ -74,6 +74,9 @@ export const createTournament = async (req: Request, res: Response) => {
       waitingListSize,
       whatsappGroupLink,
       registrationMode,
+      tournamentFormat,
+      minPlayers,
+      maxPlayers,
     } = req.body;
 
     // Validate required fields
@@ -109,6 +112,9 @@ export const createTournament = async (req: Request, res: Response) => {
       waitingListSize: waitingListSize ? parseInt(waitingListSize) : 0,
       whatsappGroupLink: whatsappGroupLink?.trim() || '',
       registrationMode: registrationMode || 'teams',
+      tournamentFormat: tournamentFormat || 'classic',
+      minPlayers: minPlayers ? parseInt(minPlayers) : 0,
+      maxPlayers: maxPlayers ? parseInt(maxPlayers) : 0,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -186,6 +192,9 @@ export const updateTournament = async (req: Request, res: Response) => {
       waitingListSize,
       whatsappGroupLink,
       registrationMode,
+      tournamentFormat,
+      minPlayers,
+      maxPlayers,
     } = req.body;
 
     const tournamentDoc = await adminDb.collection('events').doc(id).get();
@@ -228,6 +237,9 @@ export const updateTournament = async (req: Request, res: Response) => {
     if (waitingListSize !== undefined && waitingListSize !== null) updateData.waitingListSize = parseInt(waitingListSize);
     if (whatsappGroupLink !== undefined && whatsappGroupLink !== null) updateData.whatsappGroupLink = whatsappGroupLink.trim();
     if (registrationMode !== undefined && registrationMode !== null) updateData.registrationMode = registrationMode;
+    if (tournamentFormat !== undefined && tournamentFormat !== null) updateData.tournamentFormat = tournamentFormat;
+    if (minPlayers !== undefined && minPlayers !== null) updateData.minPlayers = parseInt(minPlayers);
+    if (maxPlayers !== undefined && maxPlayers !== null) updateData.maxPlayers = parseInt(maxPlayers);
 
     await adminDb.collection('events').doc(id).update(updateData);
 
