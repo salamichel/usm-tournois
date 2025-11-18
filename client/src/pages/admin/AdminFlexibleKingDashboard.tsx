@@ -227,6 +227,41 @@ const AdminFlexibleKingDashboard = () => {
   // Get the selected phase to display
   const displayPhase = phases.find(p => p.phaseNumber === selectedPhaseNumber);
 
+  // Helper function to group matches by round
+  const groupMatchesByRound = (matches: any[]) => {
+    if (!matches || matches.length === 0) return [];
+
+    const roundsMap = new Map<string, { id: string; name: string; matches: any[] }>();
+
+    matches.forEach(match => {
+      const roundId = match.roundId || 'unknown';
+      const roundName = match.roundName || `Tournée ${roundId}`;
+
+      if (!roundsMap.has(roundId)) {
+        roundsMap.set(roundId, {
+          id: roundId,
+          name: roundName,
+          matches: []
+        });
+      }
+
+      roundsMap.get(roundId)!.matches.push(match);
+    });
+
+    // Sort rounds by their ID (which contains the round number)
+    return Array.from(roundsMap.values()).sort((a, b) => {
+      const numA = parseInt(a.id.replace(/\D/g, '')) || 0;
+      const numB = parseInt(b.id.replace(/\D/g, '')) || 0;
+      return numA - numB;
+    });
+  };
+
+  // Transform pools to include rounds
+  const transformedPools = displayPhase?.pools?.map(pool => ({
+    ...pool,
+    rounds: groupMatchesByRound(pool.matches || [])
+  })) || [];
+
   const getPhaseStatusBadge = (status: string) => {
     switch (status) {
       case 'not_configured':
@@ -373,9 +408,9 @@ const AdminFlexibleKingDashboard = () => {
               Phase {displayPhase.phaseNumber} - Détails
             </h2>
 
-            {displayPhase.pools && displayPhase.pools.length > 0 ? (
+            {transformedPools && transformedPools.length > 0 ? (
               <div className="space-y-6">
-                {displayPhase.pools.map((pool: any) => (
+                {transformedPools.map((pool: any) => (
                   <div key={pool.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                     <h3 className="text-lg font-bold mb-4 text-primary-600">{pool.name}</h3>
 
