@@ -5,7 +5,7 @@
 
 export type UserRole = 'player' | 'captain' | 'admin';
 
-export type UserLevel = 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';
+export type UserLevel = 'Débutant' | 'Intermédiaire' | 'Confirmé';
 
 export interface User {
   uid: string;

@@ -11,7 +11,7 @@ const ProfilePage = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
     pseudo: user?.pseudo || '',
-    level: (user?.level || 'Intermediate') as UserLevel,
+    level: (user?.level || 'Intermédiaire') as UserLevel,
   });
 
   if (!user) return null;
@@ -92,10 +92,7 @@ const ProfilePage = () => {
                   <h3 className="text-sm font-medium text-gray-500">Niveau</h3>
                 </div>
                 <p className="text-lg text-gray-900 ml-8">
-                  {user.level === 'Beginner' && 'Débutant'}
-                  {user.level === 'Intermediate' && 'Intermédiaire'}
-                  {user.level === 'Advanced' && 'Avancé'}
-                  {user.level === 'Expert' && 'Expert'}
+                  {user.level}
                 </p>
               </div>
 
@@ -182,10 +179,9 @@ const ProfilePage = () => {
                   }
                   required
                 >
-                  <option value="Beginner">Débutant</option>
-                  <option value="Intermediate">Intermédiaire</option>
-                  <option value="Advanced">Avancé</option>
-                  <option value="Expert">Expert</option>
+                  <option value="Débutant">Débutant</option>
+                  <option value="Intermédiaire">Intermédiaire</option>
+                  <option value="Confirmé">Confirmé</option>
                 </select>
               </div>
             </div>
