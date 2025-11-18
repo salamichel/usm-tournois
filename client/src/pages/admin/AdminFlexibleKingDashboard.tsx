@@ -4,7 +4,7 @@ import AdminLayout from '@components/AdminLayout';
 import flexibleKingService from '@services/flexibleKing.service';
 import adminService from '@services/admin.service';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Play, Settings, CheckCircle, RotateCcw, Trophy, TrendingUp, Users } from 'lucide-react';
+import { ArrowLeft, Play, Settings, CheckCircle, RotateCcw, Trophy, TrendingUp, Users, BarChart3, Award } from 'lucide-react';
 import type { FlexibleKingPhase } from '@shared/types';
 import FlexibleKingConfigModal from '@components/FlexibleKingConfigModal';
 import MatchResultModal from '@components/MatchResultModal';
@@ -445,7 +445,21 @@ const AdminFlexibleKingDashboard = () => {
               <div className="space-y-6">
                 {transformedPools.map((pool: any) => (
                   <div key={pool.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                    <h3 className="text-lg font-bold mb-4 text-primary-600">{pool.name}</h3>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-bold text-primary-600">{pool.name}</h3>
+                      {/* Pool Statistics */}
+                      <div className="flex items-center gap-4 text-sm">
+                        <span className="flex items-center gap-1 text-gray-600">
+                          <Users size={14} />
+                          {pool.players?.length || 0} joueurs
+                        </span>
+                        <span className="flex items-center gap-1 text-gray-600">
+                          <BarChart3 size={14} />
+                          {pool.matches?.filter((m: any) => m.status === 'completed').length || 0}/
+                          {pool.matches?.length || 0} matchs
+                        </span>
+                      </div>
+                    </div>
 
                     {/* Players in Pool */}
                     {pool.players && pool.players.length > 0 && (
@@ -588,6 +602,125 @@ const AdminFlexibleKingDashboard = () => {
                     )}
                   </div>
                 ))}
+
+                {/* Provisional Ranking */}
+                {displayPhase.ranking && displayPhase.ranking.length > 0 && (
+                  <div className="border border-gray-200 rounded-lg p-4 bg-white mt-6">
+                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                      <TrendingUp className="text-blue-500" />
+                      Classement Provisoire
+                    </h3>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-sm">
+                        <thead>
+                          <tr className="bg-gray-50">
+                            <th className="px-3 py-2 text-left font-medium text-gray-700">#</th>
+                            <th className="px-3 py-2 text-left font-medium text-gray-700">Joueur</th>
+                            <th className="px-3 py-2 text-center font-medium text-gray-700">V</th>
+                            <th className="px-3 py-2 text-center font-medium text-gray-700">D</th>
+                            <th className="px-3 py-2 text-center font-medium text-gray-700">%</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {displayPhase.ranking.slice(0, 20).map((player: any, index: number) => (
+                            <tr
+                              key={player.id || index}
+                              className={`border-b ${index < displayPhase.config.totalQualified ? 'bg-green-50' : ''}`}
+                            >
+                              <td className="px-3 py-2 font-medium">
+                                {index + 1}
+                                {index < 3 && (
+                                  <span className="ml-1">
+                                    {index === 0 && '🥇'}
+                                    {index === 1 && '🥈'}
+                                    {index === 2 && '🥉'}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-3 py-2">{player.pseudo || player.name || player.id}</td>
+                              <td className="px-3 py-2 text-center text-green-600 font-medium">{player.wins || 0}</td>
+                              <td className="px-3 py-2 text-center text-red-600 font-medium">{player.losses || 0}</td>
+                              <td className="px-3 py-2 text-center">
+                                {player.wins + player.losses > 0
+                                  ? Math.round((player.wins / (player.wins + player.losses)) * 100)
+                                  : 0}%
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {displayPhase.ranking.length > 20 && (
+                      <p className="text-xs text-gray-500 mt-2 text-center">
+                        Affichage des 20 premiers sur {displayPhase.ranking.length} joueurs
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-500 mt-2">
+                      Les {displayPhase.config.totalQualified} premiers joueurs (en vert) seront qualifiés pour la phase suivante
+                    </p>
+                  </div>
+                )}
+
+                {/* Qualified Players */}
+                {displayPhase.qualifiedIds && displayPhase.qualifiedIds.length > 0 && (
+                  <div className="border border-green-200 rounded-lg p-4 bg-green-50 mt-6">
+                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                      <Award className="text-green-600" />
+                      Joueurs Qualifiés pour la Phase Suivante ({displayPhase.qualifiedIds.length})
+                    </h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                      {displayPhase.qualifiedIds.map((playerId: string, index: number) => {
+                        // Try to find player info from ranking
+                        const playerInfo = displayPhase.ranking?.find((p: any) => p.id === playerId);
+                        return (
+                          <div
+                            key={playerId}
+                            className="bg-white p-2 rounded border border-green-300 text-center"
+                          >
+                            <p className="text-xs font-medium text-green-700 truncate">
+                              {index + 1}. {playerInfo?.pseudo || playerInfo?.name || playerId.slice(0, 8)}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Phase Summary Statistics */}
+                <div className="border border-gray-200 rounded-lg p-4 bg-white mt-6">
+                  <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                    <BarChart3 className="text-purple-500" />
+                    Statistiques de la Phase
+                  </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="text-center p-3 bg-gray-50 rounded">
+                      <p className="text-2xl font-bold text-primary-600">
+                        {transformedPools.reduce((sum: number, pool: any) => sum + (pool.matches?.length || 0), 0)}
+                      </p>
+                      <p className="text-xs text-gray-600">Matchs Total</p>
+                    </div>
+                    <div className="text-center p-3 bg-gray-50 rounded">
+                      <p className="text-2xl font-bold text-green-600">
+                        {transformedPools.reduce((sum: number, pool: any) =>
+                          sum + (pool.matches?.filter((m: any) => m.status === 'completed').length || 0), 0)}
+                      </p>
+                      <p className="text-xs text-gray-600">Matchs Terminés</p>
+                    </div>
+                    <div className="text-center p-3 bg-gray-50 rounded">
+                      <p className="text-2xl font-bold text-blue-600">
+                        {transformedPools.reduce((sum: number, pool: any) => sum + (pool.players?.length || 0), 0)}
+                      </p>
+                      <p className="text-xs text-gray-600">Joueurs</p>
+                    </div>
+                    <div className="text-center p-3 bg-gray-50 rounded">
+                      <p className="text-2xl font-bold text-purple-600">
+                        {transformedPools.length}
+                      </p>
+                      <p className="text-xs text-gray-600">Poules</p>
+                    </div>
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="text-center py-8">
