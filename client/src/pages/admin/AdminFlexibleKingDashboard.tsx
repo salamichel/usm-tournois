@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import AdminLayout from '@components/AdminLayout';
 import flexibleKingService from '@services/flexibleKing.service';
+import adminService from '@services/admin.service';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Play, Settings, CheckCircle, RotateCcw, Trophy, TrendingUp, Users } from 'lucide-react';
 import type { FlexibleKingPhase } from '@shared/types';
@@ -16,6 +17,7 @@ const AdminFlexibleKingDashboard = () => {
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [showMatchModal, setShowMatchModal] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<any>(null);
+  const [registeredPlayersCount, setRegisteredPlayersCount] = useState(0);
 
   useEffect(() => {
     if (tournamentId) {
@@ -31,6 +33,7 @@ const AdminFlexibleKingDashboard = () => {
       const response = await flexibleKingService.getDashboard(tournamentId);
       if (response.success && response.data) {
         setData(response.data);
+        setRegisteredPlayersCount(response.data.registeredPlayersCount || 0);
         // Auto-select current phase
         if (response.data.kingData?.currentPhaseNumber) {
           setSelectedPhaseNumber(response.data.kingData.currentPhaseNumber);
@@ -39,9 +42,21 @@ const AdminFlexibleKingDashboard = () => {
         }
       }
     } catch (error: any) {
-      // If King Mode not initialized, show config modal
+      // If King Mode not initialized, show config modal but still try to get player count
       if (error.response?.status === 404) {
         setShowConfigModal(true);
+        // Get tournament data from regular API to know player count
+        try {
+          const tournamentResponse = await adminService.getTournamentById(tournamentId);
+          if (tournamentResponse.success && tournamentResponse.data) {
+            const unassignedPlayers = tournamentResponse.data.unassignedPlayers || [];
+            setRegisteredPlayersCount(unassignedPlayers.length);
+            console.log(`[Flexible King] Found ${unassignedPlayers.length} unassigned players`);
+          }
+        } catch (err) {
+          // Even if this fails, we still show the modal with 0 players
+          console.error('Could not fetch player count:', err);
+        }
       } else {
         toast.error('Erreur lors du chargement du dashboard');
         console.error(error);
@@ -187,7 +202,7 @@ const AdminFlexibleKingDashboard = () => {
             isOpen={showConfigModal}
             onClose={() => setShowConfigModal(false)}
             onSave={handleInitialize}
-            registeredPlayersCount={0}
+            registeredPlayersCount={registeredPlayersCount}
           />
         </div>
       </AdminLayout>
@@ -204,7 +219,8 @@ const AdminFlexibleKingDashboard = () => {
     );
   }
 
-  const { tournament, kingData, registeredPlayersCount } = data;
+  const { tournament, kingData } = data;
+  const playerCount = data.registeredPlayersCount || registeredPlayersCount;
   const phases: FlexibleKingPhase[] = kingData?.phases || [];
   const currentPhaseNumber = kingData?.currentPhaseNumber;
 
@@ -259,7 +275,7 @@ const AdminFlexibleKingDashboard = () => {
             </div>
             <div>
               <p className="text-sm text-gray-600">Joueurs Inscrits</p>
-              <p className="text-2xl font-bold">{registeredPlayersCount}</p>
+              <p className="text-2xl font-bold">{playerCount}</p>
             </div>
             <div>
               <p className="text-sm text-gray-600">Phases Totales</p>
@@ -524,7 +540,7 @@ const AdminFlexibleKingDashboard = () => {
           isOpen={showConfigModal}
           onClose={() => setShowConfigModal(false)}
           onSave={handleInitialize}
-          registeredPlayersCount={registeredPlayersCount}
+          registeredPlayersCount={playerCount}
           existingPhases={phases.map(p => p.config)}
         />
 
