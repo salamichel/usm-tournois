@@ -441,6 +441,43 @@ const AdminFlexibleKingDashboard = () => {
               Phase {displayPhase.phaseNumber} - Détails
             </h2>
 
+            {/* Phase Summary Statistics - At the top */}
+            {transformedPools && transformedPools.length > 0 && (
+              <div className="border border-gray-200 rounded-lg p-4 bg-white mb-6">
+                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                  <BarChart3 className="text-purple-500" />
+                  Statistiques de la Phase
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center p-3 bg-gray-50 rounded">
+                    <p className="text-2xl font-bold text-primary-600">
+                      {transformedPools.reduce((sum: number, pool: any) => sum + (pool.matches?.length || 0), 0)}
+                    </p>
+                    <p className="text-xs text-gray-600">Matchs Total</p>
+                  </div>
+                  <div className="text-center p-3 bg-gray-50 rounded">
+                    <p className="text-2xl font-bold text-green-600">
+                      {transformedPools.reduce((sum: number, pool: any) =>
+                        sum + (pool.matches?.filter((m: any) => m.status === 'completed').length || 0), 0)}
+                    </p>
+                    <p className="text-xs text-gray-600">Matchs Terminés</p>
+                  </div>
+                  <div className="text-center p-3 bg-gray-50 rounded">
+                    <p className="text-2xl font-bold text-blue-600">
+                      {transformedPools.reduce((sum: number, pool: any) => sum + (pool.players?.length || 0), 0)}
+                    </p>
+                    <p className="text-xs text-gray-600">Joueurs</p>
+                  </div>
+                  <div className="text-center p-3 bg-gray-50 rounded">
+                    <p className="text-2xl font-bold text-purple-600">
+                      {transformedPools.length}
+                    </p>
+                    <p className="text-xs text-gray-600">Poules</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {transformedPools && transformedPools.length > 0 ? (
               <div className="space-y-6">
                 {transformedPools.map((pool: any) => (
@@ -687,40 +724,6 @@ const AdminFlexibleKingDashboard = () => {
                   </div>
                 )}
 
-                {/* Phase Summary Statistics */}
-                <div className="border border-gray-200 rounded-lg p-4 bg-white mt-6">
-                  <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                    <BarChart3 className="text-purple-500" />
-                    Statistiques de la Phase
-                  </h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="text-center p-3 bg-gray-50 rounded">
-                      <p className="text-2xl font-bold text-primary-600">
-                        {transformedPools.reduce((sum: number, pool: any) => sum + (pool.matches?.length || 0), 0)}
-                      </p>
-                      <p className="text-xs text-gray-600">Matchs Total</p>
-                    </div>
-                    <div className="text-center p-3 bg-gray-50 rounded">
-                      <p className="text-2xl font-bold text-green-600">
-                        {transformedPools.reduce((sum: number, pool: any) =>
-                          sum + (pool.matches?.filter((m: any) => m.status === 'completed').length || 0), 0)}
-                      </p>
-                      <p className="text-xs text-gray-600">Matchs Terminés</p>
-                    </div>
-                    <div className="text-center p-3 bg-gray-50 rounded">
-                      <p className="text-2xl font-bold text-blue-600">
-                        {transformedPools.reduce((sum: number, pool: any) => sum + (pool.players?.length || 0), 0)}
-                      </p>
-                      <p className="text-xs text-gray-600">Joueurs</p>
-                    </div>
-                    <div className="text-center p-3 bg-gray-50 rounded">
-                      <p className="text-2xl font-bold text-purple-600">
-                        {transformedPools.length}
-                      </p>
-                      <p className="text-xs text-gray-600">Poules</p>
-                    </div>
-                  </div>
-                </div>
               </div>
             ) : (
               <div className="text-center py-8">

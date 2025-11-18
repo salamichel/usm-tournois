@@ -156,19 +156,30 @@ function generateRoundRobinMatches(
 }
 
 /**
- * Generates rotation grid for KOB format
+ * Generates rotation grid for KOB format with team support
+ * For team formats (2v2, 3v3, 4v4), we need to ensure teams don't overlap
  */
-function generateKOBRotationGrid(numPlayers: number, numRounds: number): number[][][] {
+function generateKOBRotationGrid(numPlayers: number, numRounds: number, teamSize: number = 1): number[][][] {
   const grid: number[][][] = [];
+  const numTeams = Math.floor(numPlayers / teamSize);
+  const numMatchesPerRound = Math.floor(numTeams / 2);
 
   for (let round = 0; round < numRounds; round++) {
     const roundMatches: number[][] = [];
-    const numMatches = Math.floor(numPlayers / 2);
 
-    for (let match = 0; match < numMatches; match++) {
-      const team1Index = (round + match * 2) % numPlayers;
-      const team2Index = (round + match * 2 + 1) % numPlayers;
-      roundMatches.push([team1Index, team2Index]);
+    // Create team assignments for this round using rotation
+    const teamAssignments: number[] = [];
+    for (let team = 0; team < numTeams; team++) {
+      // Rotate team positions based on round number
+      const rotatedPosition = (team + round) % numTeams;
+      teamAssignments.push(rotatedPosition * teamSize);
+    }
+
+    // Pair up teams for matches
+    for (let match = 0; match < numMatchesPerRound; match++) {
+      const team1StartIdx = teamAssignments[match * 2];
+      const team2StartIdx = teamAssignments[match * 2 + 1];
+      roundMatches.push([team1StartIdx, team2StartIdx]);
     }
 
     grid.push(roundMatches);
@@ -191,8 +202,8 @@ function generateKOBMatches(
   const matches: KingMatch[] = [];
   const numPlayers = poolPlayers.length;
 
-  // Generate rotation grid
-  const rotationGrid = generateKOBRotationGrid(numPlayers, numRounds);
+  // Generate rotation grid with team size support
+  const rotationGrid = generateKOBRotationGrid(numPlayers, numRounds, teamSize);
 
   let matchNumber = 1;
 
