@@ -10,6 +10,7 @@ const AdminEliminationManagement = () => {
   const { tournamentId } = useParams();
   const [tournament, setTournament] = useState<any>(null);
   const [matches, setMatches] = useState<any[]>([]);
+  const [finalRanking, setFinalRanking] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Modal states
@@ -30,6 +31,7 @@ const AdminEliminationManagement = () => {
 
       setTournament(tournamentRes.tournament || tournamentRes.data?.tournament);
       setMatches(matchesRes.matches || matchesRes.data?.matches || []);
+      setFinalRanking(matchesRes.finalRanking || matchesRes.data?.finalRanking || []);
     } catch (error: any) {
       toast.error(error.message || 'Erreur lors du chargement');
     } finally {
@@ -180,6 +182,49 @@ const AdminEliminationManagement = () => {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Final Ranking Section */}
+        {finalRanking.length > 0 && (
+          <div className="mt-8 bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-2xl font-bold mb-6 text-center flex items-center justify-center gap-2">
+              <Trophy className="text-yellow-500" size={28} />
+              Classement Final
+            </h2>
+            <div className="max-w-2xl mx-auto">
+              <div className="space-y-3">
+                {finalRanking.map((team: any, index: number) => (
+                  <div
+                    key={team.id || index}
+                    className={`flex items-center p-4 rounded-lg border-2 ${
+                      index === 0 ? 'bg-yellow-50 border-yellow-300' :
+                      index === 1 ? 'bg-gray-100 border-gray-300' :
+                      index === 2 ? 'bg-orange-50 border-orange-300' :
+                      'bg-white border-gray-200'
+                    }`}
+                  >
+                    <span className="text-2xl mr-4 min-w-[40px] text-center">
+                      {index === 0 ? (
+                        <Trophy className="text-yellow-500 inline" size={28} />
+                      ) : index === 1 ? (
+                        <Trophy className="text-gray-400 inline" size={24} />
+                      ) : index === 2 ? (
+                        <Trophy className="text-orange-500 inline" size={24} />
+                      ) : (
+                        <span className="font-bold text-gray-500">{index + 1}</span>
+                      )}
+                    </span>
+                    <span className="flex-grow font-semibold text-lg">
+                      {team.teamName || team.name}
+                    </span>
+                    <span className="text-lg font-bold text-blue-600">
+                      {team.points || 0} pts
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 

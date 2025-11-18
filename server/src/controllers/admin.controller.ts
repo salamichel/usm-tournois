@@ -630,9 +630,24 @@ export const getEliminationMatches = async (req: Request, res: Response) => {
       })
     );
 
+    // Also fetch final ranking
+    const finalRankingSnapshot = await adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('finalRanking')
+      .orderBy('rank')
+      .get();
+
+    const finalRanking = finalRankingSnapshot.docs.map((doc) =>
+      convertTimestamps({
+        id: doc.id,
+        ...doc.data(),
+      })
+    );
+
     res.json({
       success: true,
-      data: { matches },
+      data: { matches, finalRanking },
     });
   } catch (error) {
     console.error('Error getting elimination matches:', error);
