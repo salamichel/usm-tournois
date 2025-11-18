@@ -24,7 +24,7 @@ const AdminUnassignedPlayers = () => {
         adminService.getUnassignedPlayers(tournamentId!),
       ]);
 
-      setTournament(tournamentRes.tournament);
+      setTournament(tournamentRes.data?.tournament);
       setPlayers(playersRes.data?.players || []);
     } catch (error: any) {
       toast.error(error.message || 'Erreur lors du chargement');
