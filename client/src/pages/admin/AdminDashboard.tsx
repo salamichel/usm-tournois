@@ -17,7 +17,11 @@ import {
   UserPlus,
   ListChecks,
   Zap,
-  BarChart3
+  BarChart3,
+  UsersRound,
+  UserCheck,
+  Search,
+  ClipboardList
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -221,7 +225,7 @@ const AdminDashboard = () => {
               <Zap className="text-primary-500" size={24} />
               <h2 className="text-xl font-bold text-gray-900">Actions Rapides</h2>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
               <Link to="/admin/tournaments/new" className="flex flex-col items-center gap-2 p-4 bg-primary-50 hover:bg-primary-100 rounded-lg transition-colors text-primary-700 font-medium">
                 <Plus size={24} />
                 <span className="text-sm text-center">Nouveau Tournoi</span>
@@ -234,6 +238,10 @@ const AdminDashboard = () => {
                 <Building2 size={24} />
                 <span className="text-sm text-center">Nouveau Club</span>
               </Link>
+              <Link to="/admin/teams" className="flex flex-col items-center gap-2 p-4 bg-red-50 hover:bg-red-100 rounded-lg transition-colors text-red-700 font-medium">
+                <UsersRound size={24} />
+                <span className="text-sm text-center">Gérer Équipes</span>
+              </Link>
               <Link to="/admin/tournaments" className="flex flex-col items-center gap-2 p-4 bg-green-50 hover:bg-green-100 rounded-lg transition-colors text-green-700 font-medium">
                 <ListChecks size={24} />
                 <span className="text-sm text-center">Gérer Tournois</span>
@@ -245,6 +253,10 @@ const AdminDashboard = () => {
               <Link to="/admin/clubs" className="flex flex-col items-center gap-2 p-4 bg-pink-50 hover:bg-pink-100 rounded-lg transition-colors text-pink-700 font-medium">
                 <Building2 size={24} />
                 <span className="text-sm text-center">Gérer Clubs</span>
+              </Link>
+              <Link to="/admin/teams/search" className="flex flex-col items-center gap-2 p-4 bg-teal-50 hover:bg-teal-100 rounded-lg transition-colors text-teal-700 font-medium">
+                <Search size={24} />
+                <span className="text-sm text-center">Rechercher Équipes</span>
               </Link>
             </div>
           </div>
@@ -268,9 +280,17 @@ const AdminDashboard = () => {
                 <BarChart3 size={18} className="text-gray-500" />
                 <span className="text-sm font-medium">Tous les Tournois</span>
               </Link>
+              <Link to="/admin/teams" className="flex items-center gap-2 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-gray-700">
+                <UsersRound size={18} className="text-gray-500" />
+                <span className="text-sm font-medium">Toutes les Équipes</span>
+              </Link>
               <Link to="/admin/virtual-users" className="flex items-center gap-2 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-gray-700">
                 <UserCog size={18} className="text-gray-500" />
                 <span className="text-sm font-medium">Comptes Virtuels</span>
+              </Link>
+              <Link to="/admin/teams/stats" className="flex items-center gap-2 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-gray-700">
+                <ClipboardList size={18} className="text-gray-500" />
+                <span className="text-sm font-medium">Stats Équipes</span>
               </Link>
             </div>
           </div>
