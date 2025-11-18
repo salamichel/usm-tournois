@@ -63,13 +63,15 @@ const AdminEliminationManagement = () => {
     );
   }
 
-  // Group matches by round
+  // Group matches by round - left to right order (preliminary to final)
   const roundOrder = [
-    { key: 'Finale', label: 'Finale' },
-    { key: 'Match 3ème place', label: 'Match pour la 3ème place' },
-    { key: 'Demi-finale', label: 'Demi-finales' },
-    { key: 'Quart de finale', label: 'Quarts de finale' },
     { key: 'Tour Préliminaire', label: 'Tour Préliminaire' },
+    { key: 'Seizième de finale', label: '1/16 de finale' },
+    { key: 'Huitième de finale', label: '1/8 de finale' },
+    { key: 'Quart de finale', label: '1/4 de finale' },
+    { key: 'Demi-finale', label: '1/2 finale' },
+    { key: 'Match 3ème place', label: 'Petite finale' },
+    { key: 'Finale', label: 'Finale' },
   ];
 
   return (

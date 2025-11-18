@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { adminDb } from '../config/firebase.config';
 import { AppError } from '../middlewares/error.middleware';
 import { convertTimestamps } from '../utils/firestore.utils';
-import { calculateMatchOutcome } from '../services/match.service';
+import { calculateMatchOutcome, propagateEliminationMatchResults } from '../services/match.service';
 import { generateEliminationBracket as generateEliminationBracketService, QualifiedTeam, EliminationTournamentConfig } from '../services/elimination.service';
 
 /**
