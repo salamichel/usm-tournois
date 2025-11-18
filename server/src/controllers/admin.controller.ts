@@ -1302,6 +1302,11 @@ export const getUnassignedPlayers = async (req: Request, res: Response) => {
   try {
     const { tournamentId } = req.params;
 
+    // Validate parameters
+    if (!tournamentId || typeof tournamentId !== 'string' || tournamentId.trim() === '') {
+      throw new AppError('Tournament ID is required', 400);
+    }
+
     const unassignedPlayersSnapshot = await adminDb
       .collection('events')
       .doc(tournamentId)
@@ -1328,6 +1333,14 @@ export const getUnassignedPlayers = async (req: Request, res: Response) => {
 export const removeUnassignedPlayer = async (req: Request, res: Response) => {
   try {
     const { tournamentId, playerId } = req.params;
+
+    // Validate parameters
+    if (!tournamentId || typeof tournamentId !== 'string' || tournamentId.trim() === '') {
+      throw new AppError('Tournament ID is required', 400);
+    }
+    if (!playerId || typeof playerId !== 'string' || playerId.trim() === '') {
+      throw new AppError('Player ID is required', 400);
+    }
 
     const playerRef = adminDb
       .collection('events')
