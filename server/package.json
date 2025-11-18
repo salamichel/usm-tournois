@@ -12,7 +12,10 @@
     "lint": "eslint . --ext .ts",
     "dummy-players": "tsx src/scripts/create-dummy-players.ts",
     "delete-dummy": "tsx src/scripts/delete-dummy-players.ts",
-    "test-tournament": "tsx src/scripts/create-test-tournament.ts"
+    "test-tournament": "tsx src/scripts/create-test-tournament.ts",
+    "clean-test": "tsx src/scripts/clean-test-data.ts",
+    "scenario": "tsx src/scripts/create-complete-scenario.ts",
+    "reset-tournament": "tsx src/scripts/reset-tournament.ts"
   },
   "keywords": ["api", "express", "typescript", "firebase"],
   "author": "USM Tournois Team",

@@ -28,6 +28,24 @@ npm run delete-dummy -- --all
 npm run test-tournament
 ```
 
+## 🚀 Résumé Rapide
+
+| Script | Commande | Description |
+|--------|----------|-------------|
+| **Scénario Complet** | `npm run scenario -- --simulate` | ⭐ Crée TOUT en une commande (tournoi + équipes + matchs) |
+| **Nettoyage Global** | `npm run clean-test -- --all` | 🧹 Nettoie tous les tournois de test et joueurs factices |
+| **Réinitialiser** | `npm run reset-tournament -- <id> --all` | 🔄 Vide un tournoi (garde la config) |
+| **Créer Tournoi** | `npm run test-tournament` | 🏆 Crée un tournoi de test vide |
+| **Créer Joueurs** | `npm run dummy-players -- <id> <n>` | 👥 Ajoute N joueurs à un tournoi |
+| **Supprimer Joueurs** | `npm run delete-dummy -- --all` | 🗑️ Supprime les joueurs factices |
+
+**Commande la plus utile pour démarrer :**
+```bash
+docker exec -it usm-tournois-server npm run scenario -- --simulate
+```
+
+---
+
 ## 📋 Scripts Disponibles
 
 ### 1. `create-dummy-players.ts` - Créer des joueurs factices
@@ -183,9 +201,204 @@ npm run test-tournament -- --type elimination --teams 16 --future
 
 ---
 
+### 4. `clean-test-data.ts` - Nettoyer toutes les données de test
+
+Supprime en masse tous les tournois de test et/ou tous les joueurs factices en une seule commande.
+
+#### Usage
+
+```bash
+# Via Docker
+docker exec -it usm-tournois-server npm run clean-test -- [options]
+
+# Depuis le conteneur
+npm run clean-test -- [options]
+```
+
+#### Options
+
+- `--all` : Nettoie TOUT (tournois de test + joueurs factices)
+- `--tournaments` : Nettoie uniquement les tournois de test
+- `--players` : Nettoie uniquement les joueurs factices
+- `--older-than <days>` : Nettoie uniquement les données plus vieilles que N jours
+- `--dry-run` : Mode simulation
+- `--help, -h` : Affiche l'aide
+
+#### Exemples
+
+```bash
+# Mode simulation (TOUJOURS commencer par ça)
+docker exec -it usm-tournois-server npm run clean-test -- --all --dry-run
+
+# Nettoyer TOUT
+docker exec -it usm-tournois-server npm run clean-test -- --all
+
+# Nettoyer uniquement les tournois de plus de 7 jours
+docker exec -it usm-tournois-server npm run clean-test -- --tournaments --older-than 7
+
+# Nettoyer uniquement les joueurs
+docker exec -it usm-tournois-server npm run clean-test -- --players
+
+# Depuis le conteneur
+npm run clean-test -- --all --dry-run
+```
+
+#### Caractéristiques
+
+- ✅ Nettoie les tournois marqués `isTestTournament: true`
+- ✅ Nettoie les joueurs marqués `isDummy: true`
+- ✅ Supprime toutes les sous-collections (équipes, matchs, poules, etc.)
+- ✅ Filtrage par âge avec `--older-than`
+- ✅ Mode dry-run pour vérifier avant suppression
+- ✅ Compteurs et rapports détaillés
+
+---
+
+### 5. `create-complete-scenario.ts` - Créer un scénario complet
+
+Crée un tournoi complet avec équipes, joueurs et optionnellement matchs simulés. Parfait pour tester rapidement l'application avec des données réalistes.
+
+#### Usage
+
+```bash
+# Via Docker
+docker exec -it usm-tournois-server npm run scenario -- [options]
+
+# Depuis le conteneur
+npm run scenario -- [options]
+```
+
+#### Options
+
+- `--name <text>` : Nom du tournoi (défaut: "Scénario Complet {date}")
+- `--type <type>` : Type: king, elimination, pool, classic (défaut: classic)
+- `--teams <number>` : Nombre d'équipes (défaut: 8)
+- `--players <number>` : Joueurs par équipe (défaut: 2)
+- `--with-matches` : Créer les poules et matchs
+- `--simulate` : Simuler les résultats des matchs
+- `--help, -h` : Affiche l'aide
+
+#### Exemples
+
+```bash
+# Scénario simple (tournoi + équipes + joueurs)
+docker exec -it usm-tournois-server npm run scenario
+
+# Scénario complet avec matchs simulés
+docker exec -it usm-tournois-server npm run scenario -- --simulate
+
+# Scénario personnalisé
+docker exec -it usm-tournois-server npm run scenario -- \
+  --name "Tournoi Complet" --type classic --teams 12 --players 4 --simulate
+
+# Scénario King avec matchs
+docker exec -it usm-tournois-server npm run scenario -- \
+  --type king --teams 16 --with-matches
+
+# Depuis le conteneur
+npm run scenario -- --teams 8 --simulate
+```
+
+#### Caractéristiques
+
+- ✅ Crée un tournoi complet configuré
+- ✅ Génère automatiquement tous les joueurs nécessaires
+- ✅ Crée les équipes avec répartition automatique
+- ✅ Optionnel: génère les poules et matchs
+- ✅ Optionnel: simule des résultats réalistes
+- ✅ Tout en une seule commande
+- ✅ Données cohérentes et réalistes
+
+**Ce qu'il crée:**
+
+1. **Tournoi** avec toutes les configurations
+2. **Joueurs** (nombre = équipes × joueurs par équipe)
+3. **Équipes** avec capitaines et membres
+4. **Poules** (si --with-matches) avec répartition automatique
+5. **Matchs** (si --with-matches) round-robin par poule
+6. **Résultats** (si --simulate) scores aléatoires réalistes
+
+---
+
+### 6. `reset-tournament.ts` - Réinitialiser un tournoi
+
+Réinitialise un tournoi existant en supprimant équipes, matchs et/ou joueurs libres, tout en conservant le tournoi lui-même.
+
+#### Usage
+
+```bash
+# Via Docker
+docker exec -it usm-tournois-server npm run reset-tournament -- <tournamentId> [options]
+
+# Depuis le conteneur
+npm run reset-tournament -- <tournamentId> [options]
+```
+
+#### Arguments
+
+- `tournamentId` : ID du tournoi à réinitialiser
+
+#### Options
+
+- `--all` : Réinitialise tout (équipes, matchs, joueurs)
+- `--teams` : Supprime uniquement les équipes
+- `--matches` : Supprime uniquement les matchs
+- `--players` : Supprime uniquement les joueurs libres
+- `--dry-run` : Mode simulation
+- `--help, -h` : Affiche l'aide
+
+#### Exemples
+
+```bash
+# Mode simulation (TOUJOURS commencer par ça)
+docker exec -it usm-tournois-server npm run reset-tournament -- tournament123 --all --dry-run
+
+# Réinitialiser complètement
+docker exec -it usm-tournois-server npm run reset-tournament -- tournament123 --all
+
+# Supprimer uniquement les équipes et matchs
+docker exec -it usm-tournois-server npm run reset-tournament -- tournament123 --teams --matches
+
+# Supprimer uniquement les matchs
+docker exec -it usm-tournois-server npm run reset-tournament -- tournament123 --matches
+
+# Depuis le conteneur
+npm run reset-tournament -- tournament123 --all
+```
+
+#### Caractéristiques
+
+- ✅ Garde le tournoi intact (nom, dates, configuration)
+- ✅ Supprime les équipes
+- ✅ Supprime les poules et leurs matchs
+- ✅ Supprime les matchs d'élimination
+- ✅ Supprime le classement final
+- ✅ Supprime les joueurs libres
+- ✅ Mode dry-run pour tester
+- ✅ Permet de réutiliser un tournoi
+
+---
+
 ## 🎯 Cas d'Usage Courants
 
-### Tester un nouveau tournoi complet (depuis Docker)
+### Créer un scénario complet pour les tests (RECOMMANDÉ)
+
+```bash
+# Méthode la plus rapide : tout en une seule commande !
+docker exec -it usm-tournois-server npm run scenario -- --simulate
+
+# Cela crée :
+# - 1 tournoi complet
+# - 8 équipes de 2 joueurs (16 joueurs)
+# - Toutes les poules et matchs
+# - Résultats simulés
+
+# Variante personnalisée
+docker exec -it usm-tournois-server npm run scenario -- \
+  --name "Mon Tournoi" --teams 12 --players 4 --simulate
+```
+
+### Tester un nouveau tournoi vide (méthode classique)
 
 ```bash
 # 1. Créer un tournoi avec des joueurs
@@ -198,14 +411,29 @@ docker exec -it usm-tournois-server npm run test-tournament -- \
 docker exec -it usm-tournois-server npm run dummy-players -- <tournamentId> 10
 ```
 
-### Nettoyer après les tests
+### Réinitialiser un tournoi pour recommencer
 
 ```bash
-# 1. Vérifier ce qui sera supprimé
-docker exec -it usm-tournois-server npm run delete-dummy -- --all --dry-run
+# Vérifier ce qui sera supprimé
+docker exec -it usm-tournois-server npm run reset-tournament -- tournament123 --all --dry-run
 
-# 2. Supprimer tous les joueurs factices
-docker exec -it usm-tournois-server npm run delete-dummy -- --all
+# Réinitialiser (garde le tournoi, supprime tout le reste)
+docker exec -it usm-tournois-server npm run reset-tournament -- tournament123 --all
+
+# Le tournoi est maintenant vierge et prêt à être réutilisé
+```
+
+### Nettoyer toutes les données de test
+
+```bash
+# 1. Voir ce qui sera supprimé
+docker exec -it usm-tournois-server npm run clean-test -- --all --dry-run
+
+# 2. Tout supprimer (tournois + joueurs)
+docker exec -it usm-tournois-server npm run clean-test -- --all
+
+# 3. Ou uniquement les vieux tournois (> 7 jours)
+docker exec -it usm-tournois-server npm run clean-test -- --tournaments --older-than 7
 ```
 
 ### Workflow complet depuis le conteneur
@@ -214,18 +442,40 @@ docker exec -it usm-tournois-server npm run delete-dummy -- --all
 # Entrer dans le conteneur
 docker exec -it usm-tournois-server sh
 
-# Créer un tournoi de test
+# Créer un scénario complet
+npm run scenario -- --teams 8 --simulate
+
+# Ou créer juste un tournoi
 npm run test-tournament -- --type king --with-players 15
 
 # Ajouter des joueurs supplémentaires
 npm run dummy-players -- <tournamentId> 5
 
-# Nettoyer (dry-run d'abord)
-npm run delete-dummy -- --all --dry-run
-npm run delete-dummy -- --all
+# Réinitialiser un tournoi
+npm run reset-tournament -- <tournamentId> --all --dry-run
+npm run reset-tournament -- <tournamentId> --all
+
+# Nettoyer tout (dry-run d'abord)
+npm run clean-test -- --all --dry-run
+npm run clean-test -- --all
 
 # Sortir du conteneur
 exit
+```
+
+### Workflow de développement quotidien
+
+```bash
+# 🌅 Début de journée : créer environnement de test
+docker exec -it usm-tournois-server npm run scenario -- --simulate
+
+# 💻 Pendant le dev : tester des features
+docker exec -it usm-tournois-server npm run dummy-players -- tournamentId 5
+docker exec -it usm-tournois-server npm run reset-tournament -- tournamentId --matches
+
+# 🌙 Fin de journée : nettoyer
+docker exec -it usm-tournois-server npm run clean-test -- --all --dry-run
+docker exec -it usm-tournois-server npm run clean-test -- --all
 ```
 
 ---
@@ -236,10 +486,13 @@ exit
 
 ```
 server/src/scripts/
-├── create-dummy-players.ts   # Création de joueurs factices
-├── delete-dummy-players.ts   # Suppression de joueurs factices
-├── create-test-tournament.ts # Création de tournois de test
-└── README.md                 # Cette documentation
+├── create-dummy-players.ts      # Création de joueurs factices
+├── delete-dummy-players.ts      # Suppression de joueurs factices
+├── create-test-tournament.ts    # Création de tournois de test
+├── clean-test-data.ts           # Nettoyage global des données de test
+├── create-complete-scenario.ts  # Création de scénarios complets
+├── reset-tournament.ts          # Réinitialisation d'un tournoi
+└── README.md                    # Cette documentation
 ```
 
 ### Imports et dépendances
