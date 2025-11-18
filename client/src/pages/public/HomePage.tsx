@@ -94,8 +94,18 @@ const HomePage = () => {
               to={`/tournoi/${tournament.id}`}
               className="card hover:shadow-lg transition-shadow relative"
             >
-              {/* Badge de statut en position absolue en haut à droite */}
-              <div className="absolute top-3 right-3 z-10">
+              {/* Badges en position absolue */}
+              <div className="absolute top-3 right-3 z-10 flex flex-col gap-2 items-end">
+                {/* Badge d'inscription utilisateur */}
+                {(tournament as any).userRegistered && (
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-600 text-white shadow-lg">
+                    {(tournament as any).userRegistrationType === 'team'
+                      ? `✓ Inscrit - ${(tournament as any).userTeamName}`
+                      : '✓ Inscrit (joueur libre)'}
+                  </span>
+                )}
+
+                {/* Badge de statut du tournoi */}
                 <span
                   className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold shadow-lg ${
                     tournament.status === 'Ouvert'

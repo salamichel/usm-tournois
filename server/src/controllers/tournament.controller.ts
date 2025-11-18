@@ -10,6 +10,8 @@ import { calculateTournamentStatus } from '../utils/tournament.status.utils';
  */
 export const getAllTournaments = async (req: Request, res: Response) => {
   try {
+    const userId = req.session?.user?.uid || null;
+
     const tournamentsSnapshot = await adminDb
       .collection('events')
       .where('isActive', '==', true)
@@ -44,12 +46,46 @@ export const getAllTournaments = async (req: Request, res: Response) => {
           teamsSnapshot.size
         );
 
-        return convertTimestamps({
+        const result: any = {
           id: doc.id,
           ...tournamentData,
           registeredTeamsCount: teamsSnapshot.size,
           status: statusInfo.status,
-        });
+        };
+
+        // Check user registration status if user is authenticated
+        if (userId) {
+          // Check if user is in a team
+          for (const teamDoc of teamsSnapshot.docs) {
+            const teamData = teamDoc.data();
+            const members = teamData.members || [];
+            const isInTeam = members.some((m: any) => m.userId === userId);
+
+            if (isInTeam) {
+              result.userRegistered = true;
+              result.userTeamName = teamData.name;
+              result.userRegistrationType = 'team';
+              break;
+            }
+          }
+
+          // If not in team, check if registered as free agent
+          if (!result.userRegistered) {
+            const unassignedPlayerDoc = await adminDb
+              .collection('events')
+              .doc(doc.id)
+              .collection('unassignedPlayers')
+              .doc(userId)
+              .get();
+
+            if (unassignedPlayerDoc.exists) {
+              result.userRegistered = true;
+              result.userRegistrationType = 'freeAgent';
+            }
+          }
+        }
+
+        return convertTimestamps(result);
       })
     );
 
