@@ -21,10 +21,18 @@ export const getAllTournaments = async (req: Request, res: Response) => {
           .collection('teams')
           .get();
 
+        // Count unassigned players
+        const unassignedPlayersSnapshot = await adminDb
+          .collection('events')
+          .doc(doc.id)
+          .collection('unassignedPlayers')
+          .get();
+
         return convertTimestamps({
           id: doc.id,
           ...data,
           registeredTeamsCount: teamsSnapshot.size,
+          unassignedPlayersCount: unassignedPlayersSnapshot.size,
         });
       })
     );

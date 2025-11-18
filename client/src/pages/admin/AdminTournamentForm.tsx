@@ -64,6 +64,8 @@ const AdminTournamentForm = () => {
     maxTeams: 16,
     minPlayersPerTeam: 2,
     playersPerTeam: 4,
+    minPlayers: 0,
+    maxPlayers: 0,
     waitingListSize: 0,
     type: '4x4',
     tournamentFormat: 'classic',
@@ -119,6 +121,8 @@ const AdminTournamentForm = () => {
         maxTeams: tournament.maxTeams || 16,
         minPlayersPerTeam: tournament.minPlayersPerTeam || 2,
         playersPerTeam: tournament.playersPerTeam || 4,
+        minPlayers: tournament.minPlayers || 0,
+        maxPlayers: tournament.maxPlayers || 0,
         waitingListSize: tournament.waitingListSize || 0,
         type: tournament.type || '4x4',
         tournamentFormat: tournament.tournamentFormat || 'classic',
@@ -473,69 +477,6 @@ const AdminTournamentForm = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="maxTeams" className="block text-sm font-medium text-gray-700 mb-1">
-                  Nombre maximum d'équipes *
-                </label>
-                <input
-                  type="number"
-                  id="maxTeams"
-                  name="maxTeams"
-                  value={formData.maxTeams}
-                  onChange={handleChange}
-                  min="1"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label htmlFor="minPlayersPerTeam" className="block text-sm font-medium text-gray-700 mb-1">
-                  Nombre minimum de joueurs par équipe *
-                </label>
-                <input
-                  type="number"
-                  id="minPlayersPerTeam"
-                  name="minPlayersPerTeam"
-                  value={formData.minPlayersPerTeam}
-                  onChange={handleChange}
-                  min="1"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label htmlFor="playersPerTeam" className="block text-sm font-medium text-gray-700 mb-1">
-                  Nombre maximum de joueurs par équipe *
-                </label>
-                <input
-                  type="number"
-                  id="playersPerTeam"
-                  name="playersPerTeam"
-                  value={formData.playersPerTeam}
-                  onChange={handleChange}
-                  min="1"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label htmlFor="waitingListSize" className="block text-sm font-medium text-gray-700 mb-1">
-                  Taille de la liste d'attente (0 pour désactiver)
-                </label>
-                <input
-                  type="number"
-                  id="waitingListSize"
-                  name="waitingListSize"
-                  value={formData.waitingListSize}
-                  onChange={handleChange}
-                  min="0"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
                 <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-1">
                   Type de Tournoi *
                 </label>
@@ -570,21 +511,124 @@ const AdminTournamentForm = () => {
                 </select>
               </div>
 
+              {/* Champs spécifiques au mode Classic */}
+              {formData.tournamentFormat === 'classic' && (
+                <>
+                  <div>
+                    <label htmlFor="maxTeams" className="block text-sm font-medium text-gray-700 mb-1">
+                      Nombre maximum d'équipes *
+                    </label>
+                    <input
+                      type="number"
+                      id="maxTeams"
+                      name="maxTeams"
+                      value={formData.maxTeams}
+                      onChange={handleChange}
+                      min="1"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="minPlayersPerTeam" className="block text-sm font-medium text-gray-700 mb-1">
+                      Nombre minimum de joueurs par équipe *
+                    </label>
+                    <input
+                      type="number"
+                      id="minPlayersPerTeam"
+                      name="minPlayersPerTeam"
+                      value={formData.minPlayersPerTeam}
+                      onChange={handleChange}
+                      min="1"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="playersPerTeam" className="block text-sm font-medium text-gray-700 mb-1">
+                      Nombre maximum de joueurs par équipe *
+                    </label>
+                    <input
+                      type="number"
+                      id="playersPerTeam"
+                      name="playersPerTeam"
+                      value={formData.playersPerTeam}
+                      onChange={handleChange}
+                      min="1"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="registrationMode" className="block text-sm font-medium text-gray-700 mb-1">
+                      Mode d'inscription *
+                    </label>
+                    <select
+                      id="registrationMode"
+                      name="registrationMode"
+                      value={formData.registrationMode}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    >
+                      <option value="teams">Équipes (joueurs créent leurs équipes)</option>
+                      <option value="random">Joueurs aléatoires (équipes générées par admin)</option>
+                    </select>
+                  </div>
+                </>
+              )}
+
+              {/* Champs spécifiques au mode King */}
+              {formData.tournamentFormat === 'king' && (
+                <>
+                  <div>
+                    <label htmlFor="minPlayers" className="block text-sm font-medium text-gray-700 mb-1">
+                      Nombre minimum de joueurs (optionnel)
+                    </label>
+                    <input
+                      type="number"
+                      id="minPlayers"
+                      name="minPlayers"
+                      value={formData.minPlayers}
+                      onChange={handleChange}
+                      min="0"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="maxPlayers" className="block text-sm font-medium text-gray-700 mb-1">
+                      Nombre maximum de joueurs (optionnel)
+                    </label>
+                    <input
+                      type="number"
+                      id="maxPlayers"
+                      name="maxPlayers"
+                      value={formData.maxPlayers}
+                      onChange={handleChange}
+                      min="0"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </>
+              )}
+
               <div>
-                <label htmlFor="registrationMode" className="block text-sm font-medium text-gray-700 mb-1">
-                  Mode d'inscription *
+                <label htmlFor="waitingListSize" className="block text-sm font-medium text-gray-700 mb-1">
+                  Taille de la liste d'attente (0 pour désactiver)
                 </label>
-                <select
-                  id="registrationMode"
-                  name="registrationMode"
-                  value={formData.registrationMode}
+                <input
+                  type="number"
+                  id="waitingListSize"
+                  name="waitingListSize"
+                  value={formData.waitingListSize}
                   onChange={handleChange}
+                  min="0"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  <option value="teams">Équipes (joueurs créent leurs équipes)</option>
-                  <option value="random">Joueurs aléatoires (équipes générées par admin)</option>
-                </select>
+                />
               </div>
 
               <div>

@@ -94,6 +94,7 @@ const AdminTournamentsList = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lieu</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Équipes</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Joueurs libres</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mode</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
@@ -113,6 +114,9 @@ const AdminTournamentsList = () => {
                     <td className="px-6 py-4 text-sm text-gray-600">{tournament.location}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">
                       {tournament.registeredTeamsCount || 0} / {tournament.maxTeams}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {tournament.unassignedPlayersCount || 0}
                     </td>
                     <td className="px-6 py-4">
                       <span className={`badge ${
