@@ -32,7 +32,11 @@ const AdminUserForm = () => {
     try {
       setLoadingData(true);
       const response = await adminService.getUserById(id!);
-      const user = response.user;
+      const user = response.data?.user;
+
+      if (!user) {
+        throw new Error('User not found');
+      }
 
       setFormData({
         pseudo: user.pseudo || '',
@@ -40,7 +44,7 @@ const AdminUserForm = () => {
         level: (user.level || 'Intermédiaire') as UserLevel,
         password: '',
         confirmPassword: '',
-        isAdmin: user.isAdmin || false,
+        isAdmin: user.role === 'admin',
       });
     } catch (error: any) {
       toast.error(error.message || 'Erreur lors du chargement');
