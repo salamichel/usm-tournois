@@ -23,3 +23,6 @@ export * from './api.types';
 
 // King tournament types
 export * from './king.types';
+
+// Player points and ranking types
+export * from './playerPoints.types';

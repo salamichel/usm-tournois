@@ -5,6 +5,7 @@ import { getTournament } from '../middlewares/tournament.middleware';
 import { uploadCoverImage } from '../middlewares/upload.middleware';
 import * as adminController from '../controllers/admin.controller';
 import * as kingController from '../controllers/king.controller';
+import * as playerRankingController from '../controllers/playerRanking.controller';
 
 const router = Router();
 
@@ -26,6 +27,8 @@ router.post('/tournaments/:id/clone', asyncHandler(adminController.cloneTourname
  */
 router.get('/tournaments/:tournamentId/pools', asyncHandler(adminController.getPools));
 router.post('/tournaments/:tournamentId/pools', asyncHandler(adminController.createPool));
+router.put('/tournaments/:tournamentId/pools/:poolId', asyncHandler(adminController.updatePoolName));
+router.delete('/tournaments/:tournamentId/pools/:poolId', asyncHandler(adminController.deletePool));
 router.post('/tournaments/:tournamentId/pools/:poolId/assign-teams', asyncHandler(adminController.assignTeamsToPool));
 router.post('/tournaments/:tournamentId/pools/:poolId/generate-matches', asyncHandler(adminController.generatePoolMatches));
 
@@ -37,12 +40,19 @@ router.post('/tournaments/:tournamentId/generate-elimination', asyncHandler(admi
 router.post('/tournaments/:tournamentId/freeze-ranking', asyncHandler(adminController.freezeRanking));
 
 /**
+ * Match Score Management
+ */
+router.post('/tournaments/:tournamentId/pools/:poolId/matches/:matchId/update-score', asyncHandler(adminController.updatePoolMatchScore));
+router.post('/tournaments/:tournamentId/elimination/:matchId/update-score', asyncHandler(adminController.updateEliminationMatchScore));
+
+/**
  * Team Management
  */
 router.get('/tournaments/:tournamentId/teams', asyncHandler(adminController.getTeams));
 router.post('/tournaments/:tournamentId/teams', asyncHandler(adminController.createTeam));
 router.put('/tournaments/:tournamentId/teams/:teamId', asyncHandler(adminController.updateTeam));
 router.delete('/tournaments/:tournamentId/teams/:teamId', asyncHandler(adminController.deleteTeam));
+router.post('/tournaments/:tournamentId/generate-random-teams', asyncHandler(adminController.generateRandomTeams));
 
 /**
  * User Management
@@ -82,5 +92,11 @@ router.post('/tournaments/:tournamentId/king/reset-phase-1', asyncHandler(getTou
 router.post('/tournaments/:tournamentId/king/reset-phase-2', asyncHandler(getTournament), asyncHandler(kingController.resetKingPhase2));
 router.post('/tournaments/:tournamentId/king/reset-phase-3', asyncHandler(getTournament), asyncHandler(kingController.resetKingPhase3));
 router.post('/tournaments/:tournamentId/king/set-all-matches-scores', asyncHandler(getTournament), asyncHandler(kingController.setAllKingMatchesScores));
+
+/**
+ * Player Ranking Management
+ */
+router.post('/players/recalculate-rankings', asyncHandler(playerRankingController.recalculateRankings));
+router.get('/tournaments/:tournamentId/player-points', asyncHandler(playerRankingController.getTournamentPoints));
 
 export default router;

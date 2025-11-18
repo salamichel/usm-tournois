@@ -94,6 +94,14 @@ class AdminService {
     return apiService.delete(`/admin/tournaments/${tournamentId}/teams/${teamId}`);
   }
 
+  async generateRandomTeams(tournamentId: string) {
+    return apiService.post<{
+      teamsCreated: number;
+      playersAssigned: number;
+      remainingPlayers: number;
+    }>(`/admin/tournaments/${tournamentId}/generate-random-teams`);
+  }
+
   /**
    * Pool Management
    */
@@ -111,6 +119,25 @@ class AdminService {
 
   async generatePoolMatches(tournamentId: string, poolId: string) {
     return apiService.post(`/admin/tournaments/${tournamentId}/pools/${poolId}/generate-matches`);
+  }
+
+  async updatePoolName(tournamentId: string, poolId: string, name: string) {
+    return apiService.put(`/admin/tournaments/${tournamentId}/pools/${poolId}`, { name });
+  }
+
+  async deletePool(tournamentId: string, poolId: string) {
+    return apiService.delete(`/admin/tournaments/${tournamentId}/pools/${poolId}`);
+  }
+
+  /**
+   * Match Score Management
+   */
+  async updatePoolMatchScore(tournamentId: string, poolId: string, matchId: string, sets: any[]) {
+    return apiService.post(`/admin/tournaments/${tournamentId}/pools/${poolId}/matches/${matchId}/update-score`, { sets });
+  }
+
+  async updateEliminationMatchScore(tournamentId: string, matchId: string, sets: any[]) {
+    return apiService.post(`/admin/tournaments/${tournamentId}/elimination/${matchId}/update-score`, { sets });
   }
 
   /**

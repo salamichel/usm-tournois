@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef, ReactNode } from 'react';
 import type { TournamentSummary, TournamentDetails } from '@shared/types';
 import tournamentService from '@services/tournament.service';
 import toast from 'react-hot-toast';
@@ -30,6 +30,10 @@ export const TournamentProvider: React.FC<TournamentProviderProps> = ({ children
   const [tournaments, setTournaments] = useState<TournamentSummary[]>([]);
   const [currentTournament, setCurrentTournament] = useState<TournamentDetails | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const currentTournamentRef = useRef<TournamentDetails | null>(null);
+
+  // Keep ref in sync with state
+  currentTournamentRef.current = currentTournament;
 
   const fetchTournaments = useCallback(async () => {
     setIsLoading(true);
@@ -62,10 +66,11 @@ export const TournamentProvider: React.FC<TournamentProviderProps> = ({ children
   }, []);
 
   const refreshCurrentTournament = useCallback(async () => {
-    if (currentTournament) {
-      await fetchTournamentById(currentTournament.id);
+    // Use ref to avoid dependency on currentTournament state
+    if (currentTournamentRef.current) {
+      await fetchTournamentById(currentTournamentRef.current.id);
     }
-  }, [currentTournament, fetchTournamentById]);
+  }, [fetchTournamentById]);
 
   const value: TournamentContextType = {
     tournaments,

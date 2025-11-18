@@ -5,7 +5,10 @@
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
-    "dev": "nodemon app.js"
+    "dev": "nodemon app.js",
+    "dummy-players": "node scripts/create-dummy-players.js",
+    "delete-dummy": "node scripts/delete-dummy-players.js",
+    "test-tournament": "node scripts/create-test-tournament.js"
   },
   "author": "",
   "license": "ISC",

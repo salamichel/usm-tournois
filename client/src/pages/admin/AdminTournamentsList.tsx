@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import AdminLayout from '@components/AdminLayout';
 import adminService from '@services/admin.service';
 import toast from 'react-hot-toast';
-import { Plus, Edit, Trash2, Copy, Eye, Crown } from 'lucide-react';
+import { Plus, Edit, Trash2, Copy, Eye, Crown, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -94,6 +94,7 @@ const AdminTournamentsList = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lieu</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Équipes</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mode</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>
@@ -115,6 +116,15 @@ const AdminTournamentsList = () => {
                     </td>
                     <td className="px-6 py-4">
                       <span className={`badge ${
+                        tournament.registrationMode === 'random'
+                          ? 'badge-warning'
+                          : 'badge-default'
+                      }`}>
+                        {tournament.registrationMode === 'random' ? 'Aléatoire' : 'Équipes'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`badge ${
                         tournament.isActive ? 'badge-success' : 'badge-default'
                       }`}>
                         {tournament.isActive ? 'Actif' : 'Inactif'}
@@ -128,6 +138,17 @@ const AdminTournamentsList = () => {
                           title="Voir"
                         >
                           <Eye size={18} />
+                        </Link>
+                        <Link
+                          to={`/admin/tournaments/${tournament.id}/unassigned-players`}
+                          className={`${
+                            tournament.registrationMode === 'random'
+                              ? 'text-purple-600 hover:text-purple-900'
+                              : 'text-gray-400 hover:text-gray-600'
+                          }`}
+                          title="Joueurs non assignés"
+                        >
+                          <Users size={18} />
                         </Link>
                         <Link
                           to={`/admin/tournaments/${tournament.id}/king`}
