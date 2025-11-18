@@ -1074,3 +1074,119 @@ export const getRepechageCandidates = async (req: Request, res: Response) => {
     });
   }
 };
+
+/**
+ * Set random scores for all incomplete matches in current phase
+ * For testing purposes only
+ */
+export const setAllMatchesRandomScores = async (req: Request, res: Response) => {
+  const { tournamentId } = req.params;
+
+  try {
+    const tournamentRef = adminDb.collection('events').doc(tournamentId);
+    const tournamentDoc = await tournamentRef.get();
+
+    if (!tournamentDoc.exists) {
+      return res.status(404).json({ success: false, message: 'Tournament not found' });
+    }
+
+    const flexKingDocRef = tournamentRef.collection('flexibleKing').doc('mainData');
+    const flexKingDoc = await flexKingDocRef.get();
+
+    if (!flexKingDoc.exists) {
+      return res.status(404).json({ success: false, message: 'Flexible King Mode not initialized' });
+    }
+
+    const kingData = flexKingDoc.data();
+    const currentPhaseNumber = kingData?.currentPhaseNumber;
+
+    if (!currentPhaseNumber) {
+      return res.status(400).json({ success: false, message: 'No active phase to set scores for' });
+    }
+
+    const phaseDocRef = flexKingDocRef.collection('phases').doc(`phase-${currentPhaseNumber}`);
+    const phaseDoc = await phaseDocRef.get();
+
+    if (!phaseDoc.exists) {
+      return res.status(404).json({ success: false, message: `Phase ${currentPhaseNumber} not found` });
+    }
+
+    const phase = phaseDoc.data();
+    if (phase?.status !== 'in_progress') {
+      return res.status(400).json({ success: false, message: 'Phase must be in progress to set scores' });
+    }
+
+    const batch = adminDb.batch();
+    let matchesUpdatedCount = 0;
+    const allPhaseMatches: any[] = [];
+
+    // Random score options (2-0, 2-1, 0-2, 1-2)
+    const scoreOptions = [
+      { s1: 2, s2: 0 }, { s1: 2, s2: 1 },
+      { s1: 0, s2: 2 }, { s1: 1, s2: 2 }
+    ];
+
+    const poolsSnapshot = await phaseDocRef.collection('pools').get();
+    for (const poolDoc of poolsSnapshot.docs) {
+      const matchesSnapshot = await poolDoc.ref.collection('matches').get();
+      for (const matchDoc of matchesSnapshot.docs) {
+        const matchData: any = { id: matchDoc.id, ...matchDoc.data() };
+
+        if (matchData.status !== 'completed') {
+          // Generate random score
+          const randomScore = scoreOptions[Math.floor(Math.random() * scoreOptions.length)];
+
+          matchData.setsWonTeam1 = randomScore.s1;
+          matchData.setsWonTeam2 = randomScore.s2;
+          matchData.status = 'completed';
+          matchData.updatedAt = new Date();
+
+          // Determine winner
+          let winnerTeam = null;
+          if (matchData.setsWonTeam1 > matchData.setsWonTeam2) {
+            winnerTeam = matchData.team1;
+          } else if (matchData.setsWonTeam2 > matchData.setsWonTeam1) {
+            winnerTeam = matchData.team2;
+          }
+          matchData.winnerTeam = winnerTeam;
+          matchData.winnerName = winnerTeam ? winnerTeam.name : null;
+          matchData.winnerPlayerIds = winnerTeam ? winnerTeam.members.map((m: any) => m.id) : [];
+
+          batch.update(matchDoc.ref, matchData);
+          matchesUpdatedCount++;
+        }
+        allPhaseMatches.push(matchData);
+      }
+    }
+
+    if (matchesUpdatedCount === 0) {
+      return res.json({ success: true, message: 'Tous les matchs sont déjà terminés' });
+    }
+
+    // Update phase ranking
+    const ranking = kingService.calculateKingRanking(allPhaseMatches);
+    batch.update(phaseDocRef, {
+      ranking,
+      updatedAt: new Date()
+    });
+
+    await batch.commit();
+
+    console.log(`✅ Set random scores for ${matchesUpdatedCount} matches in phase ${currentPhaseNumber}`);
+
+    res.json({
+      success: true,
+      message: `${matchesUpdatedCount} matchs mis à jour avec des scores aléatoires`,
+      data: {
+        matchesUpdated: matchesUpdatedCount,
+        totalMatches: allPhaseMatches.length
+      }
+    });
+  } catch (error) {
+    console.error('Error setting random scores:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error setting random scores',
+    });
+  }
+};

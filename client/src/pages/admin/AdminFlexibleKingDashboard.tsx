@@ -162,6 +162,23 @@ const AdminFlexibleKingDashboard = () => {
     }
   };
 
+  const handleSetRandomScores = async () => {
+    if (!tournamentId) return;
+    if (!confirm('Voulez-vous définir des scores aléatoires pour tous les matchs non complétés de la phase actuelle ?')) return;
+
+    try {
+      const response = await flexibleKingService.setRandomScores(tournamentId);
+      if (response.success) {
+        toast.success(response.message || 'Scores aléatoires définis !');
+        loadDashboard();
+      } else {
+        toast.error(response.message || 'Erreur');
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Erreur lors de la définition des scores');
+    }
+  };
+
   if (isLoading) {
     return (
       <AdminLayout>
@@ -317,6 +334,22 @@ const AdminFlexibleKingDashboard = () => {
               <p className="text-2xl font-bold">{phases.length}</p>
             </div>
           </div>
+
+          {/* Random Scores Button */}
+          {currentPhaseNumber && phases.find(p => p.phaseNumber === currentPhaseNumber)?.status === 'in_progress' && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <button
+                onClick={handleSetRandomScores}
+                className="btn-secondary text-sm flex items-center gap-2"
+                title="Définir des scores aléatoires pour tous les matchs non complétés de la phase actuelle"
+              >
+                🎲 Scores Aléatoires (Test)
+              </button>
+              <p className="text-xs text-gray-500 mt-1">
+                Définir des scores aléatoires pour tous les matchs non complétés de la phase actuelle
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Phases Overview */}

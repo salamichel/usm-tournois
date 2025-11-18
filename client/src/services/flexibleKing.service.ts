@@ -118,6 +118,13 @@ class FlexibleKingService {
   async resetPhase(tournamentId: string, phaseNumber: number) {
     return apiService.post(`/flexible-king/tournaments/${tournamentId}/phases/${phaseNumber}/reset`);
   }
+
+  /**
+   * Set random scores for all incomplete matches in current phase (testing)
+   */
+  async setRandomScores(tournamentId: string) {
+    return apiService.post(`/flexible-king/tournaments/${tournamentId}/set-random-scores`);
+  }
 }
 
 export default new FlexibleKingService();
