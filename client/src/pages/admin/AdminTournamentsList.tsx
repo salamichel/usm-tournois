@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import AdminLayout from '@components/AdminLayout';
 import adminService from '@services/admin.service';
 import toast from 'react-hot-toast';
-import { Plus, Edit, Trash2, Copy, Eye, Crown, Users } from 'lucide-react';
+import { Plus, Edit, Trash2, Copy, Eye, Crown, Users, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -156,6 +156,13 @@ const AdminTournamentsList = () => {
                           title="Mode King"
                         >
                           <Crown size={18} />
+                        </Link>
+                        <Link
+                          to={`/admin/tournaments/${tournament.id}/flexible-king`}
+                          className="text-purple-600 hover:text-purple-900"
+                          title="Mode King Flexible"
+                        >
+                          <Sparkles size={18} />
                         </Link>
                         <Link
                           to={`/admin/tournaments/${tournament.id}/edit`}

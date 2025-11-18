@@ -24,6 +24,7 @@ import AdminTournamentForm from '@pages/admin/AdminTournamentForm';
 import AdminPoolsManagement from '@pages/admin/AdminPoolsManagement';
 import AdminEliminationManagement from '@pages/admin/AdminEliminationManagement';
 import AdminKingDashboard from '@pages/admin/AdminKingDashboard';
+import AdminFlexibleKingDashboard from '@pages/admin/AdminFlexibleKingDashboard';
 import AdminTeamsList from '@pages/admin/AdminTeamsList';
 import AdminTeamForm from '@pages/admin/AdminTeamForm';
 import AdminUsersList from '@pages/admin/AdminUsersList';
@@ -32,6 +33,9 @@ import AdminUnassignedPlayers from '@pages/admin/AdminUnassignedPlayers';
 import AdminVirtualUsers from '@pages/admin/AdminVirtualUsers';
 import AdminClubsList from '@pages/admin/AdminClubsList';
 import AdminClubForm from '@pages/admin/AdminClubForm';
+
+// Demo pages
+import KingConfigDemo from '@pages/KingConfigDemo';
 
 function App() {
   return (
@@ -137,6 +141,14 @@ function App() {
               }
             />
             <Route
+              path="/admin/tournaments/:tournamentId/flexible-king"
+              element={
+                <AdminRoute>
+                  <AdminFlexibleKingDashboard />
+                </AdminRoute>
+              }
+            />
+            <Route
               path="/admin/tournaments/:tournamentId/teams"
               element={
                 <AdminRoute>
@@ -224,6 +236,9 @@ function App() {
                 </AdminRoute>
               }
             />
+
+            {/* Demo pages */}
+            <Route path="/demo/king-config" element={<KingConfigDemo />} />
 
             {/* 404 */}
             <Route path="*" element={<NotFoundPage />} />
