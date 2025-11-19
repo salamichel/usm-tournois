@@ -4,26 +4,69 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Trophy, Medal, TrendingUp, Calendar, Award, Building2 } from 'lucide-react';
+import { Trophy, Medal, TrendingUp, Calendar, Award, Building2, Globe, CalendarRange } from 'lucide-react';
 import playerRankingService from '@services/playerRanking.service';
+import seasonService from '@services/season.service';
 import type { PlayerGlobalRanking } from '@shared/types/playerPoints.types';
+import type { Season, SeasonRanking } from '@shared/types/season.types';
 import { Link } from 'react-router-dom';
 
+type ViewMode = 'global' | 'season';
+
 const PlayerRankingPage = () => {
-  const [rankings, setRankings] = useState<PlayerGlobalRanking[]>([]);
+  const [rankings, setRankings] = useState<(PlayerGlobalRanking | SeasonRanking)[]>([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [seasons, setSeasons] = useState<Season[]>([]);
+  const [selectedSeasonId, setSelectedSeasonId] = useState<string>('');
+  const [viewMode, setViewMode] = useState<ViewMode>('season');
 
+  // Fetch seasons on mount
+  useEffect(() => {
+    const fetchSeasons = async () => {
+      try {
+        const response = await seasonService.getAllSeasons();
+        if (response.success && response.data) {
+          setSeasons(response.data.seasons);
+          // Select active season by default, or first season
+          const activeSeason = response.data.seasons.find(s => s.isActive);
+          if (activeSeason) {
+            setSelectedSeasonId(activeSeason.id);
+          } else if (response.data.seasons.length > 0) {
+            setSelectedSeasonId(response.data.seasons[0].id);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching seasons:', err);
+      }
+    };
+
+    fetchSeasons();
+  }, []);
+
+  // Fetch rankings when view mode or selected season changes
   useEffect(() => {
     const fetchRankings = async () => {
       try {
         setIsLoading(true);
         setError(null);
-        const response = await playerRankingService.getGlobalRanking(100, 0);
-        if (response.success && response.data) {
-          setRankings(response.data.rankings);
-          setTotal(response.data.total);
+
+        if (viewMode === 'global') {
+          const response = await playerRankingService.getGlobalRanking(100, 0);
+          if (response.success && response.data) {
+            setRankings(response.data.rankings);
+            setTotal(response.data.total);
+          }
+        } else if (selectedSeasonId) {
+          const response = await seasonService.getSeasonRanking(selectedSeasonId, 100, 0);
+          if (response.success && response.data) {
+            setRankings(response.data.rankings);
+            setTotal(response.data.total);
+          }
+        } else {
+          setRankings([]);
+          setTotal(0);
         }
       } catch (err: any) {
         console.error('Error fetching player rankings:', err);
@@ -34,7 +77,7 @@ const PlayerRankingPage = () => {
     };
 
     fetchRankings();
-  }, []);
+  }, [viewMode, selectedSeasonId]);
 
   const getRankBadge = (rank: number) => {
     if (rank === 1) {
@@ -89,8 +132,55 @@ const PlayerRankingPage = () => {
           <h1 className="text-3xl font-bold text-gray-900">Classement des Joueurs</h1>
         </div>
         <p className="text-gray-600">
-          Classement général basé sur les performances dans les tournois ({total} joueurs)
+          {viewMode === 'global'
+            ? `Classement global toutes saisons confondues (${total} joueurs)`
+            : `Classement de la saison (${total} joueurs)`
+          }
         </p>
+      </div>
+
+      {/* View Mode & Season Selector */}
+      <div className="mb-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+        {/* View Mode Toggle */}
+        <div className="flex rounded-lg bg-gray-100 p-1">
+          <button
+            onClick={() => setViewMode('season')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              viewMode === 'season'
+                ? 'bg-white text-primary-600 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <CalendarRange size={16} />
+            Saison
+          </button>
+          <button
+            onClick={() => setViewMode('global')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              viewMode === 'global'
+                ? 'bg-white text-primary-600 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <Globe size={16} />
+            Global
+          </button>
+        </div>
+
+        {/* Season Selector (only show when in season mode) */}
+        {viewMode === 'season' && seasons.length > 0 && (
+          <select
+            value={selectedSeasonId}
+            onChange={(e) => setSelectedSeasonId(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+          >
+            {seasons.map((season) => (
+              <option key={season.id} value={season.id}>
+                {season.name} {season.isActive && '(Active)'}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       {/* Stats Overview */}

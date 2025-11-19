@@ -4,7 +4,7 @@ import { AppError } from '../middlewares/error.middleware';
 import { convertTimestamps } from '../utils/firestore.utils';
 import { calculateMatchOutcome, propagateEliminationMatchResults } from '../services/match.service';
 import { generateEliminationBracket as generateEliminationBracketService, QualifiedTeam, EliminationTournamentConfig } from '../services/elimination.service';
-import { awardPointsToTeam } from '../services/playerPoints.service';
+import { awardPointsToTeam, deleteTournamentPoints, updateGlobalRankings } from '../services/playerPoints.service';
 
 /**
  * Tournament Management
@@ -1259,6 +1259,12 @@ export const freezeEliminationRanking = async (req: Request, res: Response) => {
       const tournamentName = tournament.name || 'Tournoi';
       const tournamentDate = tournament.date?.toDate ? tournament.date.toDate() : new Date();
 
+      // Delete existing points for this tournament (to allow re-freeze)
+      const affectedPlayerIds = await deleteTournamentPoints(tournamentId);
+      if (affectedPlayerIds.length > 0) {
+        console.log(`🗑️ Deleted existing points for ${affectedPlayerIds.length} players`);
+      }
+
       let playersAwarded = 0;
 
       for (const team of ranking) {
@@ -1290,6 +1296,11 @@ export const freezeEliminationRanking = async (req: Request, res: Response) => {
         } catch (error) {
           console.error(`Error awarding points to team ${team.teamName}:`, error);
         }
+      }
+
+      // Also update global rankings for previously affected players (in case of re-freeze)
+      if (affectedPlayerIds.length > 0) {
+        await updateGlobalRankings(affectedPlayerIds);
       }
 
       console.log(`✅ Frozen elimination tournament ${tournamentId}: ${playersAwarded} players awarded points`);

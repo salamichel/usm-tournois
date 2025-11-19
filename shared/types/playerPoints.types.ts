@@ -11,6 +11,8 @@ export interface PlayerTournamentPoints {
   playerPseudo: string;
   clubId?: string;
   clubName?: string;
+  seasonId?: string;
+  seasonName?: string;
   tournamentId: string;
   tournamentName: string;
   tournamentDate: Date;
