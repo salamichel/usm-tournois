@@ -71,8 +71,8 @@ export async function awardPointsToTeam(
     const playerPoints: PlayerTournamentPoints = {
       playerId: member.userId,
       playerPseudo: member.pseudo,
-      clubId,
-      clubName,
+      clubId: clubId || null,
+      clubName: clubName || null,
       seasonId: season.id,
       seasonName: season.name,
       tournamentId,
@@ -450,8 +450,8 @@ export async function awardPointsToFlexibleKingPlayers(
     const playerPoints: PlayerTournamentPoints = {
       playerId: player.playerId,
       playerPseudo: player.playerPseudo,
-      clubId,
-      clubName,
+      clubId: clubId || null,
+      clubName: clubName || null,
       seasonId: season.id,
       seasonName: season.name,
       tournamentId,
