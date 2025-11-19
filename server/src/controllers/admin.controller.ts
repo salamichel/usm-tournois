@@ -1008,6 +1008,90 @@ export const freezeEliminationRanking = async (req: Request, res: Response) => {
       throw new AppError('No elimination matches found', 400);
     }
 
+    // Calculate team statistics from all elimination matches
+    const teamStats: { [key: string]: {
+      matchesPlayed: number;
+      wins: number;
+      losses: number;
+      setsWon: number;
+      setsLost: number;
+      pointsScored: number;
+      pointsConceded: number;
+    }} = {};
+
+    // Initialize stats for all teams and calculate from matches
+    matches.forEach((match: any) => {
+      if (match.status === 'completed') {
+        const team1Id = match.team1?.id;
+        const team2Id = match.team2?.id;
+
+        // Initialize team stats if not exists
+        if (team1Id && !teamStats[team1Id]) {
+          teamStats[team1Id] = {
+            matchesPlayed: 0,
+            wins: 0,
+            losses: 0,
+            setsWon: 0,
+            setsLost: 0,
+            pointsScored: 0,
+            pointsConceded: 0
+          };
+        }
+        if (team2Id && !teamStats[team2Id]) {
+          teamStats[team2Id] = {
+            matchesPlayed: 0,
+            wins: 0,
+            losses: 0,
+            setsWon: 0,
+            setsLost: 0,
+            pointsScored: 0,
+            pointsConceded: 0
+          };
+        }
+
+        const setsWonTeam1 = match.setsWonTeam1 || 0;
+        const setsWonTeam2 = match.setsWonTeam2 || 0;
+
+        // Calculate points scored from sets
+        let pointsScoredTeam1 = 0;
+        let pointsScoredTeam2 = 0;
+        if (match.sets && Array.isArray(match.sets)) {
+          match.sets.forEach((set: any) => {
+            pointsScoredTeam1 += set.score1 || 0;
+            pointsScoredTeam2 += set.score2 || 0;
+          });
+        }
+
+        // Update team1 stats
+        if (team1Id && teamStats[team1Id]) {
+          teamStats[team1Id].matchesPlayed++;
+          teamStats[team1Id].setsWon += setsWonTeam1;
+          teamStats[team1Id].setsLost += setsWonTeam2;
+          teamStats[team1Id].pointsScored += pointsScoredTeam1;
+          teamStats[team1Id].pointsConceded += pointsScoredTeam2;
+          if (setsWonTeam1 > setsWonTeam2) {
+            teamStats[team1Id].wins++;
+          } else {
+            teamStats[team1Id].losses++;
+          }
+        }
+
+        // Update team2 stats
+        if (team2Id && teamStats[team2Id]) {
+          teamStats[team2Id].matchesPlayed++;
+          teamStats[team2Id].setsWon += setsWonTeam2;
+          teamStats[team2Id].setsLost += setsWonTeam1;
+          teamStats[team2Id].pointsScored += pointsScoredTeam2;
+          teamStats[team2Id].pointsConceded += pointsScoredTeam1;
+          if (setsWonTeam2 > setsWonTeam1) {
+            teamStats[team2Id].wins++;
+          } else {
+            teamStats[team2Id].losses++;
+          }
+        }
+      }
+    });
+
     // Find final and 3rd place match
     const finale = matches.find((m: any) => m.round === 'Finale');
     const thirdPlaceMatch = matches.find((m: any) => m.round === 'Match 3ème place');
@@ -1122,10 +1206,34 @@ export const freezeEliminationRanking = async (req: Request, res: Response) => {
 
     // Add new ranking
     ranking.forEach((team) => {
+      const stats = teamStats[team.teamId] || {
+        matchesPlayed: 0,
+        wins: 0,
+        losses: 0,
+        setsWon: 0,
+        setsLost: 0,
+        pointsScored: 0,
+        pointsConceded: 0
+      };
+
       const rankData = {
         rank: team.rank,
         teamName: team.teamName,
         teamId: team.teamId,
+        matchesPlayed: stats.matchesPlayed,
+        wins: stats.wins,
+        losses: stats.losses,
+        setsWon: stats.setsWon,
+        setsLost: stats.setsLost,
+        pointsScored: stats.pointsScored,
+        pointsConceded: stats.pointsConceded,
+        pointsRatio:
+          stats.pointsConceded > 0
+            ? (stats.pointsScored / stats.pointsConceded).toFixed(2)
+            : stats.pointsScored > 0
+            ? 'Inf.'
+            : '0.00',
+        bonusPoints: 0,
         points: team.points,
         frozenAt: new Date(),
       };
