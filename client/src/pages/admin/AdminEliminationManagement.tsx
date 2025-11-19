@@ -57,7 +57,7 @@ const AdminEliminationManagement = () => {
 
   const handleFreezeRanking = async () => {
     if (!tournamentId) return;
-    if (!confirm('Êtes-vous sûr de vouloir figer le classement ? Cette action est irréversible et finalisera le tournoi.')) return;
+    if (!confirm('Êtes-vous sûr de vouloir figer le classement et attribuer les points ? Vous pouvez relancer cette action si nécessaire.')) return;
 
     try {
       const response = await adminService.freezeEliminationRanking(tournamentId);
@@ -110,26 +110,22 @@ const AdminEliminationManagement = () => {
               Phase d'Élimination - {tournament?.name}
             </h1>
           </div>
-          {matches.length > 0 && !isTournamentFrozen && (
+          {matches.length > 0 && (
             <button
               onClick={handleFreezeRanking}
               disabled={!isFinaleCompleted}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors ${
                 isFinaleCompleted
-                  ? 'bg-red-600 text-white hover:bg-red-700'
+                  ? isTournamentFrozen
+                    ? 'bg-green-600 text-white hover:bg-green-700'
+                    : 'bg-red-600 text-white hover:bg-red-700'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
-              title={!isFinaleCompleted ? 'La finale doit être terminée pour figer le classement' : 'Figer le classement final'}
+              title={!isFinaleCompleted ? 'La finale doit être terminée pour figer le classement' : isTournamentFrozen ? 'Relancer le calcul des points' : 'Figer le classement final'}
             >
               <Lock size={18} />
-              Figer le classement
+              {isTournamentFrozen ? 'Recalculer les points' : 'Figer le classement'}
             </button>
-          )}
-          {isTournamentFrozen && (
-            <span className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-800 rounded-lg font-semibold">
-              <Lock size={18} />
-              Tournoi figé
-            </span>
           )}
         </div>
 

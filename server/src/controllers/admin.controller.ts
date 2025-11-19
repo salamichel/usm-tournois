@@ -362,6 +362,26 @@ export const getPools = async (req: Request, res: Response) => {
   try {
     const { tournamentId } = req.params;
 
+    // Fetch all teams to get player information
+    const teamsSnapshot = await adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('teams')
+      .get();
+
+    const teamsMap: Record<string, any> = {};
+    const teamsByName: Record<string, any> = {};
+    teamsSnapshot.docs.forEach((doc) => {
+      const teamData = doc.data();
+      const teamObj = {
+        id: doc.id,
+        name: teamData.name,
+        members: teamData.members || [],
+      };
+      teamsMap[doc.id] = teamObj;
+      teamsByName[teamData.name] = teamObj;
+    });
+
     const poolsSnapshot = await adminDb
       .collection('events')
       .doc(tournamentId)
@@ -382,12 +402,29 @@ export const getPools = async (req: Request, res: Response) => {
           .orderBy('matchNumber')
           .get();
 
-        const matches = matchesSnapshot.docs.map((matchDoc) =>
-          convertTimestamps({
+        const matches = matchesSnapshot.docs.map((matchDoc) => {
+          const matchData = matchDoc.data();
+          const enrichedMatch: any = convertTimestamps({
             id: matchDoc.id,
-            ...matchDoc.data(),
-          })
-        );
+            ...matchData,
+          });
+
+          // Add players to team1 (try by ID first, then by name)
+          if (enrichedMatch.team1?.id && teamsMap[enrichedMatch.team1.id]) {
+            enrichedMatch.team1.members = teamsMap[enrichedMatch.team1.id].members;
+          } else if (enrichedMatch.team1?.name && teamsByName[enrichedMatch.team1.name]) {
+            enrichedMatch.team1.members = teamsByName[enrichedMatch.team1.name].members;
+          }
+
+          // Add players to team2 (try by ID first, then by name)
+          if (enrichedMatch.team2?.id && teamsMap[enrichedMatch.team2.id]) {
+            enrichedMatch.team2.members = teamsMap[enrichedMatch.team2.id].members;
+          } else if (enrichedMatch.team2?.name && teamsByName[enrichedMatch.team2.name]) {
+            enrichedMatch.team2.members = teamsByName[enrichedMatch.team2.name].members;
+          }
+
+          return enrichedMatch;
+        });
 
         return convertTimestamps({
           id: poolDoc.id,
