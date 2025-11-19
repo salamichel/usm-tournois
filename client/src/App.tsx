@@ -27,6 +27,8 @@ import AdminKingDashboard from '@pages/admin/AdminKingDashboard';
 import AdminFlexibleKingDashboard from '@pages/admin/AdminFlexibleKingDashboard';
 import AdminTeamsList from '@pages/admin/AdminTeamsList';
 import AdminTeamForm from '@pages/admin/AdminTeamForm';
+import AdminGlobalTeams from '@pages/admin/AdminGlobalTeams';
+import AdminTeamSearch from '@pages/admin/AdminTeamSearch';
 import AdminUsersList from '@pages/admin/AdminUsersList';
 import AdminUserForm from '@pages/admin/AdminUserForm';
 import AdminUnassignedPlayers from '@pages/admin/AdminUnassignedPlayers';
@@ -148,6 +150,32 @@ function App() {
                 </AdminRoute>
               }
             />
+            {/* Global Teams Management */}
+            <Route
+              path="/admin/teams"
+              element={
+                <AdminRoute>
+                  <AdminGlobalTeams />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/teams/search"
+              element={
+                <AdminRoute>
+                  <AdminTeamSearch />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/teams/stats"
+              element={
+                <AdminRoute>
+                  <AdminGlobalTeams />
+                </AdminRoute>
+              }
+            />
+            {/* Tournament-specific Teams */}
             <Route
               path="/admin/tournaments/:tournamentId/teams"
               element={

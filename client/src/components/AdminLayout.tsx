@@ -8,7 +8,8 @@ import {
   LogOut,
   Home,
   ChevronRight,
-  Building2
+  Building2,
+  UsersRound
 } from 'lucide-react';
 
 interface AdminLayoutProps {
@@ -28,6 +29,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   const navItems = [
     { path: '/admin', icon: LayoutDashboard, label: 'Dashboard', exact: true },
     { path: '/admin/tournaments', icon: Trophy, label: 'Tournois' },
+    { path: '/admin/teams', icon: UsersRound, label: 'Équipes' },
     { path: '/admin/clubs', icon: Building2, label: 'Clubs' },
     { path: '/admin/users', icon: Users, label: 'Utilisateurs' },
   ];
