@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Trophy, Medal, TrendingUp, Calendar, Award } from 'lucide-react';
+import { Trophy, Medal, TrendingUp, Calendar, Award, Building2 } from 'lucide-react';
 import playerRankingService from '@services/playerRanking.service';
 import type { PlayerGlobalRanking } from '@shared/types/playerPoints.types';
 import { Link } from 'react-router-dom';
@@ -119,6 +119,12 @@ const PlayerRankingPage = () => {
                 </div>
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-2">{player.pseudo}</h3>
+              {player.clubName && (
+                <div className="flex items-center gap-1 text-xs text-gray-600 mb-2">
+                  <Building2 size={12} />
+                  <span>{player.clubName}</span>
+                </div>
+              )}
               <div className="space-y-1 text-sm text-gray-700">
                 <div className="flex items-center gap-2">
                   <Award size={16} />
@@ -160,6 +166,9 @@ const PlayerRankingPage = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Joueur
                   </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Club
+                  </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Points Totaux
                   </th>
@@ -198,6 +207,16 @@ const PlayerRankingPage = () => {
                           )}
                         </div>
                       </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {player.clubName ? (
+                        <div className="flex items-center gap-1 text-sm text-gray-600">
+                          <Building2 size={14} className="text-gray-400" />
+                          <span>{player.clubName}</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400">-</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <div className="flex items-center justify-center gap-1">
