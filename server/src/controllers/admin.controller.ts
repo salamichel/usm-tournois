@@ -632,13 +632,17 @@ export const getEliminationMatches = async (req: Request, res: Response) => {
       .get();
 
     const teamsMap: Record<string, any> = {};
+    const teamsByName: Record<string, any> = {};
     teamsSnapshot.docs.forEach((doc) => {
       const teamData = doc.data();
-      teamsMap[doc.id] = {
+      const teamObj = {
         id: doc.id,
         name: teamData.name,
         members: teamData.members || [],
       };
+      teamsMap[doc.id] = teamObj;
+      // Also index by name for fallback matching
+      teamsByName[teamData.name] = teamObj;
     });
 
     // Enrich matches with player information
@@ -649,14 +653,18 @@ export const getEliminationMatches = async (req: Request, res: Response) => {
         ...matchData,
       });
 
-      // Add players to team1
+      // Add players to team1 (try by ID first, then by name)
       if (enrichedMatch.team1?.id && teamsMap[enrichedMatch.team1.id]) {
         enrichedMatch.team1.members = teamsMap[enrichedMatch.team1.id].members;
+      } else if (enrichedMatch.team1?.name && teamsByName[enrichedMatch.team1.name]) {
+        enrichedMatch.team1.members = teamsByName[enrichedMatch.team1.name].members;
       }
 
-      // Add players to team2
+      // Add players to team2 (try by ID first, then by name)
       if (enrichedMatch.team2?.id && teamsMap[enrichedMatch.team2.id]) {
         enrichedMatch.team2.members = teamsMap[enrichedMatch.team2.id].members;
+      } else if (enrichedMatch.team2?.name && teamsByName[enrichedMatch.team2.name]) {
+        enrichedMatch.team2.members = teamsByName[enrichedMatch.team2.name].members;
       }
 
       return enrichedMatch;
