@@ -9,7 +9,8 @@ import {
   Home,
   ChevronRight,
   Building2,
-  UsersRound
+  UsersRound,
+  CalendarRange
 } from 'lucide-react';
 
 interface AdminLayoutProps {
@@ -31,6 +32,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     { path: '/admin/tournaments', icon: Trophy, label: 'Tournois' },
     { path: '/admin/teams', icon: UsersRound, label: 'Équipes' },
     { path: '/admin/clubs', icon: Building2, label: 'Clubs' },
+    { path: '/admin/seasons', icon: CalendarRange, label: 'Saisons' },
     { path: '/admin/users', icon: Users, label: 'Utilisateurs' },
   ];
 
