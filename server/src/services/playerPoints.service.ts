@@ -44,9 +44,27 @@ export async function awardPointsToTeam(
     // Skip virtual/placeholder members
     if (member.isVirtual) continue;
 
+    // Fetch player's club info
+    let clubId: string | undefined;
+    let clubName: string | undefined;
+
+    try {
+      const userDoc = await adminDb.collection('users').doc(member.userId).get();
+      clubId = userDoc.data()?.clubId;
+
+      if (clubId) {
+        const clubDoc = await adminDb.collection('clubs').doc(clubId).get();
+        clubName = clubDoc.data()?.name;
+      }
+    } catch (error) {
+      console.error(`Error fetching club info for player ${member.userId}:`, error);
+    }
+
     const playerPoints: PlayerTournamentPoints = {
       playerId: member.userId,
       playerPseudo: member.pseudo,
+      clubId,
+      clubName,
       tournamentId,
       tournamentName,
       tournamentDate,
@@ -126,12 +144,16 @@ export async function calculatePlayerGlobalRanking(
       : latest;
   });
 
-  // Get player pseudo from first tournament entry
-  const playerPseudo = tournaments[0].playerPseudo;
+  // Get player pseudo and club from most recent tournament entry
+  const playerPseudo = lastTournament.playerPseudo;
+  const clubId = lastTournament.clubId;
+  const clubName = lastTournament.clubName;
 
   const ranking: PlayerGlobalRanking = {
     playerId,
     pseudo: playerPseudo,
+    clubId,
+    clubName,
     totalPoints,
     tournamentsPlayed,
     averagePoints: Math.round(averagePoints * 100) / 100,
@@ -283,9 +305,27 @@ export async function awardPointsToFlexibleKingPlayers(
     const points = getPointsForRank(rank);
     totalPoints += points;
 
+    // Fetch player's club info
+    let clubId: string | undefined;
+    let clubName: string | undefined;
+
+    try {
+      const userDoc = await adminDb.collection('users').doc(player.playerId).get();
+      clubId = userDoc.data()?.clubId;
+
+      if (clubId) {
+        const clubDoc = await adminDb.collection('clubs').doc(clubId).get();
+        clubName = clubDoc.data()?.name;
+      }
+    } catch (error) {
+      console.error(`Error fetching club info for player ${player.playerId}:`, error);
+    }
+
     const playerPoints: PlayerTournamentPoints = {
       playerId: player.playerId,
       playerPseudo: player.playerPseudo,
+      clubId,
+      clubName,
       tournamentId,
       tournamentName,
       tournamentDate,

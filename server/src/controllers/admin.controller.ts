@@ -4,6 +4,7 @@ import { AppError } from '../middlewares/error.middleware';
 import { convertTimestamps } from '../utils/firestore.utils';
 import { calculateMatchOutcome, propagateEliminationMatchResults } from '../services/match.service';
 import { generateEliminationBracket as generateEliminationBracketService, QualifiedTeam, EliminationTournamentConfig } from '../services/elimination.service';
+import { awardPointsToTeam } from '../services/playerPoints.service';
 
 /**
  * Tournament Management
@@ -1250,10 +1251,59 @@ export const freezeEliminationRanking = async (req: Request, res: Response) => {
 
     await batch.commit();
 
-    res.json({
-      success: true,
-      message: `Classement figé avec succès ! ${ranking.length} équipes classées.`,
-    });
+    // Award points to players based on ranking
+    const tournamentDoc = await tournamentRef.get();
+    const tournament = tournamentDoc.data();
+
+    if (tournament) {
+      const tournamentName = tournament.name || 'Tournoi';
+      const tournamentDate = tournament.date?.toDate ? tournament.date.toDate() : new Date();
+
+      let playersAwarded = 0;
+
+      for (const team of ranking) {
+        try {
+          // Get team members
+          const teamDoc = await adminDb
+            .collection('events')
+            .doc(tournamentId)
+            .collection('teams')
+            .doc(team.teamId)
+            .get();
+
+          if (teamDoc.exists) {
+            const teamData = teamDoc.data();
+            const members = teamData?.members || [];
+
+            if (members.length > 0) {
+              await awardPointsToTeam(
+                tournamentId,
+                tournamentName,
+                tournamentDate,
+                team.teamName,
+                members,
+                team.rank
+              );
+              playersAwarded += members.filter((m: any) => !m.isVirtual).length;
+            }
+          }
+        } catch (error) {
+          console.error(`Error awarding points to team ${team.teamName}:`, error);
+        }
+      }
+
+      console.log(`✅ Frozen elimination tournament ${tournamentId}: ${playersAwarded} players awarded points`);
+
+      res.json({
+        success: true,
+        message: `Classement figé avec succès ! ${ranking.length} équipes classées, ${playersAwarded} joueurs ont reçu leurs points.`,
+      });
+    } else {
+      res.json({
+        success: true,
+        message: `Classement figé avec succès ! ${ranking.length} équipes classées.`,
+      });
+    }
   } catch (error: any) {
     console.error('Error freezing elimination ranking:', error);
     if (error instanceof AppError) throw error;
