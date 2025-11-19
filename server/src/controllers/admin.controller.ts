@@ -942,6 +942,15 @@ export const freezeRanking = async (req: Request, res: Response) => {
       throw new AppError('Invalid final ranking data', 400);
     }
 
+    // Get tournament data for name and date
+    const tournamentDoc = await adminDb.collection('events').doc(tournamentId).get();
+    if (!tournamentDoc.exists) {
+      throw new AppError('Tournament not found', 404);
+    }
+    const tournament = tournamentDoc.data();
+    const tournamentName = tournament?.name || 'Tournoi';
+    const tournamentDate = tournament?.date?.toDate() || new Date();
+
     const batch = adminDb.batch();
     const finalRankingCollectionRef = adminDb
       .collection('events')
@@ -953,6 +962,9 @@ export const freezeRanking = async (req: Request, res: Response) => {
     existingRankingSnapshot.docs.forEach((doc) => {
       batch.delete(doc.ref);
     });
+
+    // Delete existing tournament points (allows re-freeze)
+    const affectedPlayerIds = await deleteTournamentPoints(tournamentId);
 
     // Add new ranking
     finalRanking.forEach((teamEntry: any, index: number) => {
@@ -986,9 +998,49 @@ export const freezeRanking = async (req: Request, res: Response) => {
 
     await batch.commit();
 
+    // Award points to each team based on their final ranking
+    const newAffectedPlayerIds: string[] = [...affectedPlayerIds];
+
+    for (let i = 0; i < finalRanking.length; i++) {
+      const teamEntry = finalRanking[i];
+      const stats = teamEntry[1];
+      const teamData = stats.team || {};
+      const rank = i + 1;
+
+      if (teamData.members && Array.isArray(teamData.members) && teamData.members.length > 0) {
+        const playerIds = await awardPointsToTeam(
+          tournamentId,
+          tournamentName,
+          tournamentDate,
+          teamData,
+          rank
+        );
+
+        playerIds.forEach(id => {
+          if (!newAffectedPlayerIds.includes(id)) {
+            newAffectedPlayerIds.push(id);
+          }
+        });
+      }
+    }
+
+    // Update global rankings for all affected players
+    if (newAffectedPlayerIds.length > 0) {
+      await updateGlobalRankings(newAffectedPlayerIds);
+    }
+
+    // Update tournament status to frozen
+    await adminDb.collection('events').doc(tournamentId).update({
+      status: 'frozen',
+      isFrozen: true,
+      frozenAt: new Date()
+    });
+
+    console.log(`✅ Frozen pool tournament ${tournamentId}: ${newAffectedPlayerIds.length} players awarded points`);
+
     res.json({
       success: true,
-      message: 'Final ranking frozen successfully',
+      message: `Final ranking frozen successfully. ${newAffectedPlayerIds.length} joueurs ont reçu leurs points.`,
     });
   } catch (error: any) {
     console.error('Error freezing ranking:', error);
