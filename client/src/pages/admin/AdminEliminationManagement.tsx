@@ -4,12 +4,13 @@ import AdminLayout from '@components/AdminLayout';
 import MatchScoreModal from '@components/admin/MatchScoreModal';
 import adminService from '@services/admin.service';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Trophy, Edit2 } from 'lucide-react';
+import { ArrowLeft, Trophy, Edit2, Lock } from 'lucide-react';
 
 const AdminEliminationManagement = () => {
   const { tournamentId } = useParams();
   const [tournament, setTournament] = useState<any>(null);
   const [matches, setMatches] = useState<any[]>([]);
+  const [finalRanking, setFinalRanking] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Modal states
@@ -30,6 +31,7 @@ const AdminEliminationManagement = () => {
 
       setTournament(tournamentRes.tournament || tournamentRes.data?.tournament);
       setMatches(matchesRes.matches || matchesRes.data?.matches || []);
+      setFinalRanking(matchesRes.finalRanking || matchesRes.data?.finalRanking || []);
     } catch (error: any) {
       toast.error(error.message || 'Erreur lors du chargement');
     } finally {
@@ -53,6 +55,27 @@ const AdminEliminationManagement = () => {
     }
   };
 
+  const handleFreezeRanking = async () => {
+    if (!tournamentId) return;
+    if (!confirm('Êtes-vous sûr de vouloir figer le classement ? Cette action est irréversible et finalisera le tournoi.')) return;
+
+    try {
+      const response = await adminService.freezeEliminationRanking(tournamentId);
+      if (response.success) {
+        toast.success(response.message || 'Classement figé avec succès !');
+        loadData();
+      } else {
+        toast.error(response.message || 'Erreur lors du gel du classement');
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || error.message || 'Erreur lors du gel du classement');
+    }
+  };
+
+  // Check if finale is completed
+  const isFinaleCompleted = matches.some(m => m.round === 'Finale' && m.status === 'completed');
+  const isTournamentFrozen = tournament?.isFrozen || tournament?.status === 'frozen';
+
   if (loading) {
     return (
       <AdminLayout>
@@ -63,26 +86,51 @@ const AdminEliminationManagement = () => {
     );
   }
 
-  // Group matches by round
+  // Group matches by round - left to right order (preliminary to final)
   const roundOrder = [
-    { key: 'Finale', label: 'Finale' },
-    { key: 'Match 3ème place', label: 'Match pour la 3ème place' },
-    { key: 'Demi-finale', label: 'Demi-finales' },
-    { key: 'Quart de finale', label: 'Quarts de finale' },
     { key: 'Tour Préliminaire', label: 'Tour Préliminaire' },
+    { key: 'Seizième de finale', label: '1/16 de finale' },
+    { key: 'Huitième de finale', label: '1/8 de finale' },
+    { key: 'Quart de finale', label: '1/4 de finale' },
+    { key: 'Demi-finale', label: '1/2 finale' },
+    { key: 'Match 3ème place', label: 'Petite finale' },
+    { key: 'Finale', label: 'Finale' },
   ];
 
   return (
     <AdminLayout>
       <div className="max-w-7xl mx-auto">
-        <div className="mb-6 flex items-center gap-4">
-          <Link to={`/admin/tournaments/${tournamentId}/pools`} className="text-gray-600 hover:text-gray-900">
-            <ArrowLeft size={24} />
-          </Link>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Trophy size={28} />
-            Phase d'Élimination - {tournament?.name}
-          </h1>
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link to={`/admin/tournaments/${tournamentId}/pools`} className="text-gray-600 hover:text-gray-900">
+              <ArrowLeft size={24} />
+            </Link>
+            <h1 className="text-3xl font-bold flex items-center gap-2">
+              <Trophy size={28} />
+              Phase d'Élimination - {tournament?.name}
+            </h1>
+          </div>
+          {matches.length > 0 && !isTournamentFrozen && (
+            <button
+              onClick={handleFreezeRanking}
+              disabled={!isFinaleCompleted}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors ${
+                isFinaleCompleted
+                  ? 'bg-red-600 text-white hover:bg-red-700'
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }`}
+              title={!isFinaleCompleted ? 'La finale doit être terminée pour figer le classement' : 'Figer le classement final'}
+            >
+              <Lock size={18} />
+              Figer le classement
+            </button>
+          )}
+          {isTournamentFrozen && (
+            <span className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-800 rounded-lg font-semibold">
+              <Lock size={18} />
+              Tournoi figé
+            </span>
+          )}
         </div>
 
         {matches.length === 0 ? (
@@ -123,31 +171,49 @@ const AdminEliminationManagement = () => {
 
                         {/* Teams and scores */}
                         <div className="space-y-2 mb-3">
-                          <div className={`flex justify-between items-center p-3 rounded ${
-                            match.winnerId === match.team1?.id ? 'bg-green-50 border-2 border-green-300 font-bold' : 'bg-gray-50 border border-gray-200'
+                          <div className={`p-3 rounded ${
+                            match.winnerId === match.team1?.id ? 'bg-green-50 border-2 border-green-300' : 'bg-gray-50 border border-gray-200'
                           }`}>
-                            <span className="flex-1">{match.team1?.name || 'À déterminer'}</span>
-                            {match.sets && match.sets.length > 0 && (
-                              <div className="flex gap-2">
-                                {match.sets.map((set: any, idx: number) => (
-                                  <span key={idx} className="text-sm min-w-[24px] text-center">
-                                    {set.score1 ?? '-'}
-                                  </span>
-                                ))}
+                            <div className="flex justify-between items-center">
+                              <span className={`flex-1 ${match.winnerId === match.team1?.id ? 'font-bold' : ''}`}>
+                                {match.team1?.name || 'À déterminer'}
+                              </span>
+                              {match.sets && match.sets.length > 0 && (
+                                <div className="flex gap-2">
+                                  {match.sets.map((set: any, idx: number) => (
+                                    <span key={idx} className="text-sm min-w-[24px] text-center">
+                                      {set.score1 ?? '-'}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            {match.team1?.members && match.team1.members.length > 0 && (
+                              <div className="mt-1 text-xs text-gray-500">
+                                {match.team1.members.map((m: any) => m.pseudo || m.name).join(' / ')}
                               </div>
                             )}
                           </div>
-                          <div className={`flex justify-between items-center p-3 rounded ${
-                            match.winnerId === match.team2?.id ? 'bg-green-50 border-2 border-green-300 font-bold' : 'bg-gray-50 border border-gray-200'
+                          <div className={`p-3 rounded ${
+                            match.winnerId === match.team2?.id ? 'bg-green-50 border-2 border-green-300' : 'bg-gray-50 border border-gray-200'
                           }`}>
-                            <span className="flex-1">{match.team2?.name || 'À déterminer'}</span>
-                            {match.sets && match.sets.length > 0 && (
-                              <div className="flex gap-2">
-                                {match.sets.map((set: any, idx: number) => (
-                                  <span key={idx} className="text-sm min-w-[24px] text-center">
-                                    {set.score2 ?? '-'}
-                                  </span>
-                                ))}
+                            <div className="flex justify-between items-center">
+                              <span className={`flex-1 ${match.winnerId === match.team2?.id ? 'font-bold' : ''}`}>
+                                {match.team2?.name || 'À déterminer'}
+                              </span>
+                              {match.sets && match.sets.length > 0 && (
+                                <div className="flex gap-2">
+                                  {match.sets.map((set: any, idx: number) => (
+                                    <span key={idx} className="text-sm min-w-[24px] text-center">
+                                      {set.score2 ?? '-'}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            {match.team2?.members && match.team2.members.length > 0 && (
+                              <div className="mt-1 text-xs text-gray-500">
+                                {match.team2.members.map((m: any) => m.pseudo || m.name).join(' / ')}
                               </div>
                             )}
                           </div>
@@ -178,6 +244,49 @@ const AdminEliminationManagement = () => {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Final Ranking Section */}
+        {finalRanking.length > 0 && (
+          <div className="mt-8 bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-2xl font-bold mb-6 text-center flex items-center justify-center gap-2">
+              <Trophy className="text-yellow-500" size={28} />
+              Classement Final
+            </h2>
+            <div className="max-w-2xl mx-auto">
+              <div className="space-y-3">
+                {finalRanking.map((team: any, index: number) => (
+                  <div
+                    key={team.id || index}
+                    className={`flex items-center p-4 rounded-lg border-2 ${
+                      index === 0 ? 'bg-yellow-50 border-yellow-300' :
+                      index === 1 ? 'bg-gray-100 border-gray-300' :
+                      index === 2 ? 'bg-orange-50 border-orange-300' :
+                      'bg-white border-gray-200'
+                    }`}
+                  >
+                    <span className="text-2xl mr-4 min-w-[40px] text-center">
+                      {index === 0 ? (
+                        <Trophy className="text-yellow-500 inline" size={28} />
+                      ) : index === 1 ? (
+                        <Trophy className="text-gray-400 inline" size={24} />
+                      ) : index === 2 ? (
+                        <Trophy className="text-orange-500 inline" size={24} />
+                      ) : (
+                        <span className="font-bold text-gray-500">{index + 1}</span>
+                      )}
+                    </span>
+                    <span className="flex-grow font-semibold text-lg">
+                      {team.teamName || team.name}
+                    </span>
+                    <span className="text-lg font-bold text-blue-600">
+                      {team.points || 0} pts
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 

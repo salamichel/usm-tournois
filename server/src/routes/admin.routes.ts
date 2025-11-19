@@ -38,6 +38,7 @@ router.post('/tournaments/:tournamentId/pools/:poolId/generate-matches', asyncHa
 router.get('/tournaments/:tournamentId/elimination', asyncHandler(adminController.getEliminationMatches));
 router.post('/tournaments/:tournamentId/generate-elimination', asyncHandler(adminController.generateEliminationBracket));
 router.post('/tournaments/:tournamentId/freeze-ranking', asyncHandler(adminController.freezeRanking));
+router.post('/tournaments/:tournamentId/freeze-elimination-ranking', asyncHandler(adminController.freezeEliminationRanking));
 
 /**
  * Match Score Management
