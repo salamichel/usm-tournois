@@ -331,9 +331,30 @@ export async function getSeasonRankings(
 ): Promise<{ rankings: SeasonRanking[]; total: number }> {
   console.log(`[getSeasonRankings] Fetching rankings for season: ${seasonId}`);
 
+  // Debug: Try to access a specific known document
+  try {
+    const testDoc = await adminDb
+      .collection('playerTournamentPoints')
+      .doc('14Y3q5RdjKYBqsNZUkWYuhMu5ON2')
+      .collection('tournaments')
+      .doc('kTxA4kAZuag05JEtamZK')
+      .get();
+    console.log('[DEBUG] Test document access:', {
+      exists: testDoc.exists,
+      data: testDoc.exists ? testDoc.data() : null
+    });
+  } catch (error) {
+    console.error('[DEBUG] Error accessing test document:', error);
+  }
+
   // Get all players' tournament points for this season
   const playersSnapshot = await adminDb.collection('playerTournamentPoints').get();
   console.log(`[getSeasonRankings] Found ${playersSnapshot.docs.length} players with tournament points`);
+
+  // Debug: List all document IDs found
+  if (playersSnapshot.docs.length > 0) {
+    console.log('[DEBUG] Player IDs found:', playersSnapshot.docs.map(d => d.id));
+  }
 
   const playerStats: Map<string, {
     playerId: string;
