@@ -26,6 +26,29 @@ service cloud.firestore {
         return isSignedIn() && get(/databases/$(database)/documents/events/$(tournamentId)/teams/$(teamId)).data.captainId == request.auth.uid;
     }
 
+    // Check if the user is the captain of one of the teams in a pool match
+    function isCaptainInPoolMatch(tournamentId, poolId, matchId) {
+      let match = get(/databases/$(database)/documents/events/$(tournamentId)/pools/$(poolId)/matches/$(matchId)).data;
+      return isSignedIn() && (
+        isTeamCaptain(tournamentId, match.team1.id) ||
+        isTeamCaptain(tournamentId, match.team2.id)
+      );
+    }
+
+    // Check if the user is the captain of one of the teams in an elimination match
+    function isCaptainInEliminationMatch(tournamentId, matchId) {
+      let match = get(/databases/$(database)/documents/events/$(tournamentId)/eliminationMatches/$(matchId)).data;
+      return isSignedIn() && (
+        isTeamCaptain(tournamentId, match.team1.id) ||
+        isTeamCaptain(tournamentId, match.team2.id)
+      );
+    }
+
+    // Check if the tournament ranking is frozen
+    function isRankingFrozen(tournamentId) {
+      return exists(/databases/$(database)/documents/events/$(tournamentId)/finalRanking);
+    }
+
     // --- Profils Utilisateurs ---
     match /users/{userId} {
       allow read, list: if true;
@@ -51,7 +74,9 @@ service cloud.firestore {
           // --- Matchs dans une poule ---
           match /matches/{matchId} {
             allow read, list: if true; // Lecture publique
-            allow create, update, delete: if isAdmin();
+            allow create, delete: if isAdmin();
+            // Allow captains to update if ranking is not frozen
+            allow update: if isAdmin() || (isCaptainInPoolMatch(eventId, poolId, matchId) && !isRankingFrozen(eventId));
           }
         }
 
@@ -91,7 +116,9 @@ service cloud.firestore {
         // --- Matchs éliminatoires dans un événement ---
         match /eliminationMatches/{matchId} {
           allow read, list: if true; // Lecture publique
-          allow create, update, delete: if isAdmin();
+          allow create, delete: if isAdmin();
+          // Allow captains to update if ranking is not frozen
+          allow update: if isAdmin() || (isCaptainInEliminationMatch(eventId, matchId) && !isRankingFrozen(eventId));
         }
 
         // --- Classement final dans un événement ---
