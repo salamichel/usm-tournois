@@ -10,6 +10,7 @@ import {
   getPlayerStats,
   getTournamentPlayerPoints,
   recalculateAllGlobalRankings,
+  getSeasonRankings,
 } from '../services/playerPoints.service';
 import type {
   PlayerRankingResponse,
@@ -95,6 +96,32 @@ export const getTournamentPoints = async (req: Request, res: Response) => {
     console.error('Error getting tournament player points:', error);
     if (error instanceof AppError) throw error;
     throw new AppError('Error getting tournament player points', 500);
+  }
+};
+
+/**
+ * Get rankings for a specific season
+ * GET /api/players/ranking/season/:seasonId
+ */
+export const getSeasonRanking = async (req: Request, res: Response) => {
+  try {
+    const { seasonId } = req.params;
+    const limit = parseInt(req.query.limit as string) || 100;
+    const offset = parseInt(req.query.offset as string) || 0;
+
+    const { rankings, total } = await getSeasonRankings(seasonId, limit, offset);
+
+    res.json({
+      success: true,
+      data: {
+        rankings,
+        total,
+      },
+    });
+  } catch (error: any) {
+    console.error('Error getting season ranking:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error getting season ranking', 500);
   }
 };
 

@@ -18,6 +18,13 @@ const router = Router();
 router.get('/ranking', optionalAuth, asyncHandler(playerRankingController.getPlayerRanking));
 
 /**
+ * @route   GET /api/players/ranking/season/:seasonId
+ * @desc    Get rankings for a specific season
+ * @access  Public
+ */
+router.get('/ranking/season/:seasonId', optionalAuth, asyncHandler(playerRankingController.getSeasonRanking));
+
+/**
  * @route   GET /api/players/:playerId/stats
  * @desc    Get detailed statistics for a specific player
  * @access  Public

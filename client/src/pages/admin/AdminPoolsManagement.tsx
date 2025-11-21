@@ -451,9 +451,23 @@ const PoolCard = ({
             {pool.matches.map((match: any) => (
               <div key={match.id} className="bg-white p-3 rounded border border-gray-200">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-xs font-medium">{match.team1?.name || 'Équipe 1'}</span>
-                  <span className="text-xs font-semibold text-gray-400">VS</span>
-                  <span className="text-xs font-medium">{match.team2?.name || 'Équipe 2'}</span>
+                  <div className="flex-1">
+                    <span className="text-xs font-medium">{match.team1?.name || 'Équipe 1'}</span>
+                    {match.team1?.members && match.team1.members.length > 0 && (
+                      <div className="text-xs text-gray-500">
+                        {match.team1.members.map((m: any) => m.pseudo || m.name).join(' / ')}
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-xs font-semibold text-gray-400 mx-2">VS</span>
+                  <div className="flex-1 text-right">
+                    <span className="text-xs font-medium">{match.team2?.name || 'Équipe 2'}</span>
+                    {match.team2?.members && match.team2.members.length > 0 && (
+                      <div className="text-xs text-gray-500">
+                        {match.team2.members.map((m: any) => m.pseudo || m.name).join(' / ')}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Score display */}

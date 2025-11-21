@@ -10,6 +10,8 @@ import type {
   PlayerStats,
 } from '../../../shared/types/playerPoints.types';
 import type { TeamMember } from '../../../shared/types/team.types';
+import type { Season, SeasonRanking } from '../../../shared/types/season.types';
+import { findSeasonForDate } from '../controllers/season.controller';
 
 /**
  * Get points for a given rank based on tournament position
@@ -39,14 +41,40 @@ export async function awardPointsToTeam(
   const points = getPointsForRank(rank);
   const batch = adminDb.batch();
 
+  // Find the season for this tournament date
+  const season = await findSeasonForDate(tournamentDate);
+  if (!season) {
+    throw new Error(`No season found for tournament date ${tournamentDate.toISOString()}. Please create a season that covers this date.`);
+  }
+
   // Award points to each team member
   for (const member of teamMembers) {
     // Skip virtual/placeholder members
     if (member.isVirtual) continue;
 
+    // Fetch player's club info
+    let clubId: string | undefined;
+    let clubName: string | undefined;
+
+    try {
+      const userDoc = await adminDb.collection('users').doc(member.userId).get();
+      clubId = userDoc.data()?.clubId;
+
+      if (clubId) {
+        const clubDoc = await adminDb.collection('clubs').doc(clubId).get();
+        clubName = clubDoc.data()?.name;
+      }
+    } catch (error) {
+      console.error(`Error fetching club info for player ${member.userId}:`, error);
+    }
+
     const playerPoints: PlayerTournamentPoints = {
       playerId: member.userId,
       playerPseudo: member.pseudo,
+      clubId: clubId || null,
+      clubName: clubName || null,
+      seasonId: season.id,
+      seasonName: season.name,
       tournamentId,
       tournamentName,
       tournamentDate,
@@ -126,12 +154,16 @@ export async function calculatePlayerGlobalRanking(
       : latest;
   });
 
-  // Get player pseudo from first tournament entry
-  const playerPseudo = tournaments[0].playerPseudo;
+  // Get player pseudo and club from most recent tournament entry
+  const playerPseudo = lastTournament.playerPseudo;
+  const clubId = lastTournament.clubId;
+  const clubName = lastTournament.clubName;
 
   const ranking: PlayerGlobalRanking = {
     playerId,
     pseudo: playerPseudo,
+    clubId,
+    clubName,
     totalPoints,
     tournamentsPlayed,
     averagePoints: Math.round(averagePoints * 100) / 100,
@@ -265,6 +297,135 @@ export async function recalculateAllGlobalRankings(): Promise<void> {
 }
 
 /**
+ * Delete all points for a specific tournament (to allow re-freeze)
+ */
+export async function deleteTournamentPoints(tournamentId: string): Promise<string[]> {
+  const playersSnapshot = await adminDb.collection('playerTournamentPoints').get();
+  const batch = adminDb.batch();
+  const affectedPlayerIds: string[] = [];
+
+  for (const playerDoc of playersSnapshot.docs) {
+    const tournamentPointsRef = playerDoc.ref.collection('tournaments').doc(tournamentId);
+    const tournamentPointsDoc = await tournamentPointsRef.get();
+
+    if (tournamentPointsDoc.exists) {
+      batch.delete(tournamentPointsRef);
+      affectedPlayerIds.push(playerDoc.id);
+    }
+  }
+
+  if (affectedPlayerIds.length > 0) {
+    await batch.commit();
+  }
+
+  return affectedPlayerIds;
+}
+
+/**
+ * Get season rankings
+ */
+export async function getSeasonRankings(
+  seasonId: string,
+  limit: number = 100,
+  offset: number = 0
+): Promise<{ rankings: SeasonRanking[]; total: number }> {
+  console.log(`[getSeasonRankings] Fetching rankings for season: ${seasonId}`);
+
+  // Get all users (since playerTournamentPoints doesn't have parent documents)
+  const usersSnapshot = await adminDb.collection('users').get();
+  console.log(`[getSeasonRankings] Found ${usersSnapshot.docs.length} users to check`);
+
+  const playerStats: Map<string, {
+    playerId: string;
+    pseudo: string;
+    clubId?: string;
+    clubName?: string;
+    totalPoints: number;
+    tournamentsPlayed: number;
+    bestRank: number;
+    bestRankTournament?: string;
+  }> = new Map();
+
+  let totalTournamentsChecked = 0;
+  let tournamentsWithSeason = 0;
+
+  for (const userDoc of usersSnapshot.docs) {
+    const userId = userDoc.id;
+
+    // Check if this user has tournament points
+    const tournamentsSnapshot = await adminDb
+      .collection('playerTournamentPoints')
+      .doc(userId)
+      .collection('tournaments')
+      .where('seasonId', '==', seasonId)
+      .get();
+
+    if (tournamentsSnapshot.empty) continue;
+
+    totalTournamentsChecked += tournamentsSnapshot.docs.length;
+    tournamentsWithSeason += tournamentsSnapshot.docs.length;
+
+    const tournaments = tournamentsSnapshot.docs.map(doc => doc.data() as PlayerTournamentPoints);
+
+    const totalPoints = tournaments.reduce((sum, t) => sum + t.points, 0);
+    const bestRank = Math.min(...tournaments.map(t => t.rank));
+    const bestRankTournament = tournaments.find(t => t.rank === bestRank);
+    const lastTournament = tournaments.reduce((latest, current) =>
+      new Date(current.tournamentDate) > new Date(latest.tournamentDate) ? current : latest
+    );
+
+    playerStats.set(userId, {
+      playerId: userId,
+      pseudo: lastTournament.playerPseudo,
+      clubId: lastTournament.clubId,
+      clubName: lastTournament.clubName,
+      totalPoints,
+      tournamentsPlayed: tournaments.length,
+      bestRank,
+      bestRankTournament: bestRankTournament?.tournamentName,
+    });
+  }
+
+  // Convert to array and sort by total points
+  const sortedStats = Array.from(playerStats.values())
+    .sort((a, b) => b.totalPoints - a.totalPoints);
+
+  // Get season info
+  const seasonDoc = await adminDb.collection('seasons').doc(seasonId).get();
+  const seasonName = seasonDoc.data()?.name || 'Unknown Season';
+
+  // Create rankings with rank numbers
+  const allRankings: SeasonRanking[] = sortedStats.map((stats, index) => ({
+    playerId: stats.playerId,
+    pseudo: stats.pseudo,
+    clubId: stats.clubId,
+    clubName: stats.clubName,
+    seasonId,
+    seasonName,
+    totalPoints: stats.totalPoints,
+    tournamentsPlayed: stats.tournamentsPlayed,
+    averagePoints: Math.round((stats.totalPoints / stats.tournamentsPlayed) * 100) / 100,
+    bestRank: stats.bestRank,
+    bestRankTournament: stats.bestRankTournament,
+    rank: index + 1,
+    updatedAt: new Date(),
+  }));
+
+  // Apply pagination
+  const paginatedRankings = allRankings.slice(offset, offset + limit);
+
+  console.log(`[getSeasonRankings] Season: ${seasonName} (${seasonId})`);
+  console.log(`[getSeasonRankings] Total tournaments checked: ${totalTournamentsChecked}`);
+  console.log(`[getSeasonRankings] Tournaments with this season: ${tournamentsWithSeason}`);
+  console.log(`[getSeasonRankings] Players in ranking: ${allRankings.length}`);
+
+  return {
+    rankings: paginatedRankings,
+    total: allRankings.length,
+  };
+}
+
+/**
  * Award points to individual players based on their ranking in Flexible King tournament
  */
 export async function awardPointsToFlexibleKingPlayers(
@@ -276,6 +437,12 @@ export async function awardPointsToFlexibleKingPlayers(
   const batch = adminDb.batch();
   let totalPoints = 0;
 
+  // Find the season for this tournament date
+  const season = await findSeasonForDate(tournamentDate);
+  if (!season) {
+    throw new Error(`No season found for tournament date ${tournamentDate.toISOString()}. Please create a season that covers this date.`);
+  }
+
   // Award points to each player based on their rank
   for (let i = 0; i < ranking.length; i++) {
     const player = ranking[i];
@@ -283,9 +450,29 @@ export async function awardPointsToFlexibleKingPlayers(
     const points = getPointsForRank(rank);
     totalPoints += points;
 
+    // Fetch player's club info
+    let clubId: string | undefined;
+    let clubName: string | undefined;
+
+    try {
+      const userDoc = await adminDb.collection('users').doc(player.playerId).get();
+      clubId = userDoc.data()?.clubId;
+
+      if (clubId) {
+        const clubDoc = await adminDb.collection('clubs').doc(clubId).get();
+        clubName = clubDoc.data()?.name;
+      }
+    } catch (error) {
+      console.error(`Error fetching club info for player ${player.playerId}:`, error);
+    }
+
     const playerPoints: PlayerTournamentPoints = {
       playerId: player.playerId,
       playerPseudo: player.playerPseudo,
+      clubId: clubId || null,
+      clubName: clubName || null,
+      seasonId: season.id,
+      seasonName: season.name,
       tournamentId,
       tournamentName,
       tournamentDate,

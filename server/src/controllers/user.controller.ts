@@ -125,7 +125,7 @@ export const updateUserProfile = async (req: Request, res: Response) => {
       throw new AppError('User not authenticated', 401);
     }
 
-    const { pseudo, level, email } = req.body;
+    const { pseudo, level, email, clubId } = req.body;
 
     const userDoc = await adminDb.collection('users').doc(userId).get();
     if (!userDoc.exists) {
@@ -139,6 +139,7 @@ export const updateUserProfile = async (req: Request, res: Response) => {
     if (pseudo !== undefined && pseudo !== null) updateData.pseudo = pseudo;
     if (level !== undefined && level !== null) updateData.level = level;
     if (email !== undefined && email !== null) updateData.email = email;
+    if (clubId !== undefined) updateData.clubId = clubId || null;
 
     await adminDb.collection('users').doc(userId).update(updateData);
 
