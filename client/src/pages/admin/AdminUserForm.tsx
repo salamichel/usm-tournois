@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import AdminLayout from '@components/AdminLayout';
 import adminService from '@services/admin.service';
+import clubService from '@services/club.service';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Save, User } from 'lucide-react';
 import type { UserLevel } from '@shared/types';
+import type { Club } from '@shared/types/club.types';
 
 const AdminUserForm = () => {
   const { id } = useParams();
@@ -13,6 +15,7 @@ const AdminUserForm = () => {
 
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(isEditMode);
+  const [clubs, setClubs] = useState<Club[]>([]);
   const [formData, setFormData] = useState({
     pseudo: '',
     email: '',
@@ -20,13 +23,26 @@ const AdminUserForm = () => {
     password: '',
     confirmPassword: '',
     isAdmin: false,
+    clubId: '',
   });
 
   useEffect(() => {
+    loadClubs();
     if (isEditMode) {
       loadUser();
     }
   }, [id]);
+
+  const loadClubs = async () => {
+    try {
+      const response = await clubService.getAllClubs();
+      if (response.success && response.data) {
+        setClubs(response.data.clubs);
+      }
+    } catch (error) {
+      console.error('Error loading clubs:', error);
+    }
+  };
 
   const loadUser = async () => {
     try {
@@ -45,6 +61,7 @@ const AdminUserForm = () => {
         password: '',
         confirmPassword: '',
         isAdmin: user.role === 'admin',
+        clubId: user.clubId || '',
       });
     } catch (error: any) {
       toast.error(error.message || 'Erreur lors du chargement');
@@ -89,6 +106,7 @@ const AdminUserForm = () => {
         email: formData.email,
         level: formData.level,
         role: formData.isAdmin ? 'admin' : 'player',
+        clubId: formData.clubId || null,
       };
 
       // Ajouter le mot de passe seulement s'il est renseigné
@@ -182,6 +200,26 @@ const AdminUserForm = () => {
                 <option value="Débutant">Débutant</option>
                 <option value="Intermédiaire">Intermédiaire</option>
                 <option value="Confirmé">Confirmé</option>
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="clubId" className="block text-sm font-medium text-gray-700 mb-1">
+                Club (optionnel)
+              </label>
+              <select
+                id="clubId"
+                name="clubId"
+                value={formData.clubId}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Aucun club</option>
+                {clubs.map((club) => (
+                  <option key={club.id} value={club.id}>
+                    {club.name}
+                  </option>
+                ))}
               </select>
             </div>
 

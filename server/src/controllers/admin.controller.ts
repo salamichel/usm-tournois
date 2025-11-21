@@ -1611,7 +1611,7 @@ export const getAllUsers = async (req: Request, res: Response) => {
 
 export const createUser = async (req: Request, res: Response) => {
   try {
-    const { email, pseudo, level, role } = req.body;
+    const { email, pseudo, level, role, clubId } = req.body;
 
     if (!email) {
       throw new AppError('Email is required', 400);
@@ -1626,6 +1626,7 @@ export const createUser = async (req: Request, res: Response) => {
       pseudo,
       level: level || 'Débutant',
       role: role || 'user',
+      clubId: clubId || null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -1673,7 +1674,7 @@ export const getUserById = async (req: Request, res: Response) => {
 export const updateUser = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { email, pseudo, level, role } = req.body;
+    const { email, pseudo, level, role, clubId } = req.body;
 
     const userDoc = await adminDb.collection('users').doc(id).get();
     if (!userDoc.exists) {
@@ -1688,6 +1689,7 @@ export const updateUser = async (req: Request, res: Response) => {
     if (pseudo !== undefined && pseudo !== null) updateData.pseudo = pseudo;
     if (level !== undefined && level !== null) updateData.level = level;
     if (role !== undefined && role !== null) updateData.role = role;
+    if (clubId !== undefined) updateData.clubId = clubId || null;
 
     await adminDb.collection('users').doc(id).update(updateData);
 

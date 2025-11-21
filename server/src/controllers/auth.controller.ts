@@ -61,6 +61,7 @@ export const signup = async (req: Request, res: Response) => {
       email,
       level,
       role: 'player',
+      clubId: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
