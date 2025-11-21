@@ -183,58 +183,105 @@ const PlayerRankingPage = () => {
         )}
       </div>
 
-      {/* Stats Overview */}
-      {rankings.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {/* Top 3 Players */}
-          {rankings.slice(0, 3).map((player, index) => (
-            <div
-              key={player.playerId}
-              className={`card p-6 ${
-                index === 0
-                  ? 'bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-300'
-                  : index === 1
-                  ? 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-300'
-                  : 'bg-gradient-to-br from-amber-50 to-amber-100 border-amber-300'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  {index === 0 && <Trophy className="text-yellow-500" size={28} />}
-                  {index === 1 && <Medal className="text-gray-400" size={28} />}
-                  {index === 2 && <Medal className="text-amber-600" size={28} />}
-                  <span className="text-sm font-medium text-gray-600">
-                    {index === 0 ? '1ère' : index === 1 ? '2ème' : '3ème'} place
-                  </span>
-                </div>
+      {/* Stats Overview - Podium */}
+      {rankings.length > 0 && (() => {
+        // Get all players with top 3 unique scores
+        const uniqueScores = [...new Set(rankings.map(r => r.totalPoints))].sort((a, b) => b - a).slice(0, 3);
+        const firstPlaceScore = uniqueScores[0];
+        const secondPlaceScore = uniqueScores[1];
+        const thirdPlaceScore = uniqueScores[2];
+
+        const firstPlacePlayers = rankings.filter(p => p.totalPoints === firstPlaceScore);
+        const secondPlacePlayers = uniqueScores.length > 1 ? rankings.filter(p => p.totalPoints === secondPlaceScore) : [];
+        const thirdPlacePlayers = uniqueScores.length > 2 ? rankings.filter(p => p.totalPoints === thirdPlaceScore) : [];
+
+        const PlayerCard = ({ player, rank, bgClass, icon: Icon, iconColor }: any) => (
+          <div className={`card p-4 ${bgClass}`}>
+            <div className="flex items-center gap-2 mb-2">
+              <Icon className={iconColor} size={24} />
+              <span className="text-sm font-medium text-gray-600">
+                {rank === 1 ? '1ère' : rank === 2 ? '2ème' : '3ème'} place
+              </span>
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 mb-1">{player.pseudo}</h3>
+            {player.clubName && (
+              <div className="flex items-center gap-1 text-xs text-gray-600 mb-2">
+                <Building2 size={12} />
+                <span>{player.clubName}</span>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">{player.pseudo}</h3>
-              {player.clubName && (
-                <div className="flex items-center gap-1 text-xs text-gray-600 mb-2">
-                  <Building2 size={12} />
-                  <span>{player.clubName}</span>
-                </div>
-              )}
-              <div className="space-y-1 text-sm text-gray-700">
-                <div className="flex items-center gap-2">
-                  <Award size={16} />
-                  <span className="font-semibold">{player.totalPoints} points</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Calendar size={16} />
-                  <span>{player.tournamentsPlayed} tournois</span>
-                </div>
-                {player.bestRankTournament && (
-                  <div className="text-xs text-gray-600 mt-2">
-                    Meilleur résultat: {player.bestRank}
-                    {player.bestRank === 1 ? 'er' : 'ème'} - {player.bestRankTournament}
-                  </div>
-                )}
+            )}
+            <div className="space-y-1 text-sm text-gray-700">
+              <div className="flex items-center gap-2">
+                <Award size={14} />
+                <span className="font-semibold">{player.totalPoints} pts</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Calendar size={14} />
+                <span>{player.tournamentsPlayed} tournois</span>
               </div>
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        );
+
+        return (
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+              <Trophy className="text-yellow-500" />
+              Podium
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* First Place */}
+              <div className="space-y-3">
+                <h3 className="font-semibold text-yellow-600">🥇 1ère Place</h3>
+                {firstPlacePlayers.map(player => (
+                  <PlayerCard
+                    key={player.playerId}
+                    player={player}
+                    rank={1}
+                    bgClass="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-300"
+                    icon={Trophy}
+                    iconColor="text-yellow-500"
+                  />
+                ))}
+              </div>
+
+              {/* Second Place */}
+              {secondPlacePlayers.length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="font-semibold text-gray-500">🥈 2ème Place</h3>
+                  {secondPlacePlayers.map(player => (
+                    <PlayerCard
+                      key={player.playerId}
+                      player={player}
+                      rank={2}
+                      bgClass="bg-gradient-to-br from-gray-50 to-gray-100 border-gray-300"
+                      icon={Medal}
+                      iconColor="text-gray-400"
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Third Place */}
+              {thirdPlacePlayers.length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="font-semibold text-amber-700">🥉 3ème Place</h3>
+                  {thirdPlacePlayers.map(player => (
+                    <PlayerCard
+                      key={player.playerId}
+                      player={player}
+                      rank={3}
+                      bgClass="bg-gradient-to-br from-amber-50 to-amber-100 border-amber-300"
+                      icon={Medal}
+                      iconColor="text-amber-600"
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Rankings Table */}
       {rankings.length === 0 ? (
