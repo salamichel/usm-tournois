@@ -71,12 +71,24 @@ export const getAllTournaments = async (req: Request, res: Response) => {
           hasMatches = !eliminationMatchesSnapshot.empty;
         }
 
+        // Check if ranking is frozen
+        const finalRankingSnapshot = await adminDb
+          .collection('events')
+          .doc(doc.id)
+          .collection('finalRanking')
+          .limit(1)
+          .get();
+
+        const isRankingFrozen = !finalRankingSnapshot.empty &&
+          finalRankingSnapshot.docs[0].data()?.frozenAt !== undefined;
+
         // Calculate tournament status
         const statusInfo = calculateTournamentStatus(
           tournamentData,
           completeTeamsCount,
           teamsSnapshot.size,
-          hasMatches
+          hasMatches,
+          isRankingFrozen
         );
 
         const result: any = {
@@ -233,11 +245,16 @@ export const getTournamentById = async (req: Request, res: Response) => {
     const hasMatches = pools.some((pool: any) => pool.matches && pool.matches.length > 0) ||
       eliminationMatches.length > 0;
 
+    // Check if ranking is frozen
+    const isRankingFrozen = finalRanking.length > 0 &&
+      finalRanking[0]?.frozenAt !== undefined;
+
     const statusInfo = calculateTournamentStatus(
       tournamentData,
       completeTeamsCount,
       teams.length,
-      hasMatches
+      hasMatches,
+      isRankingFrozen
     );
 
     res.json({
