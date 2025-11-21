@@ -1471,24 +1471,41 @@ export const getTeams = async (req: Request, res: Response) => {
 export const createTeam = async (req: Request, res: Response) => {
   try {
     const { tournamentId } = req.params;
-    const { name, captainId, members } = req.body;
+    const { name, captainId, members, recruitmentOpen } = req.body;
 
     if (!name) {
       throw new AppError('Team name is required', 400);
     }
 
-    if (!captainId) {
-      throw new AppError('Captain ID is required', 400);
-    }
-
     const teamData: any = {
       name,
-      captainId,
       members: members || [],
-      recruitmentOpen: false,
+      recruitmentOpen: recruitmentOpen !== undefined ? recruitmentOpen : false,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
+
+    // Captain ID is optional - admin can create team without captain
+    if (captainId) {
+      teamData.captainId = captainId;
+
+      // If captain is provided, verify they exist and add to members if not already
+      const captainDoc = await adminDb.collection('users').doc(captainId).get();
+      if (!captainDoc.exists) {
+        throw new AppError('Captain user not found', 404);
+      }
+
+      const captainData = captainDoc.data();
+      const isCaptainInMembers = teamData.members.some((m: any) => m.userId === captainId);
+
+      if (!isCaptainInMembers) {
+        teamData.members.push({
+          userId: captainId,
+          pseudo: captainData?.pseudo || 'Unknown',
+          level: captainData?.level || 'N/A',
+        });
+      }
+    }
 
     const teamRef = await adminDb
       .collection('events')
