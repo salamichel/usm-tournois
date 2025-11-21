@@ -356,7 +356,22 @@ export async function getSeasonRankings(
 
     totalTournamentsChecked += tournamentsSnapshot.docs.length;
 
-    const seasonTournamentDocs = tournamentsSnapshot.docs.filter(doc => doc.data().seasonId === seasonId);
+    // Debug: log first tournament data for this player
+    if (tournamentsSnapshot.docs.length > 0) {
+      const firstTournament = tournamentsSnapshot.docs[0].data();
+      console.log(`[DEBUG] Player ${playerDoc.id} - First tournament:`, {
+        tournamentId: firstTournament.tournamentId,
+        seasonId: firstTournament.seasonId,
+        seasonName: firstTournament.seasonName,
+        hasSeasonId: !!firstTournament.seasonId,
+        lookingFor: seasonId
+      });
+    }
+
+    const seasonTournamentDocs = tournamentsSnapshot.docs.filter(doc => {
+      const data = doc.data();
+      return data.seasonId === seasonId;
+    });
     tournamentsWithSeason += seasonTournamentDocs.length;
 
     if (seasonTournamentDocs.length === 0) continue;
