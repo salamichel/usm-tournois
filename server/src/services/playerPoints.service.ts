@@ -329,8 +329,11 @@ export async function getSeasonRankings(
   limit: number = 100,
   offset: number = 0
 ): Promise<{ rankings: SeasonRanking[]; total: number }> {
+  console.log(`[getSeasonRankings] Fetching rankings for season: ${seasonId}`);
+
   // Get all players' tournament points for this season
   const playersSnapshot = await adminDb.collection('playerTournamentPoints').get();
+  console.log(`[getSeasonRankings] Found ${playersSnapshot.docs.length} players with tournament points`);
 
   const playerStats: Map<string, {
     playerId: string;
@@ -343,15 +346,22 @@ export async function getSeasonRankings(
     bestRankTournament?: string;
   }> = new Map();
 
+  let totalTournamentsChecked = 0;
+  let tournamentsWithSeason = 0;
+
   for (const playerDoc of playersSnapshot.docs) {
     const tournamentsSnapshot = await playerDoc.ref
       .collection('tournaments')
-      .where('seasonId', '==', seasonId)
       .get();
 
-    if (tournamentsSnapshot.empty) continue;
+    totalTournamentsChecked += tournamentsSnapshot.docs.length;
 
-    const tournaments = tournamentsSnapshot.docs.map(doc => doc.data() as PlayerTournamentPoints);
+    const seasonTournamentDocs = tournamentsSnapshot.docs.filter(doc => doc.data().seasonId === seasonId);
+    tournamentsWithSeason += seasonTournamentDocs.length;
+
+    if (seasonTournamentDocs.length === 0) continue;
+
+    const tournaments = seasonTournamentDocs.map(doc => doc.data() as PlayerTournamentPoints);
 
     const totalPoints = tournaments.reduce((sum, t) => sum + t.points, 0);
     const bestRank = Math.min(...tournaments.map(t => t.rank));
@@ -399,6 +409,11 @@ export async function getSeasonRankings(
 
   // Apply pagination
   const paginatedRankings = allRankings.slice(offset, offset + limit);
+
+  console.log(`[getSeasonRankings] Season: ${seasonName} (${seasonId})`);
+  console.log(`[getSeasonRankings] Total tournaments checked: ${totalTournamentsChecked}`);
+  console.log(`[getSeasonRankings] Tournaments with this season: ${tournamentsWithSeason}`);
+  console.log(`[getSeasonRankings] Players in ranking: ${allRankings.length}`);
 
   return {
     rankings: paginatedRankings,
