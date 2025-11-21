@@ -191,33 +191,34 @@ const PlayerRankingPage = () => {
         const secondPlaceScore = uniqueScores[1];
         const thirdPlaceScore = uniqueScores[2];
 
-        const firstPlacePlayers = rankings.filter(p => p.totalPoints === firstPlaceScore);
-        const secondPlacePlayers = uniqueScores.length > 1 ? rankings.filter(p => p.totalPoints === secondPlaceScore) : [];
-        const thirdPlacePlayers = uniqueScores.length > 2 ? rankings.filter(p => p.totalPoints === thirdPlaceScore) : [];
+        // Sort players alphabetically
+        const firstPlacePlayers = rankings
+          .filter(p => p.totalPoints === firstPlaceScore)
+          .sort((a, b) => a.pseudo.localeCompare(b.pseudo));
+        const secondPlacePlayers = uniqueScores.length > 1
+          ? rankings.filter(p => p.totalPoints === secondPlaceScore)
+              .sort((a, b) => a.pseudo.localeCompare(b.pseudo))
+          : [];
+        const thirdPlacePlayers = uniqueScores.length > 2
+          ? rankings.filter(p => p.totalPoints === thirdPlaceScore)
+              .sort((a, b) => a.pseudo.localeCompare(b.pseudo))
+          : [];
 
-        const PlayerCard = ({ player, rank, bgClass, icon: Icon, iconColor }: any) => (
-          <div className={`card p-4 ${bgClass}`}>
-            <div className="flex items-center gap-2 mb-2">
-              <Icon className={iconColor} size={24} />
-              <span className="text-sm font-medium text-gray-600">
-                {rank === 1 ? '1ère' : rank === 2 ? '2ème' : '3ème'} place
-              </span>
-            </div>
-            <h3 className="text-lg font-bold text-gray-900 mb-1">{player.pseudo}</h3>
-            {player.clubName && (
-              <div className="flex items-center gap-1 text-xs text-gray-600 mb-2">
-                <Building2 size={12} />
-                <span>{player.clubName}</span>
+        const CompactPlayerCard = ({ player, bgClass }: any) => (
+          <div className={`${bgClass} px-3 py-2 rounded-md border`}>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold text-gray-900 truncate">{player.pseudo}</div>
+                {player.clubName && (
+                  <div className="flex items-center gap-1 text-xs text-gray-600">
+                    <Building2 size={10} />
+                    <span className="truncate">{player.clubName}</span>
+                  </div>
+                )}
               </div>
-            )}
-            <div className="space-y-1 text-sm text-gray-700">
-              <div className="flex items-center gap-2">
-                <Award size={14} />
-                <span className="font-semibold">{player.totalPoints} pts</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Calendar size={14} />
-                <span>{player.tournamentsPlayed} tournois</span>
+              <div className="text-right flex-shrink-0">
+                <div className="text-sm font-bold text-gray-900">{player.totalPoints} pts</div>
+                <div className="text-xs text-gray-600">{player.tournamentsPlayed} 🏆</div>
               </div>
             </div>
           </div>
@@ -231,51 +232,66 @@ const PlayerRankingPage = () => {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* First Place */}
-              <div className="space-y-3">
-                <h3 className="font-semibold text-yellow-600">🥇 1ère Place</h3>
-                {firstPlacePlayers.map(player => (
-                  <PlayerCard
-                    key={player.playerId}
-                    player={player}
-                    rank={1}
-                    bgClass="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-300"
-                    icon={Trophy}
-                    iconColor="text-yellow-500"
-                  />
-                ))}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Trophy className="text-yellow-500" size={20} />
+                  <h3 className="font-semibold text-yellow-600">1ère Place</h3>
+                  {firstPlacePlayers.length > 1 && (
+                    <span className="text-xs text-gray-500">({firstPlacePlayers.length} ex-aequo)</span>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  {firstPlacePlayers.map(player => (
+                    <CompactPlayerCard
+                      key={player.playerId}
+                      player={player}
+                      bgClass="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-300"
+                    />
+                  ))}
+                </div>
               </div>
 
               {/* Second Place */}
               {secondPlacePlayers.length > 0 && (
-                <div className="space-y-3">
-                  <h3 className="font-semibold text-gray-500">🥈 2ème Place</h3>
-                  {secondPlacePlayers.map(player => (
-                    <PlayerCard
-                      key={player.playerId}
-                      player={player}
-                      rank={2}
-                      bgClass="bg-gradient-to-br from-gray-50 to-gray-100 border-gray-300"
-                      icon={Medal}
-                      iconColor="text-gray-400"
-                    />
-                  ))}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Medal className="text-gray-400" size={20} />
+                    <h3 className="font-semibold text-gray-500">2ème Place</h3>
+                    {secondPlacePlayers.length > 1 && (
+                      <span className="text-xs text-gray-500">({secondPlacePlayers.length} ex-aequo)</span>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    {secondPlacePlayers.map(player => (
+                      <CompactPlayerCard
+                        key={player.playerId}
+                        player={player}
+                        bgClass="bg-gradient-to-br from-gray-50 to-gray-100 border-gray-300"
+                      />
+                    ))}
+                  </div>
                 </div>
               )}
 
               {/* Third Place */}
               {thirdPlacePlayers.length > 0 && (
-                <div className="space-y-3">
-                  <h3 className="font-semibold text-amber-700">🥉 3ème Place</h3>
-                  {thirdPlacePlayers.map(player => (
-                    <PlayerCard
-                      key={player.playerId}
-                      player={player}
-                      rank={3}
-                      bgClass="bg-gradient-to-br from-amber-50 to-amber-100 border-amber-300"
-                      icon={Medal}
-                      iconColor="text-amber-600"
-                    />
-                  ))}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Medal className="text-amber-600" size={20} />
+                    <h3 className="font-semibold text-amber-700">3ème Place</h3>
+                    {thirdPlacePlayers.length > 1 && (
+                      <span className="text-xs text-gray-500">({thirdPlacePlayers.length} ex-aequo)</span>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    {thirdPlacePlayers.map(player => (
+                      <CompactPlayerCard
+                        key={player.playerId}
+                        player={player}
+                        bgClass="bg-gradient-to-br from-amber-50 to-amber-100 border-amber-300"
+                      />
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -364,7 +380,18 @@ const PlayerRankingPage = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <span className="text-sm text-gray-900">{player.tournamentsPlayed}</span>
+                      <div className="group relative inline-block">
+                        <span className="text-sm text-gray-900 cursor-help border-b border-dotted border-gray-400">
+                          {player.tournamentsPlayed}
+                        </span>
+                        {player.bestRankTournament && (
+                          <div className="invisible group-hover:visible absolute z-10 bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg whitespace-nowrap">
+                            <div className="font-semibold mb-1">Meilleur résultat:</div>
+                            <div>{player.bestRank}{player.bestRank === 1 ? 'er' : 'ème'} - {player.bestRankTournament}</div>
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></div>
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <span className="text-sm text-gray-600">
