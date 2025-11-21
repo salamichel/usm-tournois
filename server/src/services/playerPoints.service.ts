@@ -331,30 +331,9 @@ export async function getSeasonRankings(
 ): Promise<{ rankings: SeasonRanking[]; total: number }> {
   console.log(`[getSeasonRankings] Fetching rankings for season: ${seasonId}`);
 
-  // Debug: Try to access a specific known document
-  try {
-    const testDoc = await adminDb
-      .collection('playerTournamentPoints')
-      .doc('14Y3q5RdjKYBqsNZUkWYuhMu5ON2')
-      .collection('tournaments')
-      .doc('kTxA4kAZuag05JEtamZK')
-      .get();
-    console.log('[DEBUG] Test document access:', {
-      exists: testDoc.exists,
-      data: testDoc.exists ? testDoc.data() : null
-    });
-  } catch (error) {
-    console.error('[DEBUG] Error accessing test document:', error);
-  }
-
-  // Get all players' tournament points for this season
-  const playersSnapshot = await adminDb.collection('playerTournamentPoints').get();
-  console.log(`[getSeasonRankings] Found ${playersSnapshot.docs.length} players with tournament points`);
-
-  // Debug: List all document IDs found
-  if (playersSnapshot.docs.length > 0) {
-    console.log('[DEBUG] Player IDs found:', playersSnapshot.docs.map(d => d.id));
-  }
+  // Get all users (since playerTournamentPoints doesn't have parent documents)
+  const usersSnapshot = await adminDb.collection('users').get();
+  console.log(`[getSeasonRankings] Found ${usersSnapshot.docs.length} users to check`);
 
   const playerStats: Map<string, {
     playerId: string;
@@ -370,34 +349,23 @@ export async function getSeasonRankings(
   let totalTournamentsChecked = 0;
   let tournamentsWithSeason = 0;
 
-  for (const playerDoc of playersSnapshot.docs) {
-    const tournamentsSnapshot = await playerDoc.ref
+  for (const userDoc of usersSnapshot.docs) {
+    const userId = userDoc.id;
+
+    // Check if this user has tournament points
+    const tournamentsSnapshot = await adminDb
+      .collection('playerTournamentPoints')
+      .doc(userId)
       .collection('tournaments')
+      .where('seasonId', '==', seasonId)
       .get();
 
+    if (tournamentsSnapshot.empty) continue;
+
     totalTournamentsChecked += tournamentsSnapshot.docs.length;
+    tournamentsWithSeason += tournamentsSnapshot.docs.length;
 
-    // Debug: log first tournament data for this player
-    if (tournamentsSnapshot.docs.length > 0) {
-      const firstTournament = tournamentsSnapshot.docs[0].data();
-      console.log(`[DEBUG] Player ${playerDoc.id} - First tournament:`, {
-        tournamentId: firstTournament.tournamentId,
-        seasonId: firstTournament.seasonId,
-        seasonName: firstTournament.seasonName,
-        hasSeasonId: !!firstTournament.seasonId,
-        lookingFor: seasonId
-      });
-    }
-
-    const seasonTournamentDocs = tournamentsSnapshot.docs.filter(doc => {
-      const data = doc.data();
-      return data.seasonId === seasonId;
-    });
-    tournamentsWithSeason += seasonTournamentDocs.length;
-
-    if (seasonTournamentDocs.length === 0) continue;
-
-    const tournaments = seasonTournamentDocs.map(doc => doc.data() as PlayerTournamentPoints);
+    const tournaments = tournamentsSnapshot.docs.map(doc => doc.data() as PlayerTournamentPoints);
 
     const totalPoints = tournaments.reduce((sum, t) => sum + t.points, 0);
     const bestRank = Math.min(...tournaments.map(t => t.rank));
@@ -406,8 +374,8 @@ export async function getSeasonRankings(
       new Date(current.tournamentDate) > new Date(latest.tournamentDate) ? current : latest
     );
 
-    playerStats.set(playerDoc.id, {
-      playerId: playerDoc.id,
+    playerStats.set(userId, {
+      playerId: userId,
       pseudo: lastTournament.playerPseudo,
       clubId: lastTournament.clubId,
       clubName: lastTournament.clubName,
