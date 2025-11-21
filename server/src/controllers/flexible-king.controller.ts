@@ -1217,11 +1217,6 @@ export const freezeFlexibleKingTournament = async (req: Request, res: Response) 
 
     const kingData = flexKingDoc.data();
 
-    // Check if already frozen
-    if (kingData?.status === 'frozen') {
-      return res.status(400).json({ success: false, message: 'Tournament is already frozen' });
-    }
-
     // Get all phases
     const phasesSnapshot = await flexKingDocRef.collection('phases').get();
     const phases = phasesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as FlexibleKingPhase[];
@@ -1245,6 +1240,9 @@ export const freezeFlexibleKingTournament = async (req: Request, res: Response) 
         message: 'Pas de classement disponible pour la dernière phase'
       });
     }
+
+    // Delete existing points for this tournament (allows re-freeze)
+    await playerPointsService.deleteTournamentPoints(tournamentId);
 
     // Award points to all players based on final ranking
     const result = await playerPointsService.awardPointsToFlexibleKingPlayers(

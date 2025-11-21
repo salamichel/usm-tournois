@@ -4,6 +4,7 @@ import { AppError } from '../middlewares/error.middleware';
 import { convertTimestamps } from '../utils/firestore.utils';
 import { calculateMatchOutcome, propagateEliminationMatchResults } from '../services/match.service';
 import { generateEliminationBracket as generateEliminationBracketService, QualifiedTeam, EliminationTournamentConfig } from '../services/elimination.service';
+import { awardPointsToTeam, deleteTournamentPoints, updateGlobalRankings } from '../services/playerPoints.service';
 
 /**
  * Tournament Management
@@ -361,6 +362,26 @@ export const getPools = async (req: Request, res: Response) => {
   try {
     const { tournamentId } = req.params;
 
+    // Fetch all teams to get player information
+    const teamsSnapshot = await adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('teams')
+      .get();
+
+    const teamsMap: Record<string, any> = {};
+    const teamsByName: Record<string, any> = {};
+    teamsSnapshot.docs.forEach((doc) => {
+      const teamData = doc.data();
+      const teamObj = {
+        id: doc.id,
+        name: teamData.name,
+        members: teamData.members || [],
+      };
+      teamsMap[doc.id] = teamObj;
+      teamsByName[teamData.name] = teamObj;
+    });
+
     const poolsSnapshot = await adminDb
       .collection('events')
       .doc(tournamentId)
@@ -381,12 +402,29 @@ export const getPools = async (req: Request, res: Response) => {
           .orderBy('matchNumber')
           .get();
 
-        const matches = matchesSnapshot.docs.map((matchDoc) =>
-          convertTimestamps({
+        const matches = matchesSnapshot.docs.map((matchDoc) => {
+          const matchData = matchDoc.data();
+          const enrichedMatch: any = convertTimestamps({
             id: matchDoc.id,
-            ...matchDoc.data(),
-          })
-        );
+            ...matchData,
+          });
+
+          // Add players to team1 (try by ID first, then by name)
+          if (enrichedMatch.team1?.id && teamsMap[enrichedMatch.team1.id]) {
+            enrichedMatch.team1.members = teamsMap[enrichedMatch.team1.id].members;
+          } else if (enrichedMatch.team1?.name && teamsByName[enrichedMatch.team1.name]) {
+            enrichedMatch.team1.members = teamsByName[enrichedMatch.team1.name].members;
+          }
+
+          // Add players to team2 (try by ID first, then by name)
+          if (enrichedMatch.team2?.id && teamsMap[enrichedMatch.team2.id]) {
+            enrichedMatch.team2.members = teamsMap[enrichedMatch.team2.id].members;
+          } else if (enrichedMatch.team2?.name && teamsByName[enrichedMatch.team2.name]) {
+            enrichedMatch.team2.members = teamsByName[enrichedMatch.team2.name].members;
+          }
+
+          return enrichedMatch;
+        });
 
         return convertTimestamps({
           id: poolDoc.id,
@@ -631,13 +669,17 @@ export const getEliminationMatches = async (req: Request, res: Response) => {
       .get();
 
     const teamsMap: Record<string, any> = {};
+    const teamsByName: Record<string, any> = {};
     teamsSnapshot.docs.forEach((doc) => {
       const teamData = doc.data();
-      teamsMap[doc.id] = {
+      const teamObj = {
         id: doc.id,
         name: teamData.name,
         members: teamData.members || [],
       };
+      teamsMap[doc.id] = teamObj;
+      // Also index by name for fallback matching
+      teamsByName[teamData.name] = teamObj;
     });
 
     // Enrich matches with player information
@@ -648,14 +690,18 @@ export const getEliminationMatches = async (req: Request, res: Response) => {
         ...matchData,
       });
 
-      // Add players to team1
+      // Add players to team1 (try by ID first, then by name)
       if (enrichedMatch.team1?.id && teamsMap[enrichedMatch.team1.id]) {
         enrichedMatch.team1.members = teamsMap[enrichedMatch.team1.id].members;
+      } else if (enrichedMatch.team1?.name && teamsByName[enrichedMatch.team1.name]) {
+        enrichedMatch.team1.members = teamsByName[enrichedMatch.team1.name].members;
       }
 
-      // Add players to team2
+      // Add players to team2 (try by ID first, then by name)
       if (enrichedMatch.team2?.id && teamsMap[enrichedMatch.team2.id]) {
         enrichedMatch.team2.members = teamsMap[enrichedMatch.team2.id].members;
+      } else if (enrichedMatch.team2?.name && teamsByName[enrichedMatch.team2.name]) {
+        enrichedMatch.team2.members = teamsByName[enrichedMatch.team2.name].members;
       }
 
       return enrichedMatch;
@@ -933,6 +979,15 @@ export const freezeRanking = async (req: Request, res: Response) => {
       throw new AppError('Invalid final ranking data', 400);
     }
 
+    // Get tournament data for name and date
+    const tournamentDoc = await adminDb.collection('events').doc(tournamentId).get();
+    if (!tournamentDoc.exists) {
+      throw new AppError('Tournament not found', 404);
+    }
+    const tournament = tournamentDoc.data();
+    const tournamentName = tournament?.name || 'Tournoi';
+    const tournamentDate = tournament?.date?.toDate() || new Date();
+
     const batch = adminDb.batch();
     const finalRankingCollectionRef = adminDb
       .collection('events')
@@ -944,6 +999,9 @@ export const freezeRanking = async (req: Request, res: Response) => {
     existingRankingSnapshot.docs.forEach((doc) => {
       batch.delete(doc.ref);
     });
+
+    // Delete existing tournament points (allows re-freeze)
+    const affectedPlayerIds = await deleteTournamentPoints(tournamentId);
 
     // Add new ranking
     finalRanking.forEach((teamEntry: any, index: number) => {
@@ -977,9 +1035,49 @@ export const freezeRanking = async (req: Request, res: Response) => {
 
     await batch.commit();
 
+    // Award points to each team based on their final ranking
+    const newAffectedPlayerIds: string[] = [...affectedPlayerIds];
+
+    for (let i = 0; i < finalRanking.length; i++) {
+      const teamEntry = finalRanking[i];
+      const stats = teamEntry[1];
+      const teamData = stats.team || {};
+      const rank = i + 1;
+
+      if (teamData.members && Array.isArray(teamData.members) && teamData.members.length > 0) {
+        const playerIds = await awardPointsToTeam(
+          tournamentId,
+          tournamentName,
+          tournamentDate,
+          teamData,
+          rank
+        );
+
+        playerIds.forEach(id => {
+          if (!newAffectedPlayerIds.includes(id)) {
+            newAffectedPlayerIds.push(id);
+          }
+        });
+      }
+    }
+
+    // Update global rankings for all affected players
+    if (newAffectedPlayerIds.length > 0) {
+      await updateGlobalRankings(newAffectedPlayerIds);
+    }
+
+    // Update tournament status to frozen
+    await adminDb.collection('events').doc(tournamentId).update({
+      status: 'frozen',
+      isFrozen: true,
+      frozenAt: new Date()
+    });
+
+    console.log(`✅ Frozen pool tournament ${tournamentId}: ${newAffectedPlayerIds.length} players awarded points`);
+
     res.json({
       success: true,
-      message: 'Final ranking frozen successfully',
+      message: `Final ranking frozen successfully. ${newAffectedPlayerIds.length} joueurs ont reçu leurs points.`,
     });
   } catch (error: any) {
     console.error('Error freezing ranking:', error);
@@ -1007,6 +1105,90 @@ export const freezeEliminationRanking = async (req: Request, res: Response) => {
     if (matches.length === 0) {
       throw new AppError('No elimination matches found', 400);
     }
+
+    // Calculate team statistics from all elimination matches
+    const teamStats: { [key: string]: {
+      matchesPlayed: number;
+      wins: number;
+      losses: number;
+      setsWon: number;
+      setsLost: number;
+      pointsScored: number;
+      pointsConceded: number;
+    }} = {};
+
+    // Initialize stats for all teams and calculate from matches
+    matches.forEach((match: any) => {
+      if (match.status === 'completed') {
+        const team1Id = match.team1?.id;
+        const team2Id = match.team2?.id;
+
+        // Initialize team stats if not exists
+        if (team1Id && !teamStats[team1Id]) {
+          teamStats[team1Id] = {
+            matchesPlayed: 0,
+            wins: 0,
+            losses: 0,
+            setsWon: 0,
+            setsLost: 0,
+            pointsScored: 0,
+            pointsConceded: 0
+          };
+        }
+        if (team2Id && !teamStats[team2Id]) {
+          teamStats[team2Id] = {
+            matchesPlayed: 0,
+            wins: 0,
+            losses: 0,
+            setsWon: 0,
+            setsLost: 0,
+            pointsScored: 0,
+            pointsConceded: 0
+          };
+        }
+
+        const setsWonTeam1 = match.setsWonTeam1 || 0;
+        const setsWonTeam2 = match.setsWonTeam2 || 0;
+
+        // Calculate points scored from sets
+        let pointsScoredTeam1 = 0;
+        let pointsScoredTeam2 = 0;
+        if (match.sets && Array.isArray(match.sets)) {
+          match.sets.forEach((set: any) => {
+            pointsScoredTeam1 += set.score1 || 0;
+            pointsScoredTeam2 += set.score2 || 0;
+          });
+        }
+
+        // Update team1 stats
+        if (team1Id && teamStats[team1Id]) {
+          teamStats[team1Id].matchesPlayed++;
+          teamStats[team1Id].setsWon += setsWonTeam1;
+          teamStats[team1Id].setsLost += setsWonTeam2;
+          teamStats[team1Id].pointsScored += pointsScoredTeam1;
+          teamStats[team1Id].pointsConceded += pointsScoredTeam2;
+          if (setsWonTeam1 > setsWonTeam2) {
+            teamStats[team1Id].wins++;
+          } else {
+            teamStats[team1Id].losses++;
+          }
+        }
+
+        // Update team2 stats
+        if (team2Id && teamStats[team2Id]) {
+          teamStats[team2Id].matchesPlayed++;
+          teamStats[team2Id].setsWon += setsWonTeam2;
+          teamStats[team2Id].setsLost += setsWonTeam1;
+          teamStats[team2Id].pointsScored += pointsScoredTeam2;
+          teamStats[team2Id].pointsConceded += pointsScoredTeam1;
+          if (setsWonTeam2 > setsWonTeam1) {
+            teamStats[team2Id].wins++;
+          } else {
+            teamStats[team2Id].losses++;
+          }
+        }
+      }
+    });
 
     // Find final and 3rd place match
     const finale = matches.find((m: any) => m.round === 'Finale');
@@ -1122,10 +1304,34 @@ export const freezeEliminationRanking = async (req: Request, res: Response) => {
 
     // Add new ranking
     ranking.forEach((team) => {
+      const stats = teamStats[team.teamId] || {
+        matchesPlayed: 0,
+        wins: 0,
+        losses: 0,
+        setsWon: 0,
+        setsLost: 0,
+        pointsScored: 0,
+        pointsConceded: 0
+      };
+
       const rankData = {
         rank: team.rank,
         teamName: team.teamName,
         teamId: team.teamId,
+        matchesPlayed: stats.matchesPlayed,
+        wins: stats.wins,
+        losses: stats.losses,
+        setsWon: stats.setsWon,
+        setsLost: stats.setsLost,
+        pointsScored: stats.pointsScored,
+        pointsConceded: stats.pointsConceded,
+        pointsRatio:
+          stats.pointsConceded > 0
+            ? (stats.pointsScored / stats.pointsConceded).toFixed(2)
+            : stats.pointsScored > 0
+            ? 'Inf.'
+            : '0.00',
+        bonusPoints: 0,
         points: team.points,
         frozenAt: new Date(),
       };
@@ -1142,10 +1348,70 @@ export const freezeEliminationRanking = async (req: Request, res: Response) => {
 
     await batch.commit();
 
-    res.json({
-      success: true,
-      message: `Classement figé avec succès ! ${ranking.length} équipes classées.`,
-    });
+    // Award points to players based on ranking
+    const tournamentDoc = await tournamentRef.get();
+    const tournament = tournamentDoc.data();
+
+    if (tournament) {
+      const tournamentName = tournament.name || 'Tournoi';
+      const tournamentDate = tournament.date?.toDate ? tournament.date.toDate() : new Date();
+
+      // Delete existing points for this tournament (to allow re-freeze)
+      const affectedPlayerIds = await deleteTournamentPoints(tournamentId);
+      if (affectedPlayerIds.length > 0) {
+        console.log(`🗑️ Deleted existing points for ${affectedPlayerIds.length} players`);
+      }
+
+      let playersAwarded = 0;
+
+      for (const team of ranking) {
+        try {
+          // Get team members
+          const teamDoc = await adminDb
+            .collection('events')
+            .doc(tournamentId)
+            .collection('teams')
+            .doc(team.teamId)
+            .get();
+
+          if (teamDoc.exists) {
+            const teamData = teamDoc.data();
+            const members = teamData?.members || [];
+
+            if (members.length > 0) {
+              await awardPointsToTeam(
+                tournamentId,
+                tournamentName,
+                tournamentDate,
+                team.teamName,
+                members,
+                team.rank
+              );
+              playersAwarded += members.filter((m: any) => !m.isVirtual).length;
+            }
+          }
+        } catch (error) {
+          console.error(`Error awarding points to team ${team.teamName}:`, error);
+        }
+      }
+
+      // Also update global rankings for previously affected players (in case of re-freeze)
+      if (affectedPlayerIds.length > 0) {
+        await updateGlobalRankings(affectedPlayerIds);
+      }
+
+      console.log(`✅ Frozen elimination tournament ${tournamentId}: ${playersAwarded} players awarded points`);
+
+      res.json({
+        success: true,
+        message: `Classement figé avec succès ! ${ranking.length} équipes classées, ${playersAwarded} joueurs ont reçu leurs points.`,
+      });
+    } else {
+      res.json({
+        success: true,
+        message: `Classement figé avec succès ! ${ranking.length} équipes classées.`,
+      });
+    }
   } catch (error: any) {
     console.error('Error freezing elimination ranking:', error);
     if (error instanceof AppError) throw error;
@@ -1345,7 +1611,7 @@ export const getAllUsers = async (req: Request, res: Response) => {
 
 export const createUser = async (req: Request, res: Response) => {
   try {
-    const { email, pseudo, level, role } = req.body;
+    const { email, pseudo, level, role, clubId } = req.body;
 
     if (!email) {
       throw new AppError('Email is required', 400);
@@ -1360,6 +1626,7 @@ export const createUser = async (req: Request, res: Response) => {
       pseudo,
       level: level || 'Débutant',
       role: role || 'user',
+      clubId: clubId || null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -1407,7 +1674,7 @@ export const getUserById = async (req: Request, res: Response) => {
 export const updateUser = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { email, pseudo, level, role } = req.body;
+    const { email, pseudo, level, role, clubId } = req.body;
 
     const userDoc = await adminDb.collection('users').doc(id).get();
     if (!userDoc.exists) {
@@ -1422,6 +1689,7 @@ export const updateUser = async (req: Request, res: Response) => {
     if (pseudo !== undefined && pseudo !== null) updateData.pseudo = pseudo;
     if (level !== undefined && level !== null) updateData.level = level;
     if (role !== undefined && role !== null) updateData.role = role;
+    if (clubId !== undefined) updateData.clubId = clubId || null;
 
     await adminDb.collection('users').doc(id).update(updateData);
 

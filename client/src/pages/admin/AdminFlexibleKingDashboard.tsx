@@ -181,7 +181,7 @@ const AdminFlexibleKingDashboard = () => {
 
   const handleFreezeTournament = async () => {
     if (!tournamentId) return;
-    if (!confirm('Êtes-vous sûr de vouloir figer le tournoi ? Cette action attribuera les points de classement à tous les joueurs et ne pourra pas être annulée.')) return;
+    if (!confirm('Êtes-vous sûr de vouloir figer le tournoi et attribuer les points ? Vous pouvez relancer cette action si nécessaire.')) return;
 
     try {
       const response = await flexibleKingService.freezeTournament(tournamentId);
@@ -386,27 +386,26 @@ const AdminFlexibleKingDashboard = () => {
               </div>
 
               {/* Freeze Tournament Button */}
-              {kingData?.status === 'frozen' ? (
-                <div className="mt-4">
-                  <div className="inline-flex items-center gap-2 bg-green-100 text-green-800 px-4 py-2 rounded-lg">
-                    <Lock size={18} />
-                    <span className="font-medium">Tournoi figé - Points attribués</span>
-                  </div>
-                </div>
-              ) : (
-                <div className="mt-4">
-                  <button
-                    onClick={handleFreezeTournament}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 mx-auto"
-                  >
-                    <Lock size={18} />
-                    Figer le Tournoi et Attribuer les Points
-                  </button>
-                  <p className="text-xs text-yellow-700 mt-2">
-                    Cette action attribuera les points de classement à tous les joueurs
-                  </p>
-                </div>
-              )}
+              <div className="mt-4">
+                <button
+                  onClick={handleFreezeTournament}
+                  className={`px-6 py-3 rounded-lg font-medium flex items-center gap-2 mx-auto ${
+                    kingData?.status === 'frozen'
+                      ? 'bg-green-600 hover:bg-green-700 text-white'
+                      : 'bg-blue-600 hover:bg-blue-700 text-white'
+                  }`}
+                >
+                  <Lock size={18} />
+                  {kingData?.status === 'frozen'
+                    ? 'Recalculer les points'
+                    : 'Figer le Tournoi et Attribuer les Points'}
+                </button>
+                <p className="text-xs text-gray-600 mt-2">
+                  {kingData?.status === 'frozen'
+                    ? 'Points déjà attribués - Cliquez pour recalculer'
+                    : 'Cette action attribuera les points de classement à tous les joueurs'}
+                </p>
+              </div>
             </div>
           </div>
         )}

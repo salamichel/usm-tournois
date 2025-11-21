@@ -9,6 +9,10 @@
 export interface PlayerTournamentPoints {
   playerId: string;
   playerPseudo: string;
+  clubId?: string | null;
+  clubName?: string | null;
+  seasonId?: string;
+  seasonName?: string;
   tournamentId: string;
   tournamentName: string;
   tournamentDate: Date;
@@ -24,6 +28,8 @@ export interface PlayerTournamentPoints {
 export interface PlayerGlobalRanking {
   playerId: string;
   pseudo: string;
+  clubId?: string | null;
+  clubName?: string | null;
   totalPoints: number;
   tournamentsPlayed: number;
   averagePoints: number;

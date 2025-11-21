@@ -35,6 +35,7 @@ import AdminUnassignedPlayers from '@pages/admin/AdminUnassignedPlayers';
 import AdminVirtualUsers from '@pages/admin/AdminVirtualUsers';
 import AdminClubsList from '@pages/admin/AdminClubsList';
 import AdminClubForm from '@pages/admin/AdminClubForm';
+import AdminSeasonsList from '@pages/admin/AdminSeasonsList';
 
 // Demo pages
 import KingConfigDemo from '@pages/KingConfigDemo';
@@ -261,6 +262,14 @@ function App() {
               element={
                 <AdminRoute>
                   <AdminClubForm />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/seasons"
+              element={
+                <AdminRoute>
+                  <AdminSeasonsList />
                 </AdminRoute>
               }
             />
