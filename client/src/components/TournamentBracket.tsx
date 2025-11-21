@@ -1,21 +1,45 @@
 import React from 'react';
+import { Edit } from 'lucide-react';
 
 interface Match {
   id: string;
   round: string;
   team1Name?: string;
   team2Name?: string;
-  team1?: { name: string };
-  team2?: { name: string };
+  team1?: { id?: string; name: string };
+  team2?: { id?: string; name: string };
   sets?: Array<{ score1: number | null; score2: number | null }>;
   status: string;
 }
 
 interface TournamentBracketProps {
   matches: Match[];
+  user?: any;
+  teams?: any[];
+  onEditScore?: (match: Match) => void;
+  isRankingFrozen?: boolean;
 }
 
-const TournamentBracket: React.FC<TournamentBracketProps> = ({ matches }) => {
+const TournamentBracket: React.FC<TournamentBracketProps> = ({
+  matches,
+  user,
+  teams = [],
+  onEditScore,
+  isRankingFrozen = false
+}) => {
+  // Check if user is captain in a match
+  const isCaptainInMatch = (match: Match): boolean => {
+    if (!user || !teams) return false;
+
+    const team1Id = match.team1?.id;
+    const team2Id = match.team2?.id;
+
+    const team1 = teams.find(t => t.id === team1Id);
+    const team2 = teams.find(t => t.id === team2Id);
+
+    return (team1?.captainId === user.uid) || (team2?.captainId === user.uid);
+  };
+
   // Group matches by round
   const groupedMatches: Record<string, Match[]> = {};
 
@@ -102,6 +126,7 @@ const TournamentBracket: React.FC<TournamentBracketProps> = ({ matches }) => {
     const team2 = match.team2Name || match.team2?.name || 'TBD';
     const winner = getWinner(match);
     const score = formatScore(match);
+    const canEditScore = onEditScore && user && isCaptainInMatch(match) && !isRankingFrozen;
 
     return (
       <div
@@ -140,6 +165,17 @@ const TournamentBracket: React.FC<TournamentBracketProps> = ({ matches }) => {
             <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full">
               En cours
             </span>
+          </div>
+        )}
+        {canEditScore && (
+          <div className="text-center mt-2">
+            <button
+              onClick={() => onEditScore(match)}
+              className="text-xs px-3 py-1 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors inline-flex items-center gap-1"
+            >
+              <Edit size={12} />
+              Saisir
+            </button>
           </div>
         )}
       </div>

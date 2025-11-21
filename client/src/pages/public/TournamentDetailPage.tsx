@@ -1221,7 +1221,13 @@ const TournamentDetailPage = () => {
               <div className="card">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">Phase d'Élimination</h2>
                 {tournament.eliminationMatches && tournament.eliminationMatches.length > 0 ? (
-                  <TournamentBracket matches={tournament.eliminationMatches} />
+                  <TournamentBracket
+                    matches={tournament.eliminationMatches}
+                    user={user}
+                    teams={tournament.teams}
+                    onEditScore={(match) => handleOpenScoreModal(match, 'elimination')}
+                    isRankingFrozen={isRankingFrozen()}
+                  />
                 ) : (
                   <p className="text-gray-500 text-center py-8">Aucune phase d'élimination configurée pour ce tournoi.</p>
                 )}
