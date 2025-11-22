@@ -2,10 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@contexts/AuthContext';
 import tournamentService from '@services/tournament.service';
+import matchService from '@services/match.service';
 import type { TournamentDetails, Team } from '@shared/types';
 import toast from 'react-hot-toast';
 import ReactMarkdown from 'react-markdown';
 import TournamentBracket from '@components/TournamentBracket';
+import MatchScoreModal from '@components/admin/MatchScoreModal';
 import {
   Calendar,
   MapPin,
@@ -20,6 +22,7 @@ import {
   CheckCircle,
   XCircle,
   Settings,
+  Edit,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -40,6 +43,9 @@ const TournamentDetailPage = () => {
   const [activeTab, setActiveTab] = useState<TabType>('teams');
   const [activeView, setActiveView] = useState<ViewType>('detail');
   const [activeResultsTab, setActiveResultsTab] = useState<ResultsTabType>('pools');
+  const [showScoreModal, setShowScoreModal] = useState(false);
+  const [selectedMatch, setSelectedMatch] = useState<any>(null);
+  const [matchContext, setMatchContext] = useState<{ type: 'pool' | 'elimination'; poolId?: string } | null>(null);
 
   const fetchTournament = useCallback(async () => {
     if (!id) return;
@@ -203,6 +209,59 @@ const TournamentDetailPage = () => {
     navigator.clipboard.writeText(text).then(() => {
       toast.success('Lien copié !');
     });
+  };
+
+  // Check if user is captain of a team in a match
+  const isCaptainInMatch = (match: any): boolean => {
+    if (!user || !tournament) return false;
+
+    const team1 = tournament.teams?.find(t => t.id === match.team1?.id);
+    const team2 = tournament.teams?.find(t => t.id === match.team2?.id);
+
+    return (team1?.captainId === user.uid) || (team2?.captainId === user.uid);
+  };
+
+  // Check if ranking is frozen
+  const isRankingFrozen = (): boolean => {
+    return tournament?.finalRanking && tournament.finalRanking.length > 0;
+  };
+
+  // Open score modal for a match
+  const handleOpenScoreModal = (match: any, type: 'pool' | 'elimination', poolId?: string) => {
+    if (isRankingFrozen()) {
+      toast.error('Le classement est figé. Vous ne pouvez plus modifier les scores.');
+      return;
+    }
+
+    setSelectedMatch(match);
+    setMatchContext({ type, poolId });
+    setShowScoreModal(true);
+  };
+
+  // Submit match scores
+  const handleSubmitScores = async (sets: any[]) => {
+    if (!id || !selectedMatch || !matchContext) return;
+
+    try {
+      const response = await matchService.submitScores(id, selectedMatch.id, {
+        sets,
+        matchType: matchContext.type,
+        poolId: matchContext.poolId,
+      });
+
+      if (response.success) {
+        toast.success('Scores enregistrés avec succès !');
+        setShowScoreModal(false);
+        setSelectedMatch(null);
+        setMatchContext(null);
+        fetchTournament();
+      }
+    } catch (error: any) {
+      toast.error(
+        error.response?.data?.error?.message || 'Erreur lors de l\'enregistrement des scores'
+      );
+      throw error;
+    }
   };
 
   // Check if current user is registered
@@ -1087,13 +1146,15 @@ const TournamentDetailPage = () => {
                                     <th className="p-3 text-left rounded-l-lg">Match</th>
                                     <th className="p-3 text-center">Score</th>
                                     <th className="p-3 text-center">Statut</th>
-                                    <th className="p-3 text-center rounded-r-lg">Gagnant</th>
+                                    <th className="p-3 text-center">Gagnant</th>
+                                    {isAuthenticated && <th className="p-3 text-center rounded-r-lg">Actions</th>}
                                   </tr>
                                 </thead>
                                 <tbody className="text-gray-700">
                                   {pool.matches.map((match: any, idx: number) => {
                                     const { winner } = getMatchWinner(match);
                                     const score = formatSetsScore(match);
+                                    const canEditScore = isCaptainInMatch(match) && !isRankingFrozen();
 
                                     return (
                                       <tr key={idx} className="border-b border-gray-200">
@@ -1121,6 +1182,22 @@ const TournamentDetailPage = () => {
                                             <span>N/A</span>
                                           )}
                                         </td>
+                                        {isAuthenticated && (
+                                          <td className="p-3 text-center">
+                                            {canEditScore ? (
+                                              <button
+                                                onClick={() => handleOpenScoreModal(match, 'pool', pool.id)}
+                                                className="btn-secondary text-xs py-1 px-2 inline-flex items-center gap-1"
+                                                title="Saisir le score"
+                                              >
+                                                <Edit size={14} />
+                                                Saisir
+                                              </button>
+                                            ) : (
+                                              <span className="text-gray-400 text-xs">-</span>
+                                            )}
+                                          </td>
+                                        )}
                                       </tr>
                                     );
                                   })}
@@ -1144,7 +1221,13 @@ const TournamentDetailPage = () => {
               <div className="card">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">Phase d'Élimination</h2>
                 {tournament.eliminationMatches && tournament.eliminationMatches.length > 0 ? (
-                  <TournamentBracket matches={tournament.eliminationMatches} />
+                  <TournamentBracket
+                    matches={tournament.eliminationMatches}
+                    user={user}
+                    teams={tournament.teams}
+                    onEditScore={(match) => handleOpenScoreModal(match, 'elimination')}
+                    isRankingFrozen={isRankingFrozen()}
+                  />
                 ) : (
                   <p className="text-gray-500 text-center py-8">Aucune phase d'élimination configurée pour ce tournoi.</p>
                 )}
@@ -1239,6 +1322,30 @@ const TournamentDetailPage = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Match Score Modal */}
+      {selectedMatch && matchContext && (
+        <MatchScoreModal
+          isOpen={showScoreModal}
+          onClose={() => {
+            setShowScoreModal(false);
+            setSelectedMatch(null);
+            setMatchContext(null);
+          }}
+          onSave={handleSubmitScores}
+          match={selectedMatch}
+          setsToWin={
+            matchContext.type === 'pool'
+              ? tournament?.setsPerMatchPool || 1
+              : tournament?.setsPerMatchElimination || 3
+          }
+          pointsPerSet={
+            matchContext.type === 'pool'
+              ? tournament?.pointsPerSetPool || 21
+              : tournament?.pointsPerSetElimination || 21
+          }
+        />
       )}
     </div>
   );

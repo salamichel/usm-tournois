@@ -1,6 +1,10 @@
 import { Request, Response } from 'express';
 import { adminDb } from '../config/firebase.config';
 import { AppError } from '../middlewares/error.middleware';
+import {
+  determineMatchResult,
+  propagateEliminationMatchResults
+} from '../services/match.service';
 
 export const submitScores = async (req: Request, res: Response) => {
   try {
@@ -27,6 +31,24 @@ export const submitScores = async (req: Request, res: Response) => {
     }
 
     const tournament = tournamentDoc.data();
+
+    // Check if ranking is frozen (tournament is finished)
+    const finalRankingSnapshot = await adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('finalRanking')
+      .limit(1)
+      .get();
+
+    if (!finalRankingSnapshot.empty) {
+      const firstRanking = finalRankingSnapshot.docs[0].data();
+      if (firstRanking?.frozenAt) {
+        throw new AppError(
+          'Le classement est figé. Vous ne pouvez plus modifier les scores.',
+          403
+        );
+      }
+    }
 
     // Get match reference
     let matchRef;
@@ -56,8 +78,8 @@ export const submitScores = async (req: Request, res: Response) => {
 
     const matchData = matchDoc.data();
 
-    // Verify user is captain of team1
-    if (!matchData?.team1?.id) {
+    // Verify user is captain of either team1 or team2
+    if (!matchData?.team1?.id || !matchData?.team2?.id) {
       throw new AppError('Match team information is incomplete', 400);
     }
 
@@ -68,60 +90,93 @@ export const submitScores = async (req: Request, res: Response) => {
       .doc(matchData.team1.id)
       .get();
 
-    if (!team1Doc.exists || team1Doc.data()?.captainId !== userId) {
-      throw new AppError('You are not authorized to submit scores for this match', 403);
+    const team2Doc = await adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('teams')
+      .doc(matchData.team2.id)
+      .get();
+
+    const isTeam1Captain = team1Doc.exists && team1Doc.data()?.captainId === userId;
+    const isTeam2Captain = team2Doc.exists && team2Doc.data()?.captainId === userId;
+
+    if (!isTeam1Captain && !isTeam2Captain) {
+      throw new AppError(
+        'Vous devez être le capitaine d\'une des équipes pour soumettre les scores',
+        403
+      );
     }
 
-    // Calculate match result
+    // Get tournament configuration
     const setsToWin = matchType === 'pool'
       ? (tournament?.setsPerMatchPool || 1)
       : (tournament?.setsPerMatchElimination || 3);
 
-    let setsWonTeam1 = 0;
-    let setsWonTeam2 = 0;
+    const pointsPerSet = matchType === 'pool'
+      ? (tournament?.pointsPerSetPool || 21)
+      : (tournament?.pointsPerSetElimination || 21);
 
-    sets.forEach((set: any) => {
-      if (set.score1 > set.score2) {
-        setsWonTeam1++;
-      } else if (set.score2 > set.score1) {
-        setsWonTeam2++;
-      }
-    });
+    const tieBreakEnabled = matchType === 'pool'
+      ? (tournament?.tieBreakEnabledPools || false)
+      : (tournament?.tieBreakEnabledElimination || false);
 
-    let matchStatus = 'in_progress';
-    let winnerId = null;
-    let loserId = null;
-
-    if (setsWonTeam1 >= setsToWin || setsWonTeam2 >= setsToWin) {
-      matchStatus = 'completed';
-      if (setsWonTeam1 > setsWonTeam2) {
-        winnerId = matchData.team1.id;
-        loserId = matchData.team2?.id || null;
-      } else {
-        winnerId = matchData.team2?.id || null;
-        loserId = matchData.team1.id;
-      }
-    }
-
-    // Update match
-    await matchRef.update({
+    // Calculate match result using service function
+    const matchResult = determineMatchResult(
       sets,
-      setsWonTeam1,
-      setsWonTeam2,
-      status: matchStatus,
-      winnerId,
-      loserId,
+      setsToWin,
+      pointsPerSet,
+      tieBreakEnabled,
+      matchData.team1.id,
+      matchData.team2.id
+    );
+
+    // Prepare update object
+    const updateData: any = {
+      sets,
+      setsWonTeam1: matchResult.setsWonTeam1,
+      setsWonTeam2: matchResult.setsWonTeam2,
+      status: matchResult.matchStatus,
+      winnerId: matchResult.winnerId,
+      loserId: matchResult.loserId,
+      submittedBy: userId,
+      submittedAt: new Date(),
       updatedAt: new Date(),
-    });
+    };
+
+    // If elimination match and completed, use batch for propagation
+    if (matchType === 'elimination' && matchResult.matchStatus === 'completed') {
+      const batch = adminDb.batch();
+
+      // Update current match
+      batch.update(matchRef, updateData);
+
+      // Propagate results to next matches
+      if (matchResult.winnerId && matchResult.loserId) {
+        await propagateEliminationMatchResults(
+          tournamentId,
+          matchData,
+          matchResult.winnerId,
+          matchResult.winnerId === matchData.team1.id ? matchData.team1.name : matchData.team2.name,
+          matchResult.loserId,
+          matchResult.loserId === matchData.team1.id ? matchData.team1.name : matchData.team2.name,
+          batch
+        );
+      }
+
+      await batch.commit();
+    } else {
+      // Simple update for pool matches
+      await matchRef.update(updateData);
+    }
 
     res.json({
       success: true,
       message: 'Match scores submitted successfully',
       data: {
-        status: matchStatus,
-        setsWonTeam1,
-        setsWonTeam2,
-        winnerId,
+        status: matchResult.matchStatus,
+        setsWonTeam1: matchResult.setsWonTeam1,
+        setsWonTeam2: matchResult.setsWonTeam2,
+        winnerId: matchResult.winnerId,
       },
     });
   } catch (error: any) {

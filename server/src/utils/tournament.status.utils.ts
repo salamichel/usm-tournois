@@ -14,7 +14,9 @@ interface TournamentStatusResult {
 export const calculateTournamentStatus = (
   tournament: any,
   completeTeamsCount: number,
-  totalTeamsCount: number
+  totalTeamsCount: number,
+  hasMatches: boolean = false,
+  isRankingFrozen: boolean = false
 ): TournamentStatusResult => {
   const now = new Date();
   const tournamentDate = tournament.date ? new Date(tournament.date) : new Date(8640000000000000);
@@ -37,10 +39,18 @@ export const calculateTournamentStatus = (
   let status: TournamentStatus = 'Ouvert';
   let message = '';
 
-  // Order: Terminé > Inscriptions à venir > Inscriptions fermées > Ouvert/Complet
-  if (now > tournamentDate) {
+  // Order: Classement figé > Date dépassée > En cours > Inscriptions à venir > Inscriptions fermées > Ouvert/Complet
+  if (isRankingFrozen) {
+    // Si le classement est figé, le tournoi est terminé
     status = 'Terminé';
     message = 'Ce tournoi est terminé.';
+  } else if (now > tournamentDate) {
+    status = 'Terminé';
+    message = 'Ce tournoi est terminé.';
+  } else if (hasMatches && (!registrationsAreOpen || isFullByCompleteTeams)) {
+    // Tournoi en cours : il y a des matchs ET (inscriptions fermées OU complet)
+    status = 'En cours';
+    message = 'Le tournoi est en cours.';
   } else if (hasRegistrationDates && now < registrationStarts) {
     status = 'Ouvert';
     message = 'Inscriptions à venir.';
