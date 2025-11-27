@@ -220,9 +220,10 @@ const AdminPoolsManagement = () => {
                   {pools.map((pool) => (
                     <div key={pool.id} className="mb-4 pb-4 border-b border-gray-200 last:border-b-0">
                       <h4 className="font-medium text-sm text-gray-700 mb-2">{pool.name}</h4>
-                      {pool.ranking && pool.ranking.length > 0 ? (
+                      {((pool.ranking && pool.ranking.length > 0) || (pool.teams && pool.teams.length > 0)) ? (
                         <div className="space-y-2">
-                          {pool.ranking.map((team: any, idx: number) => (
+                          {/* Utiliser le ranking s'il existe, sinon utiliser pool.teams */}
+                          {(pool.ranking && pool.ranking.length > 0 ? pool.ranking : pool.teams).map((team: any, idx: number) => (
                             <label
                               key={team.id}
                               className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 cursor-pointer"
@@ -237,9 +238,11 @@ const AdminPoolsManagement = () => {
                                 <div className="flex items-center gap-2">
                                   <span className="text-xs font-medium text-gray-500">#{idx + 1}</span>
                                   <span className="font-medium">{team.name}</span>
-                                  <span className="text-xs text-gray-500">
-                                    ({team.wins || 0}V - {team.losses || 0}D)
-                                  </span>
+                                  {team.wins !== undefined && (
+                                    <span className="text-xs text-gray-500">
+                                      ({team.wins || 0}V - {team.losses || 0}D)
+                                    </span>
+                                  )}
                                 </div>
                                 {(team.player1 || team.player2) && (
                                   <div className="text-xs text-gray-500 mt-0.5 ml-6">
@@ -247,6 +250,11 @@ const AdminPoolsManagement = () => {
                                     {team.player2 && (
                                       <> / {team.player2?.name || team.player2?.displayName || 'Joueur 2'}</>
                                     )}
+                                  </div>
+                                )}
+                                {team.members && team.members.length > 0 && (
+                                  <div className="text-xs text-gray-500 mt-0.5 ml-6">
+                                    {team.members.map((m: any) => m.pseudo || m.name).join(' / ')}
                                   </div>
                                 )}
                               </div>
