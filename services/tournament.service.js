@@ -61,7 +61,7 @@ function buildTournamentObject(body, file, isNew = true) {
         tieBreakEnabledPools: isTieBreakEnabledPools,
         tieBreakEnabledElimination: isTieBreakEnabledElimination,
         matchFormat: matchFormat || 'aller',
-        tournamentFormat: tournamentFormat || 'classic',
+        tournamentFormat: tournamentFormat || 'standard',
     };
 
     if (file) {

@@ -115,7 +115,7 @@ export const createTournament = async (req: Request, res: Response) => {
       waitingListSize: waitingListSize ? parseInt(waitingListSize) : 0,
       whatsappGroupLink: whatsappGroupLink?.trim() || '',
       registrationMode: registrationMode || 'teams',
-      tournamentFormat: tournamentFormat || 'classic',
+      tournamentFormat: tournamentFormat || 'standard',
       minPlayers: minPlayers ? parseInt(minPlayers) : 0,
       maxPlayers: maxPlayers ? parseInt(maxPlayers) : 0,
       createdAt: new Date(),
