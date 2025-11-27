@@ -117,6 +117,7 @@ exports.showPoolsManagement = async (req, res) => {
 exports.generateEliminationMatches = async (req, res) => {
     try {
         const { tournamentId } = req.params;
+        const { qualifiedTeamIds } = req.body; // Nouvelle option : liste manuelle des équipes qualifiées
 
         const tournament = await getDocById('events', tournamentId);
         if (!tournament) {
@@ -127,24 +128,43 @@ exports.generateEliminationMatches = async (req, res) => {
             return sendFlashAndRedirect(req, res, 'error', 'La phase d\'élimination n\'est pas activée pour ce tournoi.', `/admin/tournaments/${tournamentId}/pools`);
         }
 
-        const teamsQualifiedPerPool = tournament.teamsQualifiedPerPool || 2;
-        const setsPerMatchElimination = tournament.setsPerMatchElimination || 3;
-        const pointsPerSetElimination = tournament.pointsPerSetElimination || 21;
-
         const poolsSnapshot = await adminDb.collection('events').doc(tournamentId).collection('pools').get();
-        let qualifiedTeamsByPool = {};
         let allQualifiedTeams = [];
 
-        for (const poolDoc of poolsSnapshot.docs) {
-            const poolId = poolDoc.id;
-            const poolName = poolDoc.data().name;
-            const poolTeams = poolDoc.data().teams || [];
-            const poolMatchesSnapshot = await adminDb.collection('events').doc(tournamentId).collection('pools').doc(poolId).collection('matches').get();
-            const poolMatches = poolMatchesSnapshot.docs.map(doc => doc.data());
-            const ranking = await calculatePoolRanking(tournamentId, poolId, poolTeams, poolMatches);
-            const topTeams = ranking.slice(0, teamsQualifiedPerPool).map(team => ({ ...team, poolName: poolName }));
-            qualifiedTeamsByPool[poolId] = topTeams;
-            allQualifiedTeams.push(...topTeams);
+        if (qualifiedTeamIds && Array.isArray(qualifiedTeamIds) && qualifiedTeamIds.length > 0) {
+            // Mode manuel : utiliser les équipes sélectionnées par l'admin
+            console.log(`Mode manuel : ${qualifiedTeamIds.length} équipes sélectionnées`);
+
+            // Récupérer toutes les équipes de toutes les poules avec leur classement
+            for (const poolDoc of poolsSnapshot.docs) {
+                const poolId = poolDoc.id;
+                const poolName = poolDoc.data().name;
+                const poolTeams = poolDoc.data().teams || [];
+                const poolMatchesSnapshot = await adminDb.collection('events').doc(tournamentId).collection('pools').doc(poolId).collection('matches').get();
+                const poolMatches = poolMatchesSnapshot.docs.map(doc => doc.data());
+                const ranking = await calculatePoolRanking(tournamentId, poolId, poolTeams, poolMatches);
+
+                // Récupérer seulement les équipes qui sont dans la liste qualifiedTeamIds
+                const selectedTeamsFromPool = ranking.filter(team => qualifiedTeamIds.includes(team.id))
+                    .map(team => ({ ...team, poolName: poolName }));
+
+                allQualifiedTeams.push(...selectedTeamsFromPool);
+            }
+        } else {
+            // Mode automatique (rétro-compatibilité) : utiliser teamsQualifiedPerPool
+            console.log('Mode automatique : utilisation de teamsQualifiedPerPool');
+            const teamsQualifiedPerPool = tournament.teamsQualifiedPerPool || 2;
+
+            for (const poolDoc of poolsSnapshot.docs) {
+                const poolId = poolDoc.id;
+                const poolName = poolDoc.data().name;
+                const poolTeams = poolDoc.data().teams || [];
+                const poolMatchesSnapshot = await adminDb.collection('events').doc(tournamentId).collection('pools').doc(poolId).collection('matches').get();
+                const poolMatches = poolMatchesSnapshot.docs.map(doc => doc.data());
+                const ranking = await calculatePoolRanking(tournamentId, poolId, poolTeams, poolMatches);
+                const topTeams = ranking.slice(0, teamsQualifiedPerPool).map(team => ({ ...team, poolName: poolName }));
+                allQualifiedTeams.push(...topTeams);
+            }
         }
 
         // Vérifier le nombre d'équipes qualifiées
