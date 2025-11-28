@@ -21,6 +21,34 @@ const AdminPoolsManagement = () => {
   const [qualifiedTeams, setQualifiedTeams] = useState<string[]>([]);
   const [showQualificationPanel, setShowQualificationPanel] = useState(false);
 
+  // Clé localStorage unique par tournoi
+  const qualifiedTeamsStorageKey = `qualified-teams-${tournamentId}`;
+
+  // Charger les équipes qualifiées depuis localStorage au démarrage
+  useEffect(() => {
+    const savedTeams = localStorage.getItem(qualifiedTeamsStorageKey);
+    if (savedTeams) {
+      try {
+        const teams = JSON.parse(savedTeams);
+        setQualifiedTeams(teams);
+        console.log(`Équipes qualifiées chargées depuis localStorage: ${teams.length} équipes`);
+      } catch (error) {
+        console.error('Erreur lors du chargement des équipes qualifiées:', error);
+      }
+    }
+  }, [tournamentId]);
+
+  // Sauvegarder dans localStorage à chaque changement
+  useEffect(() => {
+    if (qualifiedTeams.length > 0) {
+      localStorage.setItem(qualifiedTeamsStorageKey, JSON.stringify(qualifiedTeams));
+      console.log(`Sélection sauvegardée localement: ${qualifiedTeams.length} équipes`);
+    } else {
+      // Supprimer si aucune équipe sélectionnée
+      localStorage.removeItem(qualifiedTeamsStorageKey);
+    }
+  }, [qualifiedTeams, qualifiedTeamsStorageKey]);
+
   useEffect(() => {
     loadData();
   }, [tournamentId]);
@@ -136,6 +164,10 @@ const AdminPoolsManagement = () => {
     try {
       await adminService.generateEliminationBracketWithTeams(tournamentId!, qualifiedTeams);
       toast.success('Matchs d\'élimination générés avec succès');
+
+      // Nettoyer le localStorage après succès
+      localStorage.removeItem(qualifiedTeamsStorageKey);
+
       setShowQualificationPanel(false);
       setQualifiedTeams([]);
     } catch (error: any) {
@@ -196,6 +228,11 @@ const AdminPoolsManagement = () => {
               <>
                 <p className="text-gray-700 mb-4">
                   Sélectionnez manuellement les équipes qualifiées pour la phase d'élimination.
+                  {qualifiedTeams.length > 0 && (
+                    <span className="ml-2 text-green-600 font-semibold">
+                      ({qualifiedTeams.length} équipe{qualifiedTeams.length > 1 ? 's' : ''} pré-sélectionnée{qualifiedTeams.length > 1 ? 's' : ''} 💾)
+                    </span>
+                  )}
                 </p>
                 <div className="flex gap-4">
                   <Link
@@ -208,14 +245,42 @@ const AdminPoolsManagement = () => {
                     onClick={() => setShowQualificationPanel(true)}
                     className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-md"
                   >
-                    Sélectionner les Équipes Qualifiées
+                    {qualifiedTeams.length > 0 ? 'Modifier la sélection' : 'Sélectionner les Équipes Qualifiées'}
                   </button>
+                  {qualifiedTeams.length >= 2 && (
+                    <button
+                      onClick={handleGenerateElimination}
+                      className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md font-semibold"
+                    >
+                      Générer les Matchs ({qualifiedTeams.length} équipes)
+                    </button>
+                  )}
                 </div>
               </>
             ) : (
               <>
                 <div className="bg-white rounded-lg p-4 mb-4">
-                  <h3 className="font-semibold mb-3">Sélectionnez les équipes qualifiées ({qualifiedTeams.length} sélectionnée{qualifiedTeams.length > 1 ? 's' : ''})</h3>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold">
+                      Sélectionnez les équipes qualifiées ({qualifiedTeams.length} sélectionnée{qualifiedTeams.length > 1 ? 's' : ''})
+                    </h3>
+                    {qualifiedTeams.length > 0 && (
+                      <button
+                        onClick={() => {
+                          setQualifiedTeams([]);
+                          localStorage.removeItem(qualifiedTeamsStorageKey);
+                          toast.success('Sélection effacée');
+                        }}
+                        className="text-xs text-red-600 hover:text-red-800"
+                      >
+                        Tout désélectionner
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800">
+                    💾 Votre sélection est sauvegardée automatiquement dans votre navigateur
+                  </div>
 
                   {pools.map((pool) => (
                     <div key={pool.id} className="mb-4 pb-4 border-b border-gray-200 last:border-b-0">
@@ -279,11 +344,10 @@ const AdminPoolsManagement = () => {
                   <button
                     onClick={() => {
                       setShowQualificationPanel(false);
-                      setQualifiedTeams([]);
                     }}
                     className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md"
                   >
-                    Annuler
+                    Fermer (sélection sauvegardée)
                   </button>
                 </div>
               </>
