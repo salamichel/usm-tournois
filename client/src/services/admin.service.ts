@@ -151,6 +151,10 @@ class AdminService {
     return apiService.post(`/admin/tournaments/${tournamentId}/generate-elimination`);
   }
 
+  async generateEliminationBracketWithTeams(tournamentId: string, qualifiedTeamIds: string[]) {
+    return apiService.post(`/admin/tournaments/${tournamentId}/generate-elimination`, { qualifiedTeamIds });
+  }
+
   async freezeRanking(tournamentId: string) {
     return apiService.post(`/admin/tournaments/${tournamentId}/freeze-ranking`);
   }

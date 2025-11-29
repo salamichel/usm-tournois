@@ -1,6 +1,6 @@
 import { adminAuth, adminDb } from '../config/firebase.config';
 
-type TournamentType = 'king' | 'elimination' | 'pool' | 'classic';
+type TournamentType = 'king' | 'elimination' | 'pool' | 'standard';
 
 interface ScenarioOptions {
   name: string | null;
@@ -27,7 +27,7 @@ Usage: npm run scenario -- [options]
 
 Options:
   --name <text>         Nom du tournoi (défaut: "Scénario Complet {date}")
-  --type <type>         Type: king, elimination, pool, classic (défaut: classic)
+  --type <type>         Type: king, elimination, pool, standard (défaut: standard)
   --teams <number>      Nombre d'équipes (défaut: 8)
   --players <number>    Joueurs par équipe (défaut: 2)
   --with-matches        Créer les matchs de poules
@@ -36,7 +36,7 @@ Options:
 
 Exemples:
   npm run scenario
-  npm run scenario -- --type classic --teams 8 --with-matches
+  npm run scenario -- --type standard --teams 8 --with-matches
   npm run scenario -- --type king --teams 12 --simulate
   npm run scenario -- --name "Test Complet" --teams 16 --players 4 --simulate
 
@@ -51,7 +51,7 @@ Exemples:
 function parseArgs(args: string[]): ScenarioOptions {
   const options: ScenarioOptions = {
     name: null,
-    type: 'classic',
+    type: 'standard',
     numTeams: 8,
     playersPerTeam: 2,
     withMatches: false,
@@ -122,9 +122,9 @@ async function createTournament(options: ScenarioOptions): Promise<string> {
     pointsPerSetPool: 21,
     maxTeamsPerPool: 4,
     teamsQualifiedPerPool: 2,
-    eliminationPhaseEnabled: type === 'classic' || type === 'elimination',
-    setsPerMatchElimination: type === 'elimination' || type === 'classic' ? 3 : null,
-    pointsPerSetElimination: type === 'elimination' || type === 'classic' ? 21 : null,
+    eliminationPhaseEnabled: type === 'standard' || type === 'elimination',
+    setsPerMatchElimination: type === 'elimination' || type === 'standard' ? 3 : null,
+    pointsPerSetElimination: type === 'elimination' || type === 'standard' ? 21 : null,
     tieBreakEnabledPools: true,
     tieBreakEnabledElimination: true,
     matchFormat: 'aller',

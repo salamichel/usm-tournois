@@ -68,7 +68,7 @@ const AdminTournamentForm = () => {
     maxPlayers: 0,
     waitingListSize: 0,
     type: '4x4',
-    tournamentFormat: 'classic',
+    tournamentFormat: 'standard',
     registrationMode: 'teams',
     mixity: 'none',
     requiresFemalePlayer: false,
@@ -125,7 +125,7 @@ const AdminTournamentForm = () => {
         maxPlayers: tournament.maxPlayers || 0,
         waitingListSize: tournament.waitingListSize || 0,
         type: tournament.type || '4x4',
-        tournamentFormat: tournament.tournamentFormat || 'classic',
+        tournamentFormat: tournament.tournamentFormat || 'standard',
         registrationMode: tournament.registrationMode || 'teams',
         mixity: tournament.mixity || 'none',
         requiresFemalePlayer: tournament.requiresFemalePlayer || false,
@@ -494,7 +494,7 @@ const AdminTournamentForm = () => {
                 </select>
               </div>
 
-              <div>
+              <div className="col-span-2">
                 <label htmlFor="tournamentFormat" className="block text-sm font-medium text-gray-700 mb-1">
                   Format du tournoi *
                 </label>
@@ -506,14 +506,47 @@ const AdminTournamentForm = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 >
-                  <option value="classic">Classique</option>
-                  <option value="king">King</option>
+                  <option value="standard">Standard (Poules + Élimination directe)</option>
+                  <option value="king">King (Rotation d'équipes par phases)</option>
                 </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  {formData.tournamentFormat === 'standard'
+                    ? '📋 Format classique avec équipes fixes, phase de poules et phase d\'élimination'
+                    : '👑 Format King avec équipes changeantes et phases progressives'}
+                </p>
               </div>
+            </div>
 
-              {/* Champs spécifiques au mode Classic */}
-              {formData.tournamentFormat === 'classic' && (
-                <>
+            {/* Configuration spécifique au mode Standard */}
+            {formData.tournamentFormat === 'standard' && (
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  ⚙️ Configuration Mode Standard
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="registrationMode" className="block text-sm font-medium text-gray-700 mb-1">
+                      Mode d'inscription *
+                    </label>
+                    <select
+                      id="registrationMode"
+                      name="registrationMode"
+                      value={formData.registrationMode}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    >
+                      <option value="teams">👥 Équipes pré-constituées</option>
+                      <option value="random">🎲 Équipes aléatoires (générées par l'admin)</option>
+                    </select>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {formData.registrationMode === 'teams'
+                        ? 'Les joueurs s\'inscrivent en créant ou rejoignant une équipe'
+                        : 'Les joueurs s\'inscrivent individuellement, l\'admin génère les équipes'}
+                    </p>
+                  </div>
+
                   <div>
                     <label htmlFor="maxTeams" className="block text-sm font-medium text-gray-700 mb-1">
                       Nombre maximum d'équipes *
@@ -532,7 +565,7 @@ const AdminTournamentForm = () => {
 
                   <div>
                     <label htmlFor="minPlayersPerTeam" className="block text-sm font-medium text-gray-700 mb-1">
-                      Nombre minimum de joueurs par équipe *
+                      Minimum de joueurs par équipe *
                     </label>
                     <input
                       type="number"
@@ -548,7 +581,7 @@ const AdminTournamentForm = () => {
 
                   <div>
                     <label htmlFor="playersPerTeam" className="block text-sm font-medium text-gray-700 mb-1">
-                      Nombre maximum de joueurs par équipe *
+                      Maximum de joueurs par équipe *
                     </label>
                     <input
                       type="number"
@@ -561,32 +594,29 @@ const AdminTournamentForm = () => {
                       required
                     />
                   </div>
+                </div>
+              </div>
+            )}
 
-                  <div>
-                    <label htmlFor="registrationMode" className="block text-sm font-medium text-gray-700 mb-1">
-                      Mode d'inscription *
-                    </label>
-                    <select
-                      id="registrationMode"
-                      name="registrationMode"
-                      value={formData.registrationMode}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    >
-                      <option value="teams">Équipes (joueurs créent leurs équipes)</option>
-                      <option value="random">Joueurs aléatoires (équipes générées par admin)</option>
-                    </select>
-                  </div>
-                </>
-              )}
+            {/* Configuration spécifique au mode King */}
+            {formData.tournamentFormat === 'king' && (
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  👑 Configuration Mode King
+                </h3>
 
-              {/* Champs spécifiques au mode King */}
-              {formData.tournamentFormat === 'king' && (
-                <>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                  <p className="text-sm text-blue-900">
+                    ℹ️ <strong>Mode King :</strong> Les joueurs s'inscrivent individuellement.
+                    Les équipes sont générées automatiquement à chaque phase selon le format défini
+                    (4v4, 2v2, etc.). La configuration des phases se fait après la création du tournoi.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label htmlFor="minPlayers" className="block text-sm font-medium text-gray-700 mb-1">
-                      Nombre minimum de joueurs (optionnel)
+                      Nombre minimum de joueurs
                     </label>
                     <input
                       type="number"
@@ -595,13 +625,17 @@ const AdminTournamentForm = () => {
                       value={formData.minPlayers}
                       onChange={handleChange}
                       min="0"
+                      placeholder="Optionnel"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Laissez à 0 pour aucune limite minimum
+                    </p>
                   </div>
 
                   <div>
                     <label htmlFor="maxPlayers" className="block text-sm font-medium text-gray-700 mb-1">
-                      Nombre maximum de joueurs (optionnel)
+                      Nombre maximum de joueurs
                     </label>
                     <input
                       type="number"
@@ -610,63 +644,80 @@ const AdminTournamentForm = () => {
                       value={formData.maxPlayers}
                       onChange={handleChange}
                       min="0"
+                      placeholder="Optionnel"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Laissez à 0 pour aucune limite maximum
+                    </p>
                   </div>
-                </>
-              )}
+                </div>
+              </div>
+            )}
 
-              <div>
-                <label htmlFor="waitingListSize" className="block text-sm font-medium text-gray-700 mb-1">
-                  Taille de la liste d'attente (0 pour désactiver)
-                </label>
+            {/* Options communes aux deux modes */}
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                🎯 Options Communes
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="mixity" className="block text-sm font-medium text-gray-700 mb-1">
+                    Mixité *
+                  </label>
+                  <select
+                    id="mixity"
+                    name="mixity"
+                    value={formData.mixity}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  >
+                    <option value="none">Aucune restriction</option>
+                    <option value="male_female">Homme/Femme</option>
+                    <option value="other">Autre</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="waitingListSize" className="block text-sm font-medium text-gray-700 mb-1">
+                    Taille de la liste d'attente
+                  </label>
+                  <input
+                    type="number"
+                    id="waitingListSize"
+                    name="waitingListSize"
+                    value={formData.waitingListSize}
+                    onChange={handleChange}
+                    min="0"
+                    placeholder="0 = désactivée"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    0 pour désactiver la liste d'attente
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-center">
                 <input
-                  type="number"
-                  id="waitingListSize"
-                  name="waitingListSize"
-                  value={formData.waitingListSize}
+                  type="checkbox"
+                  id="requiresFemalePlayer"
+                  name="requiresFemalePlayer"
+                  checked={formData.requiresFemalePlayer}
                   onChange={handleChange}
-                  min="0"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
-              </div>
-
-              <div>
-                <label htmlFor="mixity" className="block text-sm font-medium text-gray-700 mb-1">
-                  Mixité *
+                <label htmlFor="requiresFemalePlayer" className="ml-2 block text-sm font-medium text-gray-700">
+                  Requiert au moins une joueuse {formData.tournamentFormat === 'standard' ? 'par équipe' : ''}
                 </label>
-                <select
-                  id="mixity"
-                  name="mixity"
-                  value={formData.mixity}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  <option value="none">Aucune</option>
-                  <option value="male_female">Homme/Femme</option>
-                  <option value="other">Autre</option>
-                </select>
               </div>
-            </div>
-
-            <div className="mt-4 flex items-center">
-              <input
-                type="checkbox"
-                id="requiresFemalePlayer"
-                name="requiresFemalePlayer"
-                checked={formData.requiresFemalePlayer}
-                onChange={handleChange}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-              <label htmlFor="requiresFemalePlayer" className="ml-2 block text-sm font-medium text-gray-700">
-                Requiert une joueuse
-              </label>
             </div>
           </div>
 
-          {/* Paramètres des Matchs - Seulement en mode Classic */}
-          {formData.tournamentFormat === 'classic' && (
+          {/* Paramètres des Matchs - Seulement en mode Standard */}
+          {formData.tournamentFormat === 'standard' && (
             <div className="bg-white rounded-lg shadow-md p-6">
               <h2 className="text-xl font-bold mb-4">Paramètres des Matchs</h2>
 
@@ -731,21 +782,9 @@ const AdminTournamentForm = () => {
                     min="2"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
-                </div>
-
-                <div>
-                  <label htmlFor="teamsQualifiedPerPool" className="block text-sm font-medium text-gray-700 mb-1">
-                    Équipes qualifiées par poule
-                  </label>
-                  <input
-                    type="number"
-                    id="teamsQualifiedPerPool"
-                    name="teamsQualifiedPerPool"
-                    value={formData.teamsQualifiedPerPool}
-                    onChange={handleChange}
-                    min="1"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    💡 Les équipes qualifiées pour la phase d'élimination seront sélectionnées manuellement dans la gestion des poules
+                  </p>
                 </div>
               </div>
 

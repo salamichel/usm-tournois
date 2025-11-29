@@ -9,7 +9,7 @@ Usage: node scripts/create-test-tournament.js [options]
 
 Options:
   --name <text>         Nom du tournoi (défaut: "Tournoi Test {timestamp}")
-  --type <type>         Type de tournoi: king, elimination, pool, classic (défaut: classic)
+  --type <type>         Type de tournoi: king, elimination, pool, standard (défaut: standard)
   --teams <number>      Nombre maximum d'équipes (défaut: 8)
   --players <number>    Joueurs par équipe (défaut: 2)
   --format <format>     Format: aller, aller-retour (défaut: aller)
@@ -32,7 +32,7 @@ Exemples:
 function parseArgs(args) {
     const options = {
         name: null,
-        type: 'classic',
+        type: 'standard',
         maxTeams: 8,
         playersPerTeam: 2,
         format: 'aller',
@@ -171,9 +171,9 @@ async function createTestTournament(options) {
         teamsQualifiedPerPool: 2,
 
         // Configuration de l'élimination
-        eliminationPhaseEnabled: type === 'classic' || type === 'elimination',
-        setsPerMatchElimination: type === 'elimination' || type === 'classic' ? 3 : null,
-        pointsPerSetElimination: type === 'elimination' || type === 'classic' ? 21 : null,
+        eliminationPhaseEnabled: type === 'standard' || type === 'elimination',
+        setsPerMatchElimination: type === 'elimination' || type === 'standard' ? 3 : null,
+        pointsPerSetElimination: type === 'elimination' || type === 'standard' ? 21 : null,
 
         tieBreakEnabledPools: true,
         tieBreakEnabledElimination: true,
