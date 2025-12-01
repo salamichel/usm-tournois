@@ -36,11 +36,11 @@ const AdminTeamForm = () => {
   });
 
   useEffect(() => {
-    if (isEditMode) {
+    if (isEditMode && tournamentId) {
       loadTeam();
       loadUnassignedPlayers();
     }
-  }, [teamId]);
+  }, [teamId, tournamentId, isEditMode]);
 
   const loadTeam = async () => {
     try {

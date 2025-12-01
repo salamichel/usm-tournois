@@ -23,8 +23,8 @@ const AdminTeamsList = () => {
         adminService.getTeams(tournamentId!),
       ]);
 
-      setTournament(tournamentRes.tournament);
-      setTeams(teamsRes.teams || []);
+      setTournament(tournamentRes.data?.tournament);
+      setTeams(teamsRes.data?.teams || []);
     } catch (error: any) {
       toast.error(error.message || 'Erreur lors du chargement');
     } finally {

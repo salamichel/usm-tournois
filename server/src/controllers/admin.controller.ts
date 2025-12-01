@@ -1549,14 +1549,34 @@ export const getTeams = async (req: Request, res: Response) => {
       });
     });
 
-    // Map teams with isAssigned field
-    const teams = teamsSnapshot.docs.map((doc) =>
-      convertTimestamps({
+    // Map teams with isAssigned field and populate captainPseudo if missing
+    const teamsPromises = teamsSnapshot.docs.map(async (doc) => {
+      const teamData = doc.data();
+      let captainPseudo = teamData.captainPseudo;
+
+      // If captainPseudo is missing but captainId exists, fetch it
+      if (!captainPseudo && teamData.captainId) {
+        try {
+          const captainDoc = await adminDb.collection('users').doc(teamData.captainId).get();
+          if (captainDoc.exists) {
+            captainPseudo = captainDoc.data()?.pseudo || 'Unknown';
+            // Update the team document with the captain pseudo for future use
+            await doc.ref.update({ captainPseudo });
+          }
+        } catch (err) {
+          console.warn(`Failed to fetch captain for team ${doc.id}:`, err);
+        }
+      }
+
+      return convertTimestamps({
         id: doc.id,
-        ...doc.data(),
+        ...teamData,
+        captainPseudo,
         isAssigned: assignedTeamIds.has(doc.id),
-      })
-    );
+      });
+    });
+
+    const teams = await Promise.all(teamsPromises);
 
     res.json({
       success: true,
@@ -1628,7 +1648,7 @@ export const createTeam = async (req: Request, res: Response) => {
 export const updateTeam = async (req: Request, res: Response) => {
   try {
     const { tournamentId, teamId } = req.params;
-    const { name, captainId, members, recruitmentOpen } = req.body;
+    const { name, captainId, captainPseudo, members, recruitmentOpen } = req.body;
 
     const teamRef = adminDb
       .collection('events')
@@ -1646,7 +1666,21 @@ export const updateTeam = async (req: Request, res: Response) => {
     };
 
     if (name !== undefined && name !== null) updateData.name = name;
-    if (captainId !== undefined && captainId !== null) updateData.captainId = captainId;
+    if (captainId !== undefined && captainId !== null) {
+      updateData.captainId = captainId;
+
+      // If captainPseudo is provided, use it; otherwise fetch from user data
+      if (captainPseudo !== undefined && captainPseudo !== null) {
+        updateData.captainPseudo = captainPseudo;
+      } else {
+        // Fetch captain's pseudo from user data
+        const captainDoc = await adminDb.collection('users').doc(captainId).get();
+        if (captainDoc.exists) {
+          const captainData = captainDoc.data();
+          updateData.captainPseudo = captainData?.pseudo || 'Unknown';
+        }
+      }
+    }
     if (members !== undefined && members !== null) updateData.members = members;
     if (recruitmentOpen !== undefined && recruitmentOpen !== null) updateData.recruitmentOpen = recruitmentOpen === true || recruitmentOpen === 'true';
 
