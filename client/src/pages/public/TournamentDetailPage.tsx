@@ -737,30 +737,6 @@ const TournamentDetailPage = () => {
                       </p>
                     )}
 
-                    {/* WhatsApp QR Code for registered users */}
-                    {tournament.whatsappGroupLink && (
-                      <div className="mt-4 p-4 bg-white rounded-lg border border-green-300">
-                        <h4 className="font-semibold text-gray-900 mb-2">
-                          Rejoindre le groupe WhatsApp
-                        </h4>
-                        <p className="text-sm text-gray-600 mb-3">
-                          Scannez ou cliquez sur le QR code pour rejoindre le groupe du tournoi :
-                        </p>
-                        <a
-                          href={tournament.whatsappGroupLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-block p-2 bg-white rounded-lg"
-                        >
-                          <img
-                            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(tournament.whatsappGroupLink)}`}
-                            alt="QR Code Groupe WhatsApp"
-                            className="w-36 h-36"
-                          />
-                        </a>
-                      </div>
-                    )}
-
                     <div className="flex gap-3 mt-4">
                       {userTeam && userTeam.captainId === user?.uid && (
                         <button
@@ -1050,6 +1026,30 @@ const TournamentDetailPage = () => {
                 </div>
               </div>
             </div>
+
+            {/* WhatsApp QR Code for registered users */}
+            {isRegistered && tournament.whatsappGroupLink && (
+              <div className="card">
+                <h3 className="font-bold text-gray-900 mb-3">
+                  Groupe WhatsApp
+                </h3>
+                <p className="text-sm text-gray-600 mb-3">
+                  Scannez ou cliquez sur le QR code pour rejoindre le groupe du tournoi :
+                </p>
+                <a
+                  href={tournament.whatsappGroupLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex justify-center p-2 bg-white rounded-lg border border-gray-200 hover:border-primary-300 transition-colors"
+                >
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(tournament.whatsappGroupLink)}`}
+                    alt="QR Code Groupe WhatsApp"
+                    className="w-36 h-36"
+                  />
+                </a>
+              </div>
+            )}
 
             {/* Available Teams to Join */}
             {!isRegistered && availableTeams.length > 0 && (

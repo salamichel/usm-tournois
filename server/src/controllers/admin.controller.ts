@@ -80,6 +80,7 @@ export const createTournament = async (req: Request, res: Response) => {
       tournamentFormat,
       minPlayers,
       maxPlayers,
+      isClubInternal,
     } = req.body;
 
     // Validate required fields
@@ -118,6 +119,7 @@ export const createTournament = async (req: Request, res: Response) => {
       tournamentFormat: tournamentFormat || 'standard',
       minPlayers: minPlayers ? parseInt(minPlayers) : 0,
       maxPlayers: maxPlayers ? parseInt(maxPlayers) : 0,
+      isClubInternal: isClubInternal === true || isClubInternal === 'true' || false,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -213,6 +215,7 @@ export const updateTournament = async (req: Request, res: Response) => {
       tournamentFormat,
       minPlayers,
       maxPlayers,
+      isClubInternal,
     } = req.body;
 
     const tournamentDoc = await adminDb.collection('events').doc(id).get();
@@ -258,6 +261,7 @@ export const updateTournament = async (req: Request, res: Response) => {
     if (tournamentFormat !== undefined && tournamentFormat !== null) updateData.tournamentFormat = tournamentFormat;
     if (minPlayers !== undefined && minPlayers !== null) updateData.minPlayers = parseInt(minPlayers);
     if (maxPlayers !== undefined && maxPlayers !== null) updateData.maxPlayers = parseInt(maxPlayers);
+    if (isClubInternal !== undefined && isClubInternal !== null) updateData.isClubInternal = isClubInternal === true || isClubInternal === 'true';
 
     await adminDb.collection('events').doc(id).update(updateData);
 
@@ -1862,21 +1866,21 @@ export const getUnassignedPlayers = async (req: Request, res: Response) => {
 
 export const removeUnassignedPlayer = async (req: Request, res: Response) => {
   try {
-    const { tournamentId, playerId } = req.params;
+    const { tournamentId, userId } = req.params;
 
     // Validate parameters
     if (!tournamentId || typeof tournamentId !== 'string' || tournamentId.trim() === '') {
       throw new AppError('Tournament ID is required', 400);
     }
-    if (!playerId || typeof playerId !== 'string' || playerId.trim() === '') {
-      throw new AppError('Player ID is required', 400);
+    if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+      throw new AppError('User ID is required', 400);
     }
 
     const playerRef = adminDb
       .collection('events')
       .doc(tournamentId)
       .collection('unassignedPlayers')
-      .doc(playerId);
+      .doc(userId);
 
     const playerDoc = await playerRef.get();
     if (!playerDoc.exists) {

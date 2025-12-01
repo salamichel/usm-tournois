@@ -54,9 +54,6 @@ export const calculateTournamentStatus = (
   } else if (hasRegistrationDates && now < registrationStarts) {
     status = 'Ouvert';
     message = 'Inscriptions à venir.';
-  } else if (hasRegistrationDates && now > registrationEnds) {
-    status = 'Complet';
-    message = 'Les inscriptions sont fermées.';
   } else if (registrationsAreOpen || !hasRegistrationDates) {
     // Si pas de dates définies, on considère comme ouvert
     if (isFullByCompleteTeams) {
@@ -72,8 +69,19 @@ export const calculateTournamentStatus = (
       message = 'Les inscriptions sont ouvertes.';
     }
   } else {
-    status = 'Complet';
-    message = 'Les inscriptions sont fermées.';
+    // Inscriptions fermées : vérifier si le tournoi est vraiment complet
+    if (isFullByCompleteTeams) {
+      if (tournament.waitingListEnabled && tournament.waitingListSize > 0 && !isFullByTotalTeams) {
+        status = "Liste d'attente";
+        message = 'Tournoi complet, liste d\'attente disponible.';
+      } else {
+        status = 'Complet';
+        message = 'Le tournoi est complet.';
+      }
+    } else {
+      status = 'Ouvert';
+      message = 'Les inscriptions sont fermées.';
+    }
   }
 
   return {
