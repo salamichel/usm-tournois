@@ -1,10 +1,22 @@
 import type { TournamentStatus } from '@shared/types';
+import { Timestamp } from 'firebase-admin/firestore';
 
 interface TournamentStatusResult {
   status: TournamentStatus;
   message: string;
   registrationsAreOpen: boolean;
   isFullByCompleteTeams: boolean;
+}
+
+/**
+ * Helper function to convert Firestore Timestamp, Date, or string to Date
+ */
+function toDate(value: any): Date | null {
+  if (!value) return null;
+  if (value instanceof Timestamp) return value.toDate();
+  if (value instanceof Date) return value;
+  if (typeof value === 'string') return new Date(value);
+  return null;
 }
 
 /**
@@ -19,18 +31,14 @@ export const calculateTournamentStatus = (
   isRankingFrozen: boolean = false
 ): TournamentStatusResult => {
   const now = new Date();
-  const tournamentDate = tournament.date ? new Date(tournament.date) : new Date(8640000000000000);
+  const tournamentDate = toDate(tournament.date) || new Date(8640000000000000);
 
   // Si pas de dates d'inscription définies, considérer comme ouvert par défaut
   const hasRegistrationDates =
     tournament.registrationStartDateTime || tournament.registrationEndDateTime;
 
-  const registrationStarts = tournament.registrationStartDateTime
-    ? new Date(tournament.registrationStartDateTime)
-    : new Date(0); // Date très ancienne = toujours démarré
-  const registrationEnds = tournament.registrationEndDateTime
-    ? new Date(tournament.registrationEndDateTime)
-    : new Date(8640000000000000); // Date très lointaine = jamais fermé
+  const registrationStarts = toDate(tournament.registrationStartDateTime) || new Date(0); // Date très ancienne = toujours démarré
+  const registrationEnds = toDate(tournament.registrationEndDateTime) || new Date(8640000000000000); // Date très lointaine = jamais fermé
 
   const registrationsAreOpen = now >= registrationStarts && now <= registrationEnds;
   const isFullByCompleteTeams = completeTeamsCount >= tournament.maxTeams;
