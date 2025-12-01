@@ -599,7 +599,7 @@ const TournamentDetailPage = () => {
               <div className="card text-center">
                 <DollarSign className="text-primary-600 mx-auto mb-2" size={24} />
                 <p className="text-sm text-gray-500">Prix</p>
-                <p className="font-semibold">{tournament.price === 0 ? 'Gratuit' : `${tournament.price}€`}</p>
+                <p className="font-semibold">{!tournament.price ? 'Gratuit' : `${tournament.price}€`}</p>
               </div>
             </div>
 
@@ -952,80 +952,108 @@ const TournamentDetailPage = () => {
             {/* Tournament Info */}
             <div className="card sticky top-4">
               <h3 className="font-bold text-gray-900 mb-4">Informations</h3>
-              <div className="space-y-3 text-sm">
-                <div className="flex items-start gap-3">
-                  <MapPin className="text-gray-400 flex-shrink-0" size={18} />
-                  <div>
-                    <p className="text-gray-500">Lieu</p>
-                    <p className="font-medium text-gray-900">{tournament.location}</p>
-                  </div>
-                </div>
+              <table className="w-full text-sm">
+                <tbody>
+                  <tr className="border-b border-gray-100">
+                    <td className="py-3 pr-3">
+                      <div className="flex items-center gap-2 text-gray-500">
+                        <MapPin className="text-gray-400 flex-shrink-0" size={16} />
+                        <span>Lieu</span>
+                      </div>
+                    </td>
+                    <td className="py-3 text-right font-medium text-gray-900">
+                      {tournament.location}
+                    </td>
+                  </tr>
 
-                {tournament.type && (
-                  <div className="flex items-start gap-3">
-                    <Trophy className="text-gray-400 flex-shrink-0" size={18} />
-                    <div>
-                      <p className="text-gray-500">Type</p>
-                      <p className="font-medium text-gray-900">{tournament.type}</p>
-                    </div>
-                  </div>
-                )}
+                  {tournament.type && (
+                    <tr className="border-b border-gray-100">
+                      <td className="py-3 pr-3">
+                        <div className="flex items-center gap-2 text-gray-500">
+                          <Trophy className="text-gray-400 flex-shrink-0" size={16} />
+                          <span>Type</span>
+                        </div>
+                      </td>
+                      <td className="py-3 text-right font-medium text-gray-900">
+                        {tournament.type}
+                      </td>
+                    </tr>
+                  )}
 
-                <div className="flex items-start gap-3">
-                  <Users className="text-gray-400 flex-shrink-0" size={18} />
-                  <div>
-                    <p className="text-gray-500">Équipes maximum</p>
-                    <p className="font-medium text-gray-900">{tournament.maxTeams}</p>
-                  </div>
-                </div>
+                  <tr className="border-b border-gray-100">
+                    <td className="py-3 pr-3">
+                      <div className="flex items-center gap-2 text-gray-500">
+                        <Users className="text-gray-400 flex-shrink-0" size={16} />
+                        <span>Équipes maximum</span>
+                      </div>
+                    </td>
+                    <td className="py-3 text-right font-medium text-gray-900">
+                      {tournament.maxTeams}
+                    </td>
+                  </tr>
 
-                <div className="flex items-start gap-3">
-                  <Users className="text-gray-400 flex-shrink-0" size={18} />
-                  <div>
-                    <p className="text-gray-500">Joueurs par équipe</p>
-                    <p className="font-medium text-gray-900">{tournament.playersPerTeam}</p>
-                  </div>
-                </div>
+                  <tr className="border-b border-gray-100">
+                    <td className="py-3 pr-3">
+                      <div className="flex items-center gap-2 text-gray-500">
+                        <Users className="text-gray-400 flex-shrink-0" size={16} />
+                        <span>Joueurs par équipe</span>
+                      </div>
+                    </td>
+                    <td className="py-3 text-right font-medium text-gray-900">
+                      {tournament.playersPerTeam}
+                    </td>
+                  </tr>
 
-                {tournament.fields && (
-                  <div className="flex items-start gap-3">
-                    <MapPin className="text-gray-400 flex-shrink-0" size={18} />
-                    <div>
-                      <p className="text-gray-500">Terrains</p>
-                      <p className="font-medium text-gray-900">{tournament.fields}</p>
-                    </div>
-                  </div>
-                )}
+                  {tournament.fields && (
+                    <tr className="border-b border-gray-100">
+                      <td className="py-3 pr-3">
+                        <div className="flex items-center gap-2 text-gray-500">
+                          <MapPin className="text-gray-400 flex-shrink-0" size={16} />
+                          <span>Terrains</span>
+                        </div>
+                      </td>
+                      <td className="py-3 text-right font-medium text-gray-900">
+                        {tournament.fields}
+                      </td>
+                    </tr>
+                  )}
 
-                <div className="flex items-start gap-3">
-                  <DollarSign className="text-gray-400 flex-shrink-0" size={18} />
-                  <div>
-                    <p className="text-gray-500">Prix par joueur</p>
-                    <p className="font-medium text-gray-900">{tournament.price}€</p>
-                  </div>
-                </div>
+                  <tr className="border-b border-gray-100">
+                    <td className="py-3 pr-3">
+                      <div className="flex items-center gap-2 text-gray-500">
+                        <DollarSign className="text-gray-400 flex-shrink-0" size={16} />
+                        <span>Prix par joueur</span>
+                      </div>
+                    </td>
+                    <td className="py-3 text-right font-medium text-gray-900">
+                      {!tournament.price ? 'Gratuit' : `${tournament.price}€`}
+                    </td>
+                  </tr>
 
-                {tournament.registrationDeadline && (
-                  <div className="flex items-start gap-3">
-                    <Calendar className="text-gray-400 flex-shrink-0" size={18} />
-                    <div>
-                      <p className="text-gray-500">Date limite d'inscription</p>
-                      <p className="font-medium text-gray-900">
+                  {tournament.registrationDeadline && (
+                    <tr className="border-b border-gray-100">
+                      <td className="py-3 pr-3">
+                        <div className="flex items-center gap-2 text-gray-500">
+                          <Calendar className="text-gray-400 flex-shrink-0" size={16} />
+                          <span>Date limite</span>
+                        </div>
+                      </td>
+                      <td className="py-3 text-right font-medium text-gray-900">
                         {format(new Date(tournament.registrationDeadline), 'PPP', { locale: fr })}
-                      </p>
-                    </div>
-                  </div>
-                )}
+                      </td>
+                    </tr>
+                  )}
 
-                <div className="pt-3 border-t border-gray-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-gray-500">Liste d'attente</span>
-                    <span className="font-medium text-gray-900">
+                  <tr className="border-t-2 border-gray-200">
+                    <td className="pt-3 pr-3 text-gray-500">
+                      Liste d'attente
+                    </td>
+                    <td className="pt-3 text-right font-medium text-gray-900">
                       {tournament.waitingList?.length || 0}
-                    </span>
-                  </div>
-                </div>
-              </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
 
             {/* WhatsApp QR Code for registered users */}
