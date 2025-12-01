@@ -6,7 +6,7 @@ class UserService {
    * Update user profile
    */
   async updateProfile(data: UpdateUserDto) {
-    return apiService.put<{ user: User }>('/users/profile', data);
+    return apiService.put<{ user: User }>('/users/me/profile', data);
   }
 
   /**
