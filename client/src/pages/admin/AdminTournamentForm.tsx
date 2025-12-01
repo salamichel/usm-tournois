@@ -7,17 +7,17 @@ import { ArrowLeft, Save, Calendar, Users, MapPin, DollarSign, Settings } from '
 import KingConfigAssistant from '@components/KingConfigAssistant';
 import { KingConfiguration } from '@utils/kingConfigSuggestions';
 
-// Helper function to format ISO date string to YYYY-MM-DD (UTC, no timezone conversion)
+// Helper function to format ISO date string to YYYY-MM-DD (converts from UTC to local timezone)
 const formatDateForInput = (isoString: string | undefined | null): string => {
   if (!isoString) return '';
   try {
     const date = new Date(isoString);
     if (isNaN(date.getTime())) return '';
 
-    // Use UTC components to avoid timezone conversion
-    const year = date.getUTCFullYear();
-    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(date.getUTCDate()).padStart(2, '0');
+    // Use local timezone components
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
 
     return `${year}-${month}-${day}`;
   } catch {
@@ -25,16 +25,16 @@ const formatDateForInput = (isoString: string | undefined | null): string => {
   }
 };
 
-// Helper function to format ISO date string to HH:MM (UTC, no timezone conversion)
+// Helper function to format ISO date string to HH:MM (converts from UTC to local timezone)
 const formatTimeForInput = (isoString: string | undefined | null): string => {
   if (!isoString) return '';
   try {
     const date = new Date(isoString);
     if (isNaN(date.getTime())) return '';
 
-    // Use UTC components to avoid timezone conversion
-    const hours = String(date.getUTCHours()).padStart(2, '0');
-    const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+    // Use local timezone components
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
 
     return `${hours}:${minutes}`;
   } catch {
@@ -182,12 +182,14 @@ const AdminTournamentForm = () => {
 
       const formDataToSend = new FormData();
 
-      // Combine date and time fields into ISO datetime strings (treating as UTC to avoid timezone conversion)
+      // Combine date and time fields into ISO datetime strings (using local timezone)
       const combineDateAndTime = (dateStr: string, timeStr: string): string => {
         if (!dateStr) return '';
-        // Add 'Z' to indicate UTC timezone and avoid local timezone conversion
-        const dateTime = timeStr ? `${dateStr}T${timeStr}:00Z` : `${dateStr}T00:00:00Z`;
-        return dateTime;
+        // Parse as local time and convert to UTC for storage
+        const localDateTime = timeStr ? `${dateStr}T${timeStr}:00` : `${dateStr}T00:00:00`;
+        const date = new Date(localDateTime);
+        // Return ISO string which includes timezone offset conversion to UTC
+        return date.toISOString();
       };
 
       // Add combined datetime fields
