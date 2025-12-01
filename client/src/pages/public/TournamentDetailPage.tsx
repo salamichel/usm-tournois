@@ -599,7 +599,7 @@ const TournamentDetailPage = () => {
               <div className="card text-center">
                 <DollarSign className="text-primary-600 mx-auto mb-2" size={24} />
                 <p className="text-sm text-gray-500">Prix</p>
-                <p className="font-semibold">{tournament.price === 0 ? 'Gratuit' : `${tournament.price}€`}</p>
+                <p className="font-semibold">{!tournament.price ? 'Gratuit' : `${tournament.price}€`}</p>
               </div>
             </div>
 
@@ -1001,7 +1001,7 @@ const TournamentDetailPage = () => {
                   <DollarSign className="text-gray-400 flex-shrink-0" size={18} />
                   <div>
                     <p className="text-gray-500">Prix par joueur</p>
-                    <p className="font-medium text-gray-900">{tournament.price === 0 ? 'Gratuit' : `${tournament.price}€`}</p>
+                    <p className="font-medium text-gray-900">{!tournament.price ? 'Gratuit' : `${tournament.price}€`}</p>
                   </div>
                 </div>
 
