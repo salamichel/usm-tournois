@@ -27,7 +27,7 @@ class TeamService {
    * Remove member from team
    */
   async removeMember(id: string, data: RemoveTeamMemberDto) {
-    return apiService.delete(`/teams/${id}/members/${data.memberId}`, data);
+    return apiService.delete(`/teams/${id}/members/${data.memberId}`, { data });
   }
 
   /**
