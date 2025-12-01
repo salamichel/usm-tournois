@@ -153,3 +153,51 @@ export const updateUserProfile = async (req: Request, res: Response) => {
     throw new AppError('Error updating user profile', 500);
   }
 };
+
+export const searchUsers = async (req: Request, res: Response) => {
+  try {
+    const { query, excludeVirtual } = req.query;
+
+    if (!query || String(query).trim() === '') {
+      throw new AppError('Search query is required', 400);
+    }
+
+    const queryLower = String(query).toLowerCase().trim();
+
+    // Get all users from Firestore
+    const usersSnapshot = await adminDb.collection('users').get();
+
+    // Filter users based on search query
+    const matchingUsers = usersSnapshot.docs
+      .map(doc => convertTimestamps({ id: doc.id, ...doc.data() }))
+      .filter(user => {
+        // Exclude virtual users if requested
+        if (excludeVirtual === 'true' && user.isVirtual) {
+          return false;
+        }
+
+        // Search in pseudo and email
+        const pseudoMatch = user.pseudo?.toLowerCase().includes(queryLower);
+        const emailMatch = user.email?.toLowerCase().includes(queryLower);
+
+        return pseudoMatch || emailMatch;
+      })
+      .map(user => ({
+        id: user.id,
+        pseudo: user.pseudo,
+        email: user.email,
+        level: user.level,
+        isVirtual: user.isVirtual || false,
+      }))
+      .slice(0, 10); // Limit results to 10
+
+    res.json({
+      success: true,
+      data: { users: matchingUsers },
+    });
+  } catch (error: any) {
+    console.error('Error searching users:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error searching users', 500);
+  }
+};

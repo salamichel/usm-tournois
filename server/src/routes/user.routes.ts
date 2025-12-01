@@ -26,4 +26,12 @@ router.get('/me/profile', isAuthenticated, asyncHandler(userController.getUserPr
  */
 router.put('/me/profile', isAuthenticated, asyncHandler(userController.updateUserProfile));
 
+/**
+ * @route   GET /api/users/search
+ * @desc    Search users by pseudo or email
+ * @access  Private
+ * @query   query (required), excludeVirtual (optional)
+ */
+router.get('/search', isAuthenticated, asyncHandler(userController.searchUsers));
+
 export default router;

@@ -15,6 +15,15 @@ class UserService {
   async getUserById(id: string) {
     return apiService.get<{ user: User }>(`/admin/users/${id}`);
   }
+
+  /**
+   * Search users by pseudo or email
+   */
+  async searchUsers(query: string, excludeVirtual: boolean = false) {
+    return apiService.get<{ users: User[] }>('/users/search', {
+      params: { query, excludeVirtual: excludeVirtual ? 'true' : 'false' },
+    });
+  }
 }
 
 export default new UserService();

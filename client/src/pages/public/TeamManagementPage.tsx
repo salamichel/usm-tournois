@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@contexts/AuthContext';
 import teamService from '@services/team.service';
-import type { Team, AddTeamMemberDto, AddVirtualMemberDto, UserLevel } from '@shared/types';
+import userService from '@services/user.service';
+import type { Team, AddTeamMemberDto, AddVirtualMemberDto, UserLevel, User } from '@shared/types';
 import toast from 'react-hot-toast';
-import { Users, UserPlus, UserMinus, Settings, ArrowLeft } from 'lucide-react';
+import { Users, UserPlus, UserMinus, Settings, ArrowLeft, Search } from 'lucide-react';
 
 const TeamManagementPage = () => {
   const { tournamentId, id } = useParams<{ tournamentId: string; id: string }>();
@@ -15,6 +16,10 @@ const TeamManagementPage = () => {
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [processingAction, setProcessingAction] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<User[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showVirtualForm, setShowVirtualForm] = useState(false);
   const [addMemberFormData, setAddMemberFormData] = useState({
     memberId: '',
   });
@@ -32,6 +37,34 @@ const TeamManagementPage = () => {
       fetchTeam();
     }
   }, [id, tournamentId]);
+
+  useEffect(() => {
+    if (searchQuery.trim().length >= 2) {
+      const timeoutId = setTimeout(() => {
+        handleSearchUsers();
+      }, 300);
+      return () => clearTimeout(timeoutId);
+    } else {
+      setSearchResults([]);
+    }
+  }, [searchQuery]);
+
+  const handleSearchUsers = async () => {
+    if (!searchQuery.trim()) return;
+
+    try {
+      setIsSearching(true);
+      const response = await userService.searchUsers(searchQuery.trim(), false);
+      if (response.success && response.data) {
+        setSearchResults(response.data.users || []);
+      }
+    } catch (error: any) {
+      console.error('Erreur lors de la recherche:', error);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
 
   const fetchTeam = async () => {
     if (!id || !tournamentId) return;
@@ -67,6 +100,35 @@ const TeamManagementPage = () => {
         toast.success('Membre ajouté avec succès !');
         setShowAddMemberModal(false);
         setAddMemberFormData({ memberId: '' });
+        setSearchQuery('');
+        setSearchResults([]);
+        fetchTeam();
+      }
+    } catch (error: any) {
+      toast.error(
+        error.response?.data?.error?.message ||
+          'Erreur lors de l\'ajout du membre'
+      );
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+
+  const handleSelectUser = async (selectedUser: User) => {
+    if (!id || !tournamentId) return;
+
+    try {
+      setProcessingAction(true);
+      const response = await teamService.addMember(id, {
+        tournamentId,
+        memberId: selectedUser.id,
+      });
+      if (response.success) {
+        toast.success(`${selectedUser.pseudo} ajouté avec succès !`);
+        setShowAddMemberModal(false);
+        setSearchQuery('');
+        setSearchResults([]);
+        setShowVirtualForm(false);
         fetchTeam();
       }
     } catch (error: any) {
@@ -95,6 +157,9 @@ const TeamManagementPage = () => {
         toast.success('Membre virtuel ajouté avec succès !');
         setShowAddMemberModal(false);
         setAddVirtualMemberFormData({ pseudo: '', level: 'Intermédiaire' as UserLevel, email: '' });
+        setSearchQuery('');
+        setSearchResults([]);
+        setShowVirtualForm(false);
         fetchTeam();
       }
     } catch (error: any) {
@@ -105,6 +170,15 @@ const TeamManagementPage = () => {
     } finally {
       setProcessingAction(false);
     }
+  };
+
+  const handleShowVirtualForm = () => {
+    setShowVirtualForm(true);
+    setAddVirtualMemberFormData({
+      pseudo: searchQuery,
+      level: 'Intermédiaire' as UserLevel,
+      email: '',
+    });
   };
 
   const handleRemoveMember = async (userId: string) => {
@@ -255,100 +329,176 @@ const TeamManagementPage = () => {
       {/* Add Member Modal */}
       {showAddMemberModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-bold text-gray-900 mb-4">
               Ajouter un membre
             </h3>
-            <div className="space-y-4">
-              <form onSubmit={handleAddMember}>
-                <div className="mb-4">
+
+            {!showVirtualForm ? (
+              <div className="space-y-4">
+                {/* Search Input */}
+                <div className="relative">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    ID utilisateur (pour joueurs inscrits)
+                    Rechercher un joueur
+                  </label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                    <input
+                      type="text"
+                      className="input pl-10"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Nom ou email du joueur..."
+                      autoFocus
+                    />
+                  </div>
+                  {isSearching && (
+                    <div className="absolute right-3 top-9 transform">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600"></div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Search Results */}
+                {searchQuery.trim().length >= 2 && (
+                  <div className="border rounded-lg max-h-60 overflow-y-auto">
+                    {searchResults.length > 0 ? (
+                      <div className="divide-y">
+                        {searchResults.map((user) => (
+                          <button
+                            key={user.id}
+                            onClick={() => handleSelectUser(user)}
+                            disabled={processingAction}
+                            className="w-full p-3 hover:bg-gray-50 text-left transition-colors disabled:opacity-50"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-semibold text-gray-900">
+                                  {user.pseudo}
+                                  {user.isVirtual && (
+                                    <span className="ml-2 text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded">
+                                      Virtuel
+                                    </span>
+                                  )}
+                                </p>
+                                <p className="text-sm text-gray-500">{user.email}</p>
+                                {user.level && (
+                                  <p className="text-xs text-gray-400 mt-1">Niveau: {user.level}</p>
+                                )}
+                              </div>
+                              <UserPlus size={18} className="text-primary-600" />
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    ) : !isSearching ? (
+                      <div className="p-4 text-center">
+                        <p className="text-gray-500 mb-3">
+                          Aucun joueur trouvé pour "{searchQuery}"
+                        </p>
+                        <button
+                          onClick={handleShowVirtualForm}
+                          className="btn-secondary w-full"
+                        >
+                          Créer un compte virtuel
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+
+                {searchQuery.trim().length < 2 && (
+                  <div className="text-sm text-gray-500 text-center py-4">
+                    Tapez au moins 2 caractères pour rechercher un joueur
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Virtual Member Form */
+              <form onSubmit={handleAddVirtualMember} className="space-y-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                  <p className="text-sm text-blue-800">
+                    Créer un compte virtuel pour un joueur qui n'a pas encore de compte
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Pseudo du joueur *
                   </label>
                   <input
                     type="text"
                     className="input"
-                    value={addMemberFormData.memberId}
+                    value={addVirtualMemberFormData.pseudo}
                     onChange={(e) =>
-                      setAddMemberFormData({ ...addMemberFormData, memberId: e.target.value })
+                      setAddVirtualMemberFormData({ ...addVirtualMemberFormData, pseudo: e.target.value })
                     }
-                    placeholder="UID du joueur"
+                    placeholder="Nom du joueur"
+                    required
                   />
                 </div>
-                <button
-                  type="submit"
-                  disabled={processingAction || !addMemberFormData.memberId}
-                  className="btn-primary w-full"
-                >
-                  Ajouter
-                </button>
-              </form>
 
-              <div className="border-t pt-4">
-                <p className="text-sm text-gray-600 mb-3">
-                  Ou ajouter un joueur qui n'a pas de compte:
-                </p>
-                <form onSubmit={handleAddVirtualMember}>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Pseudo du joueur *
-                    </label>
-                    <input
-                      type="text"
-                      className="input"
-                      value={addVirtualMemberFormData.pseudo}
-                      onChange={(e) =>
-                        setAddVirtualMemberFormData({ ...addVirtualMemberFormData, pseudo: e.target.value })
-                      }
-                      placeholder="Nom du joueur"
-                      required
-                    />
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Niveau *
-                    </label>
-                    <select
-                      className="input"
-                      value={addVirtualMemberFormData.level}
-                      onChange={(e) =>
-                        setAddVirtualMemberFormData({ ...addVirtualMemberFormData, level: e.target.value as UserLevel })
-                      }
-                      required
-                    >
-                      <option value="Débutant">Débutant</option>
-                      <option value="Intermédiaire">Intermédiaire</option>
-                      <option value="Confirmé">Confirmé</option>
-                    </select>
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Email (optionnel)
-                    </label>
-                    <input
-                      type="email"
-                      className="input"
-                      value={addVirtualMemberFormData.email}
-                      onChange={(e) =>
-                        setAddVirtualMemberFormData({ ...addVirtualMemberFormData, email: e.target.value })
-                      }
-                      placeholder="email@example.com"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Niveau *
+                  </label>
+                  <select
+                    className="input"
+                    value={addVirtualMemberFormData.level}
+                    onChange={(e) =>
+                      setAddVirtualMemberFormData({ ...addVirtualMemberFormData, level: e.target.value as UserLevel })
+                    }
+                    required
+                  >
+                    <option value="Débutant">Débutant</option>
+                    <option value="Intermédiaire">Intermédiaire</option>
+                    <option value="Confirmé">Confirmé</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email (optionnel)
+                  </label>
+                  <input
+                    type="email"
+                    className="input"
+                    value={addVirtualMemberFormData.email}
+                    onChange={(e) =>
+                      setAddVirtualMemberFormData({ ...addVirtualMemberFormData, email: e.target.value })
+                    }
+                    placeholder="email@example.com"
+                  />
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowVirtualForm(false);
+                      setAddVirtualMemberFormData({ pseudo: '', level: 'Intermédiaire' as UserLevel, email: '' });
+                    }}
+                    className="btn-secondary flex-1"
+                  >
+                    Retour
+                  </button>
                   <button
                     type="submit"
                     disabled={processingAction || !addVirtualMemberFormData.pseudo}
-                    className="btn-secondary w-full"
+                    className="btn-primary flex-1"
                   >
-                    Ajouter joueur virtuel
+                    {processingAction ? 'Ajout...' : 'Créer et ajouter'}
                   </button>
-                </form>
-              </div>
-            </div>
+                </div>
+              </form>
+            )}
 
             <button
               onClick={() => {
                 setShowAddMemberModal(false);
+                setSearchQuery('');
+                setSearchResults([]);
+                setShowVirtualForm(false);
                 setAddMemberFormData({ memberId: '' });
                 setAddVirtualMemberFormData({ pseudo: '', level: 'Intermédiaire' as UserLevel, email: '' });
               }}
