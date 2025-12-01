@@ -57,6 +57,11 @@ export const createTournament = async (req: Request, res: Response) => {
       description,
       date,
       location,
+      type,
+      fields,
+      fee,
+      mixity,
+      requiresFemalePlayer,
       maxTeams,
       playersPerTeam,
       minPlayersPerTeam,
@@ -96,6 +101,11 @@ export const createTournament = async (req: Request, res: Response) => {
       description: description?.trim() || '',
       date: date ? new Date(date) : new Date(),
       location: location?.trim() || '',
+      type: type || 'beach_volley',
+      fields: fields ? parseInt(fields) : 2,
+      fee: fee ? parseFloat(fee) : 0,
+      mixity: mixity || 'none',
+      requiresFemalePlayer: requiresFemalePlayer === true || requiresFemalePlayer === 'true' || false,
       maxTeams: maxTeams ? parseInt(maxTeams) : 8,
       playersPerTeam: playersPerTeam ? parseInt(playersPerTeam) : 2,
       minPlayersPerTeam: minPlayersPerTeam ? parseInt(minPlayersPerTeam) : 2,
@@ -192,6 +202,11 @@ export const updateTournament = async (req: Request, res: Response) => {
       description,
       date,
       location,
+      type,
+      fields,
+      fee,
+      mixity,
+      requiresFemalePlayer,
       maxTeams,
       playersPerTeam,
       minPlayersPerTeam,
@@ -238,6 +253,11 @@ export const updateTournament = async (req: Request, res: Response) => {
     if (description !== undefined && description !== null) updateData.description = description.trim();
     if (date !== undefined && date !== null) updateData.date = new Date(date);
     if (location !== undefined && location !== null) updateData.location = location.trim();
+    if (type !== undefined && type !== null) updateData.type = type;
+    if (fields !== undefined && fields !== null) updateData.fields = parseInt(fields);
+    if (fee !== undefined && fee !== null) updateData.fee = parseFloat(fee);
+    if (mixity !== undefined && mixity !== null) updateData.mixity = mixity;
+    if (requiresFemalePlayer !== undefined && requiresFemalePlayer !== null) updateData.requiresFemalePlayer = requiresFemalePlayer === true || requiresFemalePlayer === 'true';
     if (maxTeams !== undefined && maxTeams !== null) updateData.maxTeams = parseInt(maxTeams);
     if (playersPerTeam !== undefined && playersPerTeam !== null) updateData.playersPerTeam = parseInt(playersPerTeam);
     if (minPlayersPerTeam !== undefined && minPlayersPerTeam !== null) updateData.minPlayersPerTeam = parseInt(minPlayersPerTeam);

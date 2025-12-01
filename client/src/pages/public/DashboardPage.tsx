@@ -157,7 +157,9 @@ const DashboardPage = () => {
                   <div className="mt-4">
                     <span
                       className={`badge ${
-                        tournament.status === 'Ouvert'
+                        tournament.status === 'Avenir'
+                          ? 'badge-info'
+                          : tournament.status === 'Ouvert'
                           ? 'badge-success'
                           : tournament.status === 'Complet'
                           ? 'badge-danger'

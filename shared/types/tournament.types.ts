@@ -3,7 +3,7 @@
  * Shared between client and server
  */
 
-export type TournamentStatus = 'Ouvert' | 'Complet' | 'Liste d\'attente' | 'En cours' | 'Terminé';
+export type TournamentStatus = 'Avenir' | 'Ouvert' | 'Complet' | 'Liste d\'attente' | 'En cours' | 'Terminé';
 
 export type TournamentType = 'Beach Volleyball' | 'Indoor Volleyball' | 'Mixed';
 

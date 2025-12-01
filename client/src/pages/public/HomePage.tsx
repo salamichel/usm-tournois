@@ -127,7 +127,9 @@ const HomePage = () => {
                   {/* Badge de statut à droite du titre (comme dans l'ancien design) */}
                   <span
                     className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium flex-shrink-0 ${
-                      tournament.status === 'Ouvert'
+                      tournament.status === 'Avenir'
+                        ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                        : tournament.status === 'Ouvert'
                         ? 'bg-green-100 text-green-800 border border-green-200'
                         : tournament.status === 'Complet'
                         ? 'bg-red-100 text-red-800 border border-red-200'
