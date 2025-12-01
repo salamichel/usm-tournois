@@ -1001,7 +1001,7 @@ const TournamentDetailPage = () => {
                   <DollarSign className="text-gray-400 flex-shrink-0" size={18} />
                   <div>
                     <p className="text-gray-500">Prix par joueur</p>
-                    <p className="font-medium text-gray-900">{tournament.price}€</p>
+                    <p className="font-medium text-gray-900">{tournament.price === 0 ? 'Gratuit' : `${tournament.price}€`}</p>
                   </div>
                 </div>
 
