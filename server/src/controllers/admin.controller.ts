@@ -126,7 +126,7 @@ export const createTournament = async (req: Request, res: Response) => {
       waitingListSize: waitingListSize ? parseInt(waitingListSize) : 0,
       whatsappGroupLink: whatsappGroupLink?.trim() || '',
       registrationMode: registrationMode || 'teams',
-      tournamentFormat: tournamentFormat || 'classic',
+      tournamentFormat: tournamentFormat || 'standard',
       minPlayers: minPlayers ? parseInt(minPlayers) : 0,
       maxPlayers: maxPlayers ? parseInt(maxPlayers) : 0,
       isClubInternal: isClubInternal === true || isClubInternal === 'true' || false,
@@ -759,6 +759,7 @@ export const getEliminationMatches = async (req: Request, res: Response) => {
 export const generateEliminationBracket = async (req: Request, res: Response) => {
   try {
     const { tournamentId } = req.params;
+    const { qualifiedTeamIds } = req.body; // Nouvelle option : liste manuelle des équipes qualifiées
 
     // Get tournament configuration
     const tournamentDoc = await adminDb.collection('events').doc(tournamentId).get();
@@ -772,8 +773,6 @@ export const generateEliminationBracket = async (req: Request, res: Response) =>
       throw new AppError('Elimination phase is not enabled for this tournament', 400);
     }
 
-    const teamsQualifiedPerPool = tournament.teamsQualifiedPerPool || 2;
-
     // Get all pools and their rankings
     const poolsSnapshot = await adminDb
       .collection('events')
@@ -781,78 +780,155 @@ export const generateEliminationBracket = async (req: Request, res: Response) =>
       .collection('pools')
       .get();
 
-    const qualifiedTeams: QualifiedTeam[] = [];
+    let qualifiedTeams: QualifiedTeam[] = [];
 
-    for (const poolDoc of poolsSnapshot.docs) {
-      const poolData = poolDoc.data();
-      const poolTeams = poolData.teams || [];
+    if (qualifiedTeamIds && Array.isArray(qualifiedTeamIds) && qualifiedTeamIds.length > 0) {
+      // Mode manuel : utiliser les équipes sélectionnées par l'admin
+      console.log(`Manual mode: ${qualifiedTeamIds.length} teams selected`);
 
-      // Get matches for ranking calculation
-      const matchesSnapshot = await adminDb
-        .collection('events')
-        .doc(tournamentId)
-        .collection('pools')
-        .doc(poolDoc.id)
-        .collection('matches')
-        .get();
+      for (const poolDoc of poolsSnapshot.docs) {
+        const poolData = poolDoc.data();
+        const poolTeams = poolData.teams || [];
 
-      const matches = matchesSnapshot.docs.map((doc) => doc.data());
+        // Get matches for ranking calculation
+        const matchesSnapshot = await adminDb
+          .collection('events')
+          .doc(tournamentId)
+          .collection('pools')
+          .doc(poolDoc.id)
+          .collection('matches')
+          .get();
 
-      // Simple ranking calculation
-      const teamStats: any = {};
-      poolTeams.forEach((team: any) => {
-        teamStats[team.id] = {
-          id: team.id,
-          name: team.name,
-          poolName: poolData.name,
-          wins: 0,
-          points: 0,
-          setsWon: 0,
-          setsLost: 0,
-        };
-      });
+        const matches = matchesSnapshot.docs.map((doc) => doc.data());
 
-      matches.forEach((match: any) => {
-        if (match.status === 'completed') {
-          const team1Id = match.team1?.id;
-          const team2Id = match.team2?.id;
-          const setsWonTeam1 = match.setsWonTeam1 || 0;
-          const setsWonTeam2 = match.setsWonTeam2 || 0;
+        // Calculate stats for all teams in this pool
+        const teamStats: any = {};
+        poolTeams.forEach((team: any) => {
+          teamStats[team.id] = {
+            id: team.id,
+            name: team.name,
+            poolName: poolData.name,
+            wins: 0,
+            points: 0,
+            setsWon: 0,
+            setsLost: 0,
+          };
+        });
 
-          if (team1Id && teamStats[team1Id]) {
-            teamStats[team1Id].setsWon += setsWonTeam1;
-            teamStats[team1Id].setsLost += setsWonTeam2;
-            if (setsWonTeam1 > setsWonTeam2) {
-              teamStats[team1Id].wins++;
-              teamStats[team1Id].points += 3;
+        matches.forEach((match: any) => {
+          if (match.status === 'completed') {
+            const team1Id = match.team1?.id;
+            const team2Id = match.team2?.id;
+            const setsWonTeam1 = match.setsWonTeam1 || 0;
+            const setsWonTeam2 = match.setsWonTeam2 || 0;
+
+            if (team1Id && teamStats[team1Id]) {
+              teamStats[team1Id].setsWon += setsWonTeam1;
+              teamStats[team1Id].setsLost += setsWonTeam2;
+              if (setsWonTeam1 > setsWonTeam2) {
+                teamStats[team1Id].wins++;
+                teamStats[team1Id].points += 3;
+              }
+            }
+
+            if (team2Id && teamStats[team2Id]) {
+              teamStats[team2Id].setsWon += setsWonTeam2;
+              teamStats[team2Id].setsLost += setsWonTeam1;
+              if (setsWonTeam2 > setsWonTeam1) {
+                teamStats[team2Id].wins++;
+                teamStats[team2Id].points += 3;
+              }
             }
           }
+        });
 
-          if (team2Id && teamStats[team2Id]) {
-            teamStats[team2Id].setsWon += setsWonTeam2;
-            teamStats[team2Id].setsLost += setsWonTeam1;
-            if (setsWonTeam2 > setsWonTeam1) {
-              teamStats[team2Id].wins++;
-              teamStats[team2Id].points += 3;
+        // Only keep teams that are in the qualifiedTeamIds list
+        const selectedTeams = Object.values(teamStats).filter((t: any) => qualifiedTeamIds.includes(t.id));
+        qualifiedTeams.push(...selectedTeams.map((t: any) => ({
+          id: t.id,
+          name: t.name,
+          poolName: t.poolName,
+          points: t.points,
+          setsWon: t.setsWon,
+          setsLost: t.setsLost,
+        })));
+      }
+    } else {
+      // Mode automatique (rétro-compatibilité) : utiliser teamsQualifiedPerPool
+      console.log('Automatic mode: using teamsQualifiedPerPool');
+      const teamsQualifiedPerPool = tournament.teamsQualifiedPerPool || 2;
+
+      for (const poolDoc of poolsSnapshot.docs) {
+        const poolData = poolDoc.data();
+        const poolTeams = poolData.teams || [];
+
+        // Get matches for ranking calculation
+        const matchesSnapshot = await adminDb
+          .collection('events')
+          .doc(tournamentId)
+          .collection('pools')
+          .doc(poolDoc.id)
+          .collection('matches')
+          .get();
+
+        const matches = matchesSnapshot.docs.map((doc) => doc.data());
+
+        // Simple ranking calculation
+        const teamStats: any = {};
+        poolTeams.forEach((team: any) => {
+          teamStats[team.id] = {
+            id: team.id,
+            name: team.name,
+            poolName: poolData.name,
+            wins: 0,
+            points: 0,
+            setsWon: 0,
+            setsLost: 0,
+          };
+        });
+
+        matches.forEach((match: any) => {
+          if (match.status === 'completed') {
+            const team1Id = match.team1?.id;
+            const team2Id = match.team2?.id;
+            const setsWonTeam1 = match.setsWonTeam1 || 0;
+            const setsWonTeam2 = match.setsWonTeam2 || 0;
+
+            if (team1Id && teamStats[team1Id]) {
+              teamStats[team1Id].setsWon += setsWonTeam1;
+              teamStats[team1Id].setsLost += setsWonTeam2;
+              if (setsWonTeam1 > setsWonTeam2) {
+                teamStats[team1Id].wins++;
+                teamStats[team1Id].points += 3;
+              }
+            }
+
+            if (team2Id && teamStats[team2Id]) {
+              teamStats[team2Id].setsWon += setsWonTeam2;
+              teamStats[team2Id].setsLost += setsWonTeam1;
+              if (setsWonTeam2 > setsWonTeam1) {
+                teamStats[team2Id].wins++;
+                teamStats[team2Id].points += 3;
+              }
             }
           }
-        }
-      });
+        });
 
-      // Sort teams by ranking
-      const rankedTeams = Object.values(teamStats).sort((a: any, b: any) => {
-        if (b.points !== a.points) return b.points - a.points;
-        if (b.setsWon !== a.setsWon) return b.setsWon - a.setsWon;
-        return a.setsLost - b.setsLost;
-      });
+        // Sort teams by ranking
+        const rankedTeams = Object.values(teamStats).sort((a: any, b: any) => {
+          if (b.points !== a.points) return b.points - a.points;
+          if (b.setsWon !== a.setsWon) return b.setsWon - a.setsWon;
+          return a.setsLost - b.setsLost;
+        });
 
-      // Take top teams
-      const topTeams = rankedTeams.slice(0, teamsQualifiedPerPool);
-      qualifiedTeams.push(...topTeams.map((t: any) => ({
-        id: t.id,
-        name: t.name,
-        poolName: t.poolName,
-      })));
+        // Take top teams
+        const topTeams = rankedTeams.slice(0, teamsQualifiedPerPool);
+        qualifiedTeams.push(...topTeams.map((t: any) => ({
+          id: t.id,
+          name: t.name,
+          poolName: t.poolName,
+        })));
+      }
     }
 
     if (qualifiedTeams.length < 2) {
