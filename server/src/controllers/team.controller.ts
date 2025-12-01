@@ -210,17 +210,20 @@ export const addMember = async (req: Request, res: Response) => {
  * Remove member from team
  */
 export const removeMember = async (req: Request, res: Response) => {
-  const { id: teamId } = req.params;
-  const { tournamentId, memberId } = req.body;
+  const { id: teamId, userId: memberIdFromUrl } = req.params;
+  const { tournamentId } = req.body;
   const userId = (req as any).user?.uid;
 
   if (!userId) {
     throw new AppError('User not authenticated', 401);
   }
 
-  if (!tournamentId || !memberId) {
+  if (!tournamentId || !memberIdFromUrl) {
     throw new AppError('Tournament ID and Member ID are required', 400);
   }
+
+  // Use memberId from URL params
+  const memberId = memberIdFromUrl;
 
   try {
     const teamRef = adminDb
