@@ -52,8 +52,15 @@ export const calculateTournamentStatus = (
     status = 'En cours';
     message = 'Le tournoi est en cours.';
   } else if (hasRegistrationDates && now < registrationStarts) {
-    status = 'Ouvert';
-    message = 'Inscriptions à venir.';
+    status = 'Avenir';
+    const startDate = registrationStarts.toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    message = `Inscriptions à partir du ${startDate}`;
   } else if (registrationsAreOpen || !hasRegistrationDates) {
     // Si pas de dates définies, on considère comme ouvert
     if (isFullByCompleteTeams) {

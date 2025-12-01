@@ -520,6 +520,7 @@ const TournamentDetailPage = () => {
             <h1 className="text-4xl font-bold text-gray-900">{tournament.name}</h1>
             <div className="flex items-center gap-3 mt-2">
               <span className={`badge ${
+                tournament.status === 'Avenir' ? 'badge-info' :
                 tournament.status === 'Ouvert' ? 'badge-success' :
                 tournament.status === 'Complet' ? 'badge-warning' :
                 tournament.status === 'En cours' ? 'badge-info' :
