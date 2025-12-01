@@ -1855,6 +1855,51 @@ export const updateUser = async (req: Request, res: Response) => {
   }
 };
 
+export const bulkUpdateUsers = async (req: Request, res: Response) => {
+  try {
+    const { userIds, clubId } = req.body;
+
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+      throw new AppError('User IDs array is required', 400);
+    }
+
+    if (clubId === undefined) {
+      throw new AppError('Club ID is required (use null to remove club)', 400);
+    }
+
+    const updateData: any = {
+      clubId: clubId || null,
+      updatedAt: new Date(),
+    };
+
+    // Update all users in batch
+    const batch = adminDb.batch();
+    let updatedCount = 0;
+
+    for (const userId of userIds) {
+      const userRef = adminDb.collection('users').doc(userId);
+      const userDoc = await userRef.get();
+
+      if (userDoc.exists) {
+        batch.update(userRef, updateData);
+        updatedCount++;
+      }
+    }
+
+    await batch.commit();
+
+    res.json({
+      success: true,
+      message: `${updatedCount} user(s) updated successfully`,
+      data: { updatedCount },
+    });
+  } catch (error: any) {
+    console.error('Error bulk updating users:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error updating users', 500);
+  }
+};
+
 export const deleteUser = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;

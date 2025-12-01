@@ -75,6 +75,10 @@ class AdminService {
     return apiService.delete(`/admin/users/${id}`);
   }
 
+  async bulkUpdateUsers(userIds: string[], clubId: string | null) {
+    return apiService.post('/admin/users/bulk-update', { userIds, clubId });
+  }
+
   /**
    * Team Management
    */

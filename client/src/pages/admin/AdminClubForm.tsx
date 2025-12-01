@@ -148,7 +148,7 @@ const AdminClubForm = () => {
               value={formData.name}
               onChange={handleChange}
               required
-              className="input-field"
+              className="input w-full"
               placeholder="Ex: Volley Club Paris"
             />
           </div>
@@ -212,7 +212,7 @@ const AdminClubForm = () => {
               <Save size={20} />
               {loading ? 'Enregistrement...' : 'Enregistrer'}
             </button>
-            <Link to="/admin/clubs" className="btn-outline">
+            <Link to="/admin/clubs" className="btn-secondary">
               Annuler
             </Link>
           </div>
