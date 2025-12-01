@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@contexts/AuthContext';
 import {
@@ -10,7 +10,9 @@ import {
   ChevronRight,
   Building2,
   UsersRound,
-  CalendarRange
+  CalendarRange,
+  Menu,
+  X
 } from 'lucide-react';
 
 interface AdminLayoutProps {
@@ -21,10 +23,19 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const handleLogout = async () => {
     await logout();
     navigate('/login');
+  };
+
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
+  };
+
+  const closeSidebar = () => {
+    setIsSidebarOpen(false);
   };
 
   const navItems = [
@@ -49,13 +60,22 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
       <nav className="bg-white border-b border-gray-200 fixed w-full z-10">
         <div className="px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center">
+            <div className="flex items-center gap-3">
+              {/* Hamburger Menu Button - Mobile only */}
+              <button
+                onClick={toggleSidebar}
+                className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                aria-label="Toggle menu"
+              >
+                {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
+              </button>
+
               <Link to="/" className="flex items-center">
                 <Trophy className="h-8 w-8 text-primary-600" />
-                <span className="ml-2 text-xl font-bold text-gray-900">USM Tournois</span>
+                <span className="ml-2 text-xl font-bold text-gray-900 hidden sm:inline">USM Tournois</span>
               </Link>
-              <ChevronRight className="mx-3 text-gray-400" size={20} />
-              <span className="text-gray-600">Administration</span>
+              <ChevronRight className="mx-3 text-gray-400 hidden sm:block" size={20} />
+              <span className="text-gray-600 hidden sm:block">Administration</span>
             </div>
             <div className="flex items-center gap-4">
               <Link to="/" className="text-gray-600 hover:text-gray-900 flex items-center gap-2">
@@ -81,8 +101,23 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
       </nav>
 
       <div className="flex pt-16">
+        {/* Mobile Overlay */}
+        {isSidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden"
+            onClick={closeSidebar}
+            aria-hidden="true"
+          />
+        )}
+
         {/* Sidebar */}
-        <aside className="w-64 bg-white border-r border-gray-200 fixed h-full overflow-y-auto">
+        <aside
+          className={`
+            w-64 bg-white border-r border-gray-200 fixed h-full overflow-y-auto z-30 transition-transform duration-300
+            ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+            md:translate-x-0
+          `}
+        >
           <nav className="p-4 space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -91,6 +126,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                 <Link
                   key={item.path}
                   to={item.path}
+                  onClick={closeSidebar}
                   className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                     active
                       ? 'bg-primary-50 text-primary-700 font-medium'
@@ -106,7 +142,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 ml-64 p-8">
+        <main className="flex-1 md:ml-64 p-4 md:p-8">
           {children}
         </main>
       </div>
