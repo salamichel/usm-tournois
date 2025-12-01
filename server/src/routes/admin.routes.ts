@@ -60,6 +60,7 @@ router.post('/tournaments/:tournamentId/generate-random-teams', asyncHandler(adm
  */
 router.get('/users', asyncHandler(adminController.getAllUsers));
 router.post('/users', asyncHandler(adminController.createUser));
+router.post('/users/bulk-update', asyncHandler(adminController.bulkUpdateUsers));
 router.get('/users/:id', asyncHandler(adminController.getUserById));
 router.put('/users/:id', asyncHandler(adminController.updateUser));
 router.delete('/users/:id', asyncHandler(adminController.deleteUser));
