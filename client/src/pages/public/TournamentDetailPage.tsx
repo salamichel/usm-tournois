@@ -78,6 +78,18 @@ const TournamentDetailPage = () => {
     }
   }, [id, fetchTournament]);
 
+  // Update document title when tournament data is loaded
+  useEffect(() => {
+    if (tournament?.name) {
+      document.title = `${tournament.name} - USM Tournois`;
+    }
+
+    // Cleanup: reset title when component unmounts
+    return () => {
+      document.title = 'USM Tournois';
+    };
+  }, [tournament?.name]);
+
   const handleRegisterAsPlayer = async () => {
     if (!id || !isAuthenticated) {
       navigate('/login');
