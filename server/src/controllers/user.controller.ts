@@ -143,6 +143,14 @@ export const updateUserProfile = async (req: Request, res: Response) => {
 
     await adminDb.collection('users').doc(userId).update(updateData);
 
+    // Update session with new user data
+    if (req.session && req.session.user) {
+      if (pseudo !== undefined && pseudo !== null) req.session.user.pseudo = pseudo;
+      if (level !== undefined && level !== null) req.session.user.level = level;
+      if (email !== undefined && email !== null) req.session.user.email = email;
+      if (clubId !== undefined) req.session.user.clubId = clubId || undefined;
+    }
+
     res.json({
       success: true,
       message: 'User profile updated successfully',
