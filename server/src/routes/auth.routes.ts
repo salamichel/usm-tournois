@@ -47,4 +47,25 @@ router.put('/change-password', isAuthenticated, asyncHandler(authController.chan
  */
 router.post('/claim-virtual-account', asyncHandler(authController.claimVirtualAccount));
 
+/**
+ * @route   POST /api/auth/request-password-reset
+ * @desc    Request a password reset link
+ * @access  Public
+ */
+router.post('/request-password-reset', asyncHandler(authController.requestPasswordReset));
+
+/**
+ * @route   GET /api/auth/verify-reset-token/:token
+ * @desc    Verify a password reset token
+ * @access  Public
+ */
+router.get('/verify-reset-token/:token', asyncHandler(authController.verifyPasswordResetToken));
+
+/**
+ * @route   POST /api/auth/reset-password
+ * @desc    Reset password with token
+ * @access  Public
+ */
+router.post('/reset-password', asyncHandler(authController.resetPassword));
+
 export default router;

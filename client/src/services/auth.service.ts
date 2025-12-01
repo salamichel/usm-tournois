@@ -3,6 +3,8 @@ import type {
   CreateUserDto,
   LoginCredentials,
   ChangePasswordDto,
+  RequestPasswordResetDto,
+  ResetPasswordDto,
   UserSession,
   AuthResponse,
 } from '@shared/types';
@@ -54,6 +56,27 @@ class AuthService {
     virtualUserId: string;
   }) {
     return apiService.post<AuthResponse>('/auth/claim-virtual-account', data);
+  }
+
+  /**
+   * Request password reset
+   */
+  async requestPasswordReset(data: RequestPasswordResetDto) {
+    return apiService.post<{ resetLink?: string }>('/auth/request-password-reset', data);
+  }
+
+  /**
+   * Verify password reset token
+   */
+  async verifyPasswordResetToken(token: string) {
+    return apiService.get<{ email: string }>(`/auth/verify-reset-token/${token}`);
+  }
+
+  /**
+   * Reset password with token
+   */
+  async resetPassword(data: ResetPasswordDto) {
+    return apiService.post('/auth/reset-password', data);
   }
 }
 

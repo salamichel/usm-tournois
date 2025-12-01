@@ -6,6 +6,8 @@ import type {
   CreateUserDto,
   LoginCredentials,
   ChangePasswordDto,
+  RequestPasswordResetDto,
+  ResetPasswordDto,
   UserSession,
   User
 } from '@shared/types';
@@ -371,6 +373,132 @@ export const claimVirtualAccount = async (req: Request, res: Response) => {
       message = 'Format d\'email invalide.';
     } else if (error.code === 'auth/weak-password') {
       message = 'Le mot de passe doit contenir au moins 6 caractères.';
+    }
+
+    throw new AppError(message, 400);
+  }
+};
+
+/**
+ * @desc    Request password reset
+ * @route   POST /api/auth/request-password-reset
+ * @access  Public
+ */
+export const requestPasswordReset = async (req: Request, res: Response) => {
+  const { email }: RequestPasswordResetDto = req.body;
+
+  if (!email) {
+    throw new AppError('Email requis.', 400);
+  }
+
+  try {
+    // Verify user exists
+    const userRecord = await adminAuth.getUserByEmail(email);
+
+    // Generate password reset link
+    const resetLink = await adminAuth.generatePasswordResetLink(email, {
+      url: process.env.CLIENT_URL || 'http://localhost:5173',
+    });
+
+    // In production, send email here using a service like SendGrid, Mailgun, etc.
+    // For now, we'll return the link (in production, remove this and only send via email)
+
+    res.json({
+      success: true,
+      message: 'Un email de réinitialisation a été envoyé.',
+      // TODO: Remove this in production - only for development
+      data: { resetLink },
+    });
+  } catch (error: any) {
+    console.error('Request password reset error:', error);
+
+    // Don't reveal if user exists or not for security reasons
+    // Always return success message
+    res.json({
+      success: true,
+      message: 'Si un compte existe avec cet email, un lien de réinitialisation a été envoyé.',
+    });
+  }
+};
+
+/**
+ * @desc    Verify password reset token
+ * @route   GET /api/auth/verify-reset-token/:token
+ * @access  Public
+ */
+export const verifyPasswordResetToken = async (req: Request, res: Response) => {
+  const { token } = req.params;
+
+  if (!token) {
+    throw new AppError('Token requis.', 400);
+  }
+
+  try {
+    // Verify the reset link/token
+    const email = await adminAuth.verifyPasswordResetCode(token);
+
+    res.json({
+      success: true,
+      message: 'Token valide.',
+      data: { email },
+    });
+  } catch (error: any) {
+    console.error('Verify reset token error:', error);
+
+    let message = 'Token invalide ou expiré.';
+    if (error.code === 'auth/expired-action-code') {
+      message = 'Le lien de réinitialisation a expiré.';
+    } else if (error.code === 'auth/invalid-action-code') {
+      message = 'Le lien de réinitialisation est invalide ou a déjà été utilisé.';
+    }
+
+    throw new AppError(message, 400);
+  }
+};
+
+/**
+ * @desc    Reset password with token
+ * @route   POST /api/auth/reset-password
+ * @access  Public
+ */
+export const resetPassword = async (req: Request, res: Response) => {
+  const { token, newPassword }: ResetPasswordDto = req.body;
+
+  if (!token || !newPassword) {
+    throw new AppError('Token et nouveau mot de passe requis.', 400);
+  }
+
+  if (newPassword.length < 6) {
+    throw new AppError('Le mot de passe doit contenir au moins 6 caractères.', 400);
+  }
+
+  try {
+    // Verify the token and get the email
+    const email = await adminAuth.verifyPasswordResetCode(token);
+
+    // Update the password
+    const userRecord = await adminAuth.getUserByEmail(email);
+    await adminAuth.updateUser(userRecord.uid, {
+      password: newPassword,
+    });
+
+    // Revoke all refresh tokens to log out all sessions
+    await adminAuth.revokeRefreshTokens(userRecord.uid);
+
+    res.json({
+      success: true,
+      message: 'Mot de passe réinitialisé avec succès.',
+    });
+  } catch (error: any) {
+    console.error('Reset password error:', error);
+
+    let message = 'Erreur lors de la réinitialisation du mot de passe.';
+    if (error.code === 'auth/expired-action-code') {
+      message = 'Le lien de réinitialisation a expiré.';
+    } else if (error.code === 'auth/invalid-action-code') {
+      message = 'Le lien de réinitialisation est invalide ou a déjà été utilisé.';
+    } else if (error.code === 'auth/user-not-found') {
+      message = 'Utilisateur introuvable.';
     }
 
     throw new AppError(message, 400);
