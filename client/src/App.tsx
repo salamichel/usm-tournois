@@ -10,6 +10,7 @@ import AdminRoute from '@components/common/AdminRoute';
 import HomePage from '@pages/public/HomePage';
 import TournamentDetailPage from '@pages/public/TournamentDetailPage';
 import LoginPage from '@pages/public/LoginPage';
+import ResetPasswordPage from '@pages/public/ResetPasswordPage';
 import ProfilePage from '@pages/public/ProfilePage';
 import DashboardPage from '@pages/public/DashboardPage';
 import TeamManagementPage from '@pages/public/TeamManagementPage';
@@ -51,6 +52,7 @@ function App() {
             <Route path="/tournoi/:id" element={<TournamentDetailPage />} />
             <Route path="/classement" element={<PlayerRankingPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
 
             {/* Protected routes */}
             <Route

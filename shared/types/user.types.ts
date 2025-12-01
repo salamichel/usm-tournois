@@ -55,6 +55,15 @@ export interface LoginCredentials {
   password: string;
 }
 
+export interface RequestPasswordResetDto {
+  email: string;
+}
+
+export interface ResetPasswordDto {
+  token: string;
+  newPassword: string;
+}
+
 export interface AuthResponse {
   user: UserSession;
   token?: string;

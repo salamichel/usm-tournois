@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@contexts/AuthContext';
 import type { LoginCredentials, CreateUserDto, UserLevel } from '@shared/types';
-import { AlertCircle, UserPlus } from 'lucide-react';
+import { AlertCircle, UserPlus, Mail } from 'lucide-react';
+import authService from '@services/auth.service';
+import { toast } from 'react-hot-toast';
 
 const LoginPage = () => {
   const [isSignup, setIsSignup] = useState(false);
@@ -15,6 +17,9 @@ const LoginPage = () => {
     level: string;
   } | null>(null);
   const [isClaiming, setIsClaiming] = useState(false);
+  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
 
   const [loginData, setLoginData] = useState<LoginCredentials>({
     email: '',
@@ -87,6 +92,43 @@ const LoginPage = () => {
     setShowVirtualAccountModal(false);
     setVirtualAccountData(null);
     // User can now change their pseudo in the form
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!resetEmail) {
+      toast.error('Veuillez entrer votre adresse email.');
+      return;
+    }
+
+    try {
+      setIsResettingPassword(true);
+      const response = await authService.requestPasswordReset({ email: resetEmail });
+
+      // In development, show the reset link
+      if (response.resetLink) {
+        const url = new URL(response.resetLink);
+        const oobCode = url.searchParams.get('oobCode');
+        if (oobCode) {
+          const resetUrl = `${window.location.origin}/reset-password?token=${oobCode}`;
+          console.log('Reset link:', resetUrl);
+          toast.success(
+            `Lien de réinitialisation généré ! Consultez la console ou utilisez ce lien.\n${resetUrl}`,
+            { duration: 10000 }
+          );
+        }
+      } else {
+        toast.success('Un email de réinitialisation a été envoyé si ce compte existe.');
+      }
+
+      setShowForgotPasswordModal(false);
+      setResetEmail('');
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur lors de la demande de réinitialisation.');
+    } finally {
+      setIsResettingPassword(false);
+    }
   };
 
   return (
@@ -206,6 +248,16 @@ const LoginPage = () => {
               <button type="submit" className="btn-primary w-full">
                 Se connecter
               </button>
+
+              <div className="text-center mt-3">
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPasswordModal(true)}
+                  className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+                >
+                  Mot de passe oublié ?
+                </button>
+              </div>
             </form>
           )}
 
@@ -265,6 +317,65 @@ const LoginPage = () => {
                 Choisir un autre pseudo
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Forgot Password Modal */}
+      {showForgotPasswordModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="flex-shrink-0">
+                <Mail className="h-6 w-6 text-primary-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-gray-900 mb-2">
+                  Mot de passe oublié ?
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Entrez votre adresse email et nous vous enverrons un lien pour réinitialiser votre mot de passe.
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleForgotPassword} className="space-y-4">
+              <div>
+                <label htmlFor="reset-email" className="block text-sm font-medium text-gray-700 mb-1">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  id="reset-email"
+                  className="input"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  required
+                  placeholder="votre@email.com"
+                />
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <button
+                  type="submit"
+                  disabled={isResettingPassword}
+                  className="btn-primary w-full"
+                >
+                  {isResettingPassword ? 'Envoi en cours...' : 'Envoyer le lien'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowForgotPasswordModal(false);
+                    setResetEmail('');
+                  }}
+                  disabled={isResettingPassword}
+                  className="btn-secondary w-full"
+                >
+                  Annuler
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
