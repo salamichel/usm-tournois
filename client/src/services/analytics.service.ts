@@ -7,7 +7,7 @@ class AnalyticsService {
    * Initialize Google Analytics with the provided measurement ID
    */
   initialize(): void {
-    const measurementId = import.meta.env.VITE_GA_MEASUREMENT_ID;
+    const measurementId = import.meta.env.VITE_FIREBASE_MEASUREMENT_ID;
 
     if (!measurementId) {
       console.warn('Google Analytics Measurement ID not found. Analytics will not be tracked.');

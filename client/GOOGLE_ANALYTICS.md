@@ -6,6 +6,13 @@ Ce projet utilise Google Analytics 4 (GA4) pour suivre l'utilisation de l'applic
 
 ### 1. Obtenir votre Measurement ID
 
+#### Via Firebase Console (recommandé si vous utilisez déjà Firebase)
+1. Connectez-vous à la [Firebase Console](https://console.firebase.google.com/)
+2. Sélectionnez votre projet
+3. Cliquez sur l'icône d'engrenage > **Project settings**
+4. Dans l'onglet **General**, trouvez votre **Measurement ID** (format: `G-XXXXXXXXXX`)
+
+#### Via Google Analytics
 1. Connectez-vous à [Google Analytics](https://analytics.google.com/)
 2. Accédez à **Admin** (icône d'engrenage en bas à gauche)
 3. Dans la colonne **Propriété**, cliquez sur **Flux de données**
@@ -18,10 +25,15 @@ Créez un fichier `.env` dans le dossier `client/` avec le contenu suivant:
 
 ```bash
 VITE_API_URL=/api
-VITE_GA_MEASUREMENT_ID=G-XXXXXXXXXX
+VITE_FIREBASE_MEASUREMENT_ID=G-XXXXXXXXXX
 ```
 
 Remplacez `G-XXXXXXXXXX` par votre véritable Measurement ID.
+
+**Exemple avec votre ID actuel:**
+```bash
+VITE_FIREBASE_MEASUREMENT_ID=G-4G55RK9XXS
+```
 
 ## Fonctionnalités
 
@@ -61,4 +73,4 @@ Le service Analytics est configuré avec `anonymizeIp: true` pour anonymiser les
 
 ## Désactivation en développement
 
-Si vous ne souhaitez pas envoyer de données de tracking en développement, ne définissez simplement pas la variable `VITE_GA_MEASUREMENT_ID` dans votre fichier `.env` local. L'application fonctionnera normalement mais n'enverra pas de données à Google Analytics.
+Si vous ne souhaitez pas envoyer de données de tracking en développement, ne définissez simplement pas la variable `VITE_FIREBASE_MEASUREMENT_ID` dans votre fichier `.env` local. L'application fonctionnera normalement mais n'enverra pas de données à Google Analytics.
