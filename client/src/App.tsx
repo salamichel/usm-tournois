@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from '@contexts/AuthContext';
@@ -5,6 +6,8 @@ import { TournamentProvider } from '@contexts/TournamentContext';
 import Layout from '@components/layout/Layout';
 import ProtectedRoute from '@components/common/ProtectedRoute';
 import AdminRoute from '@components/common/AdminRoute';
+import { analyticsService } from '@services/analytics.service';
+import { usePageTracking } from '@hooks/usePageTracking';
 
 // Public pages
 import HomePage from '@pages/public/HomePage';
@@ -42,6 +45,14 @@ import AdminSeasonsList from '@pages/admin/AdminSeasonsList';
 import KingConfigDemo from '@pages/KingConfigDemo';
 
 function App() {
+  // Initialize Google Analytics on app mount
+  useEffect(() => {
+    analyticsService.initialize();
+  }, []);
+
+  // Track page views
+  usePageTracking();
+
   return (
     <AuthProvider>
       <TournamentProvider>
