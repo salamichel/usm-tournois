@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import type { UserSession, LoginCredentials, CreateUserDto } from '@shared/types';
 import authService from '@services/auth.service';
 import toast from 'react-hot-toast';
+import { analyticsService } from '@services/analytics.service';
 
 interface AuthContextType {
   user: UserSession | null;
@@ -120,6 +121,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = async () => {
     try {
       await authService.logout();
+      analyticsService.trackLogout();
       setUser(null);
       toast.success('Déconnexion réussie');
     } catch (error: any) {

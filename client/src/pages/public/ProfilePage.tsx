@@ -6,6 +6,7 @@ import type { UserLevel } from '@shared/types';
 import type { Club } from '@shared/types/club.types';
 import toast from 'react-hot-toast';
 import { User, Mail, Award, Building2 } from 'lucide-react';
+import { analyticsService } from '@services/analytics.service';
 
 const ProfilePage = () => {
   const { user, refreshUser } = useAuth();
@@ -20,6 +21,7 @@ const ProfilePage = () => {
   });
 
   useEffect(() => {
+    analyticsService.trackProfileView();
     loadClubs();
   }, []);
 
@@ -48,6 +50,11 @@ const ProfilePage = () => {
       setIsSaving(true);
       const response = await userService.updateProfile(formData);
       if (response.success) {
+        const changedFields = [];
+        if (formData.pseudo !== user.pseudo) changedFields.push('pseudo');
+        if (formData.level !== user.level) changedFields.push('level');
+        if (formData.clubId !== user.clubId) changedFields.push('club');
+        analyticsService.trackProfileUpdate(changedFields);
         toast.success('Profil mis à jour avec succès !');
         await refreshUser();
         setIsEditing(false);
@@ -160,7 +167,10 @@ const ProfilePage = () => {
 
             <div className="mt-8">
               <button
-                onClick={() => setIsEditing(true)}
+                onClick={() => {
+                  analyticsService.trackProfileEditStart();
+                  setIsEditing(true);
+                }}
                 className="btn-primary"
               >
                 Modifier mon profil
