@@ -27,6 +27,7 @@ const AdminTeamKingDashboard = () => {
   const [tieBreakEnabled, setTieBreakEnabled] = useState<boolean>(false);
 
   // Phase configurations (simplified - no game mode)
+  // Round-robin formula: even number = n-1 rounds, odd number = n rounds
   const [phaseConfigs, setPhaseConfigs] = useState<TeamKingPhaseConfig[]>([
     {
       phaseNumber: 1,
@@ -35,7 +36,7 @@ const AdminTeamKingDashboard = () => {
       teamsPerPool: 4,
       qualifiedPerPool: 2,
       totalQualified: 8,
-      estimatedRounds: 5,
+      estimatedRounds: 3, // 4 teams = 3 rounds (round-robin)
       scheduledDate: '',
       phaseLabel: 'Journée 1',
     },
@@ -46,7 +47,7 @@ const AdminTeamKingDashboard = () => {
       teamsPerPool: 4,
       qualifiedPerPool: 2,
       totalQualified: 4,
-      estimatedRounds: 5,
+      estimatedRounds: 3, // 4 teams = 3 rounds (round-robin)
       scheduledDate: '',
       phaseLabel: 'Journée 2',
     },
@@ -57,7 +58,7 @@ const AdminTeamKingDashboard = () => {
       teamsPerPool: 4,
       qualifiedPerPool: 1,
       totalQualified: 1,
-      estimatedRounds: 7,
+      estimatedRounds: 3, // 4 teams = 3 rounds (round-robin)
       scheduledDate: '',
       phaseLabel: 'Finale',
     },
