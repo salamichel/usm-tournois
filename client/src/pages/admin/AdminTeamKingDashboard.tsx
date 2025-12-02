@@ -74,8 +74,8 @@ const AdminTeamKingDashboard = () => {
       setLoading(true);
       const response = await teamKingService.getTeamKingDashboard(tournamentId);
 
-      if (response.data?.success) {
-        setDashboardData(response.data.data);
+      if (response?.success) {
+        setDashboardData(response.data);
       }
     } catch (error: any) {
       if (error.response?.status === 404) {
@@ -128,7 +128,7 @@ const AdminTeamKingDashboard = () => {
 
     try {
       const response = await teamKingService.completePhase(tournamentId, phaseNumber);
-      toast.success(`Phase ${phaseNumber} terminée ! ${response.data?.data?.qualifiedTeamIds?.length || 0} équipes qualifiées`);
+      toast.success(`Phase ${phaseNumber} terminée ! ${response.data?.qualifiedTeamIds?.length || 0} équipes qualifiées`);
       await loadDashboard();
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Erreur lors de la complétion de la phase');
