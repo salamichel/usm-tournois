@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { Lock, CheckCircle } from 'lucide-react';
 import authService from '@services/auth.service';
+import { analyticsService } from '@services/analytics.service';
 
 const ResetPasswordPage = () => {
   const [searchParams] = useSearchParams();
@@ -60,6 +61,7 @@ const ResetPasswordPage = () => {
     try {
       setIsLoading(true);
       await authService.resetPassword({ token, newPassword });
+      analyticsService.trackPasswordResetComplete();
       toast.success('Mot de passe réinitialisé avec succès !');
 
       // Redirect to login after a short delay

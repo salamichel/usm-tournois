@@ -5,6 +5,7 @@ import type { LoginCredentials, CreateUserDto, UserLevel } from '@shared/types';
 import { AlertCircle, UserPlus, Mail } from 'lucide-react';
 import authService from '@services/auth.service';
 import { toast } from 'react-hot-toast';
+import { analyticsService } from '@services/analytics.service';
 
 const LoginPage = () => {
   const [isSignup, setIsSignup] = useState(false);
@@ -37,6 +38,7 @@ const LoginPage = () => {
     e.preventDefault();
     try {
       await login(loginData);
+      analyticsService.trackLogin('email');
       navigate('/mon-compte');
     } catch (error) {
       // Error handled by AuthContext
@@ -55,11 +57,13 @@ const LoginPage = () => {
           pseudo: result.pseudo || signupData.pseudo,
           level: result.level || signupData.level,
         });
+        analyticsService.trackModalOpen('Virtual Account Claim');
         setShowVirtualAccountModal(true);
         return;
       }
 
       // Normal signup success
+      analyticsService.trackSignup(false);
       navigate('/mon-compte');
     } catch (error) {
       // Error handled by AuthContext
@@ -79,6 +83,8 @@ const LoginPage = () => {
         virtualUserId: virtualAccountData.virtualUserId,
       });
 
+      analyticsService.trackVirtualAccountClaim();
+      analyticsService.trackSignup(true);
       setShowVirtualAccountModal(false);
       navigate('/mon-compte');
     } catch (error) {
@@ -89,6 +95,7 @@ const LoginPage = () => {
   };
 
   const handleChangePseudo = () => {
+    analyticsService.trackModalClose('Virtual Account Claim');
     setShowVirtualAccountModal(false);
     setVirtualAccountData(null);
     // User can now change their pseudo in the form
@@ -105,6 +112,8 @@ const LoginPage = () => {
     try {
       setIsResettingPassword(true);
       const response = await authService.requestPasswordReset({ email: resetEmail });
+
+      analyticsService.trackPasswordResetRequest();
 
       // In development, show the reset link
       if (response.resetLink) {
@@ -252,7 +261,10 @@ const LoginPage = () => {
               <div className="text-center mt-3">
                 <button
                   type="button"
-                  onClick={() => setShowForgotPasswordModal(true)}
+                  onClick={() => {
+                    analyticsService.trackModalOpen('Forgot Password');
+                    setShowForgotPasswordModal(true);
+                  }}
                   className="text-sm text-primary-600 hover:text-primary-700 font-medium"
                 >
                   Mot de passe oublié ?
@@ -263,7 +275,10 @@ const LoginPage = () => {
 
           <div className="mt-6 text-center">
             <button
-              onClick={() => setIsSignup(!isSignup)}
+              onClick={() => {
+                analyticsService.trackButtonClick(isSignup ? 'Switch to Login' : 'Switch to Signup', 'Login Page');
+                setIsSignup(!isSignup);
+              }}
               className="text-primary-600 hover:text-primary-700 text-sm font-medium"
             >
               {isSignup
@@ -366,6 +381,7 @@ const LoginPage = () => {
                 <button
                   type="button"
                   onClick={() => {
+                    analyticsService.trackModalClose('Forgot Password');
                     setShowForgotPasswordModal(false);
                     setResetEmail('');
                   }}

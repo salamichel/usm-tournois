@@ -4,6 +4,7 @@ import authService from '@services/auth.service';
 import type { ChangePasswordDto } from '@shared/types';
 import toast from 'react-hot-toast';
 import { Lock, ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { analyticsService } from '@services/analytics.service';
 
 const ChangePasswordPage = () => {
   const navigate = useNavigate();
@@ -34,6 +35,7 @@ const ChangePasswordPage = () => {
       setIsSubmitting(true);
       const response = await authService.changePassword(formData);
       if (response.success) {
+        analyticsService.trackPasswordChange();
         toast.success('Mot de passe modifié avec succès !');
         navigate('/mon-compte');
       }

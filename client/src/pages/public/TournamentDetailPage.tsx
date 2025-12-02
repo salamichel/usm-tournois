@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import ReactMarkdown from 'react-markdown';
 import TournamentBracket from '@components/TournamentBracket';
 import MatchScoreModal from '@components/admin/MatchScoreModal';
+import { analyticsService } from '@services/analytics.service';
 import {
   Calendar,
   MapPin,
@@ -73,6 +74,12 @@ const TournamentDetailPage = () => {
   }, [id]);
 
   useEffect(() => {
+    if (id && tournament) {
+      analyticsService.trackTournamentView(id, tournament.name);
+    }
+  }, [id, tournament]);
+
+  useEffect(() => {
     if (id) {
       fetchTournament();
     }
@@ -88,6 +95,7 @@ const TournamentDetailPage = () => {
       setProcessingAction(true);
       const response = await tournamentService.registerPlayer(id);
       if (response.success) {
+        analyticsService.trackTournamentRegisterPlayer(id);
         toast.success('Inscription réussie !');
         fetchTournament();
       }
@@ -108,6 +116,7 @@ const TournamentDetailPage = () => {
       setProcessingAction(true);
       const response = await tournamentService.leaveTournament(id);
       if (response.success) {
+        analyticsService.trackTournamentLeave(id);
         toast.success('Vous avez quitté le tournoi');
         fetchTournament();
       }
@@ -129,6 +138,7 @@ const TournamentDetailPage = () => {
       setProcessingAction(true);
       const response = await tournamentService.createTeam(id, newTeamName);
       if (response.success) {
+        analyticsService.trackTeamCreate(id, newTeamName);
         toast.success('Équipe créée avec succès !');
         setShowCreateTeamModal(false);
         setNewTeamName('');
@@ -154,6 +164,7 @@ const TournamentDetailPage = () => {
       setProcessingAction(true);
       const response = await tournamentService.joinTeam(id, teamId);
       if (response.success) {
+        analyticsService.trackTeamJoin(id, teamId);
         toast.success('Vous avez rejoint l\'équipe !');
         fetchTournament();
       }
@@ -177,6 +188,7 @@ const TournamentDetailPage = () => {
       setProcessingAction(true);
       const response = await tournamentService.joinWaitingList(id);
       if (response.success) {
+        analyticsService.trackWaitingListJoin(id);
         toast.success('Vous êtes sur la liste d\'attente');
         fetchTournament();
       }
@@ -197,6 +209,8 @@ const TournamentDetailPage = () => {
         title: tournament?.name,
         text: tournament?.description || '',
         url: url,
+      }).then(() => {
+        if (id) analyticsService.trackTournamentShare(id, 'native');
       }).catch(() => {
         copyToClipboard(url);
       });
@@ -207,6 +221,7 @@ const TournamentDetailPage = () => {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text).then(() => {
+      if (id) analyticsService.trackTournamentShare(id, 'clipboard');
       toast.success('Lien copié !');
     });
   };
@@ -250,6 +265,7 @@ const TournamentDetailPage = () => {
       });
 
       if (response.success) {
+        analyticsService.trackMatchScoreSubmit(selectedMatch.id, matchContext.type);
         toast.success('Scores enregistrés avec succès !');
         setShowScoreModal(false);
         setSelectedMatch(null);
@@ -546,7 +562,10 @@ const TournamentDetailPage = () => {
       {/* View Switcher */}
       <div className="flex gap-2 mb-6 border-b border-gray-200">
         <button
-          onClick={() => setActiveView('detail')}
+          onClick={() => {
+            if (id) analyticsService.trackTournamentViewSwitch('detail', id);
+            setActiveView('detail');
+          }}
           className={`px-6 py-3 font-medium transition-colors ${
             activeView === 'detail'
               ? 'text-primary-600 border-b-2 border-primary-600'
@@ -556,7 +575,10 @@ const TournamentDetailPage = () => {
           Détails
         </button>
         <button
-          onClick={() => setActiveView('results')}
+          onClick={() => {
+            if (id) analyticsService.trackTournamentViewSwitch('results', id);
+            setActiveView('results');
+          }}
           className={`px-6 py-3 font-medium transition-colors ${
             activeView === 'results'
               ? 'text-primary-600 border-b-2 border-primary-600'
@@ -784,7 +806,10 @@ const TournamentDetailPage = () => {
             {/* Tabs Navigation */}
             <div className="flex gap-2 border-b border-gray-200">
               <button
-                onClick={() => setActiveTab('teams')}
+                onClick={() => {
+                  analyticsService.trackTabSwitch('teams', 'Tournament Detail');
+                  setActiveTab('teams');
+                }}
                 className={`px-4 py-2 font-medium transition-colors ${
                   activeTab === 'teams'
                     ? 'text-primary-600 border-b-2 border-primary-600'
@@ -794,7 +819,10 @@ const TournamentDetailPage = () => {
                 Équipes ({tournament.teams?.length || 0})
               </button>
               <button
-                onClick={() => setActiveTab('players')}
+                onClick={() => {
+                  analyticsService.trackTabSwitch('players', 'Tournament Detail');
+                  setActiveTab('players');
+                }}
                 className={`px-4 py-2 font-medium transition-colors ${
                   activeTab === 'players'
                     ? 'text-primary-600 border-b-2 border-primary-600'
@@ -804,7 +832,10 @@ const TournamentDetailPage = () => {
                 Joueurs sans équipe ({tournament.unassignedPlayers?.length || 0})
               </button>
               <button
-                onClick={() => setActiveTab('waitingList')}
+                onClick={() => {
+                  analyticsService.trackTabSwitch('waitingList', 'Tournament Detail');
+                  setActiveTab('waitingList');
+                }}
                 className={`px-4 py-2 font-medium transition-colors ${
                   activeTab === 'waitingList'
                     ? 'text-primary-600 border-b-2 border-primary-600'
@@ -1113,7 +1144,10 @@ const TournamentDetailPage = () => {
           {/* Results Tabs */}
           <div className="flex gap-2 border-b border-gray-200 mb-6">
             <button
-              onClick={() => setActiveResultsTab('pools')}
+              onClick={() => {
+                if (id) analyticsService.trackTournamentResultsTab('pools', id);
+                setActiveResultsTab('pools');
+              }}
               className={`px-4 py-2 font-medium transition-colors ${
                 activeResultsTab === 'pools'
                   ? 'text-primary-600 border-b-2 border-primary-600'
@@ -1123,7 +1157,10 @@ const TournamentDetailPage = () => {
               Poules
             </button>
             <button
-              onClick={() => setActiveResultsTab('finals')}
+              onClick={() => {
+                if (id) analyticsService.trackTournamentResultsTab('finals', id);
+                setActiveResultsTab('finals');
+              }}
               className={`px-4 py-2 font-medium transition-colors ${
                 activeResultsTab === 'finals'
                   ? 'text-primary-600 border-b-2 border-primary-600'
@@ -1133,7 +1170,10 @@ const TournamentDetailPage = () => {
               Finales
             </button>
             <button
-              onClick={() => setActiveResultsTab('ranking')}
+              onClick={() => {
+                if (id) analyticsService.trackTournamentResultsTab('ranking', id);
+                setActiveResultsTab('ranking');
+              }}
               className={`px-4 py-2 font-medium transition-colors ${
                 activeResultsTab === 'ranking'
                   ? 'text-primary-600 border-b-2 border-primary-600'

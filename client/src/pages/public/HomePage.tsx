@@ -5,6 +5,7 @@ import { Calendar, MapPin, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import TournamentFilters from '@components/TournamentFilters';
+import { analyticsService } from '@services/analytics.service';
 
 const HomePage = () => {
   const { tournaments, fetchTournaments, isLoading } = useTournament();
@@ -15,8 +16,28 @@ const HomePage = () => {
   const [selectedStatus, setSelectedStatus] = useState('all');
 
   useEffect(() => {
+    analyticsService.trackTournamentListView();
     fetchTournaments();
   }, [fetchTournaments]);
+
+  // Track filter changes
+  useEffect(() => {
+    if (searchQuery) {
+      analyticsService.trackTournamentSearch(searchQuery);
+    }
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (selectedType !== 'all') {
+      analyticsService.trackTournamentFilter('type', selectedType);
+    }
+  }, [selectedType]);
+
+  useEffect(() => {
+    if (selectedStatus !== 'all') {
+      analyticsService.trackTournamentFilter('status', selectedStatus);
+    }
+  }, [selectedStatus]);
 
   // Filtrage des tournois
   const filteredTournaments = useMemo(() => {
