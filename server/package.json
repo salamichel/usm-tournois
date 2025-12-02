@@ -13,6 +13,7 @@
     "dummy-players": "tsx src/scripts/create-dummy-players.ts",
     "delete-dummy": "tsx src/scripts/delete-dummy-players.ts",
     "test-tournament": "tsx src/scripts/create-test-tournament.ts",
+    "test-team-king": "tsx src/scripts/test-team-king.ts",
     "clean-test": "tsx src/scripts/clean-test-data.ts",
     "scenario": "tsx src/scripts/create-complete-scenario.ts",
     "reset-tournament": "tsx src/scripts/reset-tournament.ts"
