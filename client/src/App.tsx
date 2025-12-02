@@ -29,6 +29,7 @@ import AdminPoolsManagement from '@pages/admin/AdminPoolsManagement';
 import AdminEliminationManagement from '@pages/admin/AdminEliminationManagement';
 import AdminKingDashboard from '@pages/admin/AdminKingDashboard';
 import AdminFlexibleKingDashboard from '@pages/admin/AdminFlexibleKingDashboard';
+import AdminTeamKingDashboard from '@pages/admin/AdminTeamKingDashboard';
 import AdminTeamsList from '@pages/admin/AdminTeamsList';
 import AdminTeamForm from '@pages/admin/AdminTeamForm';
 import AdminGlobalTeams from '@pages/admin/AdminGlobalTeams';
@@ -161,6 +162,14 @@ function App() {
               element={
                 <AdminRoute>
                   <AdminFlexibleKingDashboard />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/tournaments/:tournamentId/team-king"
+              element={
+                <AdminRoute>
+                  <AdminTeamKingDashboard />
                 </AdminRoute>
               }
             />
