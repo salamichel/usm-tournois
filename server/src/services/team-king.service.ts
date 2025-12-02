@@ -72,17 +72,22 @@ export function distributeQualifiedInPools(
 
 /**
  * Calculates number of KOB rounds needed for N teams
- * Formula: 2N - 3 (ensures each team plays against different teams in rotation)
+ * Formula for round-robin (each team plays all others once):
+ * - Even number of teams: n - 1 rounds
+ * - Odd number of teams: n rounds
  */
 export function calculateKOBRounds(teamsPerPool: number): number {
-  if (teamsPerPool <= 2) return 1;
-  if (teamsPerPool === 3) return 3;
-  if (teamsPerPool === 4) return 5;
-  if (teamsPerPool === 5) return 7;
-  if (teamsPerPool === 6) return 9;
-  if (teamsPerPool === 7) return 11;
-  if (teamsPerPool === 8) return 13;
-  return teamsPerPool * 2 - 3;
+  if (teamsPerPool <= 1) return 0;
+  if (teamsPerPool === 2) return 1;
+
+  // Round-robin formula
+  if (teamsPerPool % 2 === 0) {
+    // Even number: n - 1 rounds
+    return teamsPerPool - 1;
+  } else {
+    // Odd number: n rounds
+    return teamsPerPool;
+  }
 }
 
 /**
