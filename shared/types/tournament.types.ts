@@ -7,7 +7,7 @@ export type TournamentStatus = 'Avenir' | 'Ouvert' | 'Complet' | 'Liste d\'atten
 
 export type TournamentType = 'Beach Volleyball' | 'Indoor Volleyball' | 'Mixed';
 
-export type TournamentFormat = 'standard' | 'king';
+export type TournamentFormat = 'standard' | 'king' | 'team-king';
 
 export type RegistrationMode = 'teams' | 'random';
 

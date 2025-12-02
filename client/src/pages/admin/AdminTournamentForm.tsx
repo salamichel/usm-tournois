@@ -510,11 +510,14 @@ const AdminTournamentForm = () => {
                 >
                   <option value="standard">Standard (Poules + Élimination directe)</option>
                   <option value="king">King (Rotation d'équipes par phases)</option>
+                  <option value="team-king">Team King (Équipes fixes par phases)</option>
                 </select>
                 <p className="mt-1 text-xs text-gray-500">
                   {formData.tournamentFormat === 'standard'
                     ? '📋 Format classique avec équipes fixes, phase de poules et phase d\'élimination'
-                    : '👑 Format King avec équipes changeantes et phases progressives'}
+                    : formData.tournamentFormat === 'king'
+                    ? '👑 Format King avec équipes changeantes et phases progressives'
+                    : '🏆 Format Team King avec équipes fixes qui s\'affrontent par phases progressives'}
                 </p>
               </div>
             </div>
@@ -657,6 +660,96 @@ const AdminTournamentForm = () => {
               </div>
             )}
 
+            {/* Configuration spécifique au mode Team King */}
+            {formData.tournamentFormat === 'team-king' && (
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  🏆 Configuration Mode Team King
+                </h3>
+
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+                  <p className="text-sm text-purple-900">
+                    ℹ️ <strong>Mode Team King :</strong> Les équipes fixes (inscrites par un capitaine)
+                    s'affrontent dans un format progressif par phases. La configuration des phases
+                    (nombre d'équipes, format de jeu, équipes qualifiées) se fait après la création du tournoi
+                    dans le dashboard de gestion.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="maxTeams" className="block text-sm font-medium text-gray-700 mb-1">
+                      Nombre maximum d'équipes *
+                    </label>
+                    <input
+                      type="number"
+                      id="maxTeams"
+                      name="maxTeams"
+                      value={formData.maxTeams}
+                      onChange={handleChange}
+                      min="1"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Nombre total d'équipes pouvant s'inscrire au tournoi
+                    </p>
+                  </div>
+
+                  <div>
+                    <label htmlFor="minPlayersPerTeam" className="block text-sm font-medium text-gray-700 mb-1">
+                      Minimum de joueurs par équipe *
+                    </label>
+                    <input
+                      type="number"
+                      id="minPlayersPerTeam"
+                      name="minPlayersPerTeam"
+                      value={formData.minPlayersPerTeam}
+                      onChange={handleChange}
+                      min="1"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="playersPerTeam" className="block text-sm font-medium text-gray-700 mb-1">
+                      Maximum de joueurs par équipe *
+                    </label>
+                    <input
+                      type="number"
+                      id="playersPerTeam"
+                      name="playersPerTeam"
+                      value={formData.playersPerTeam}
+                      onChange={handleChange}
+                      min="1"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="fields" className="block text-sm font-medium text-gray-700 mb-1">
+                      Nombre de terrains disponibles *
+                    </label>
+                    <input
+                      type="number"
+                      id="fields"
+                      name="fields"
+                      value={formData.fields}
+                      onChange={handleChange}
+                      min="1"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Utilisé pour calculer la durée estimée des phases
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Options communes aux deux modes */}
             <div className="mt-6 pt-6 border-t border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
@@ -712,7 +805,7 @@ const AdminTournamentForm = () => {
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
                 <label htmlFor="requiresFemalePlayer" className="ml-2 block text-sm font-medium text-gray-700">
-                  Requiert au moins une joueuse {formData.tournamentFormat === 'standard' ? 'par équipe' : ''}
+                  Requiert au moins une joueuse {(formData.tournamentFormat === 'standard' || formData.tournamentFormat === 'team-king') ? 'par équipe' : ''}
                 </label>
               </div>
             </div>
