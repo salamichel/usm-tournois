@@ -26,33 +26,24 @@ export type TeamKingPhaseStatus =
 
 /**
  * Configuration for a single phase in Team King mode
+ * Game mode is defined at tournament level, not per phase
  */
 export interface TeamKingPhaseConfig {
   phaseNumber: number;
-  gameMode: TeamKingGameMode;
-  phaseFormat: TeamKingPhaseFormat;
-  playersPerTeam: number;
   totalTeams: number;               // Total teams in this phase
   numberOfPools: number;
   teamsPerPool: number;             // Average teams per pool
   qualifiedPerPool: number;         // ÉQUIPES qualifiées par poule
   totalQualified: number;           // Total ÉQUIPES qualifiées for next phase
-  fields: number;                   // Number of available fields
-  estimatedRounds: number;
-  totalMatches: number;             // Total matches in this phase
-  estimatedTime: number;            // Estimated time in minutes
+  estimatedRounds: number;          // Number of KOB rounds
 
   // Optional: for unbalanced pool distributions
   poolDistribution?: number[];      // ex: [3, 3, 4] teams per pool
   qualifiedPerPoolDistribution?: number[]; // ex: [2, 2, 2] ÉQUIPES per pool
 
-  // Game rules
-  setsPerMatch: number;
-  pointsPerSet: number;
-  tieBreakEnabled: boolean;
-
   // Scheduling
-  scheduledDate?: string;           // ISO date string
+  scheduledDate?: string;           // ISO date string (journée)
+  phaseLabel?: string;              // ex: "Journée 1", "Samedi matin"
 }
 
 /**
@@ -68,13 +59,13 @@ export interface TeamKingTeam {
 
 /**
  * Match between two teams in Team King format
+ * Game mode is inherited from tournament level
  */
 export interface TeamKingMatch {
   id: string;
   matchNumber: number;
   team1: TeamKingTeam;
   team2: TeamKingTeam;
-  gameMode: TeamKingGameMode;
   status: 'pending' | 'in_progress' | 'completed';
   roundId: string;
   roundName: string;
@@ -172,6 +163,11 @@ export interface TeamKingPhase {
  * Overall Team King tournament data
  */
 export interface TeamKingTournamentData {
+  gameMode: TeamKingGameMode;         // Format constant for all phases (4v4, 3v3, etc.)
+  playersPerTeam: number;             // Number of players per team
+  setsPerMatch: number;               // Sets per match (constant)
+  pointsPerSet: number;               // Points per set (constant)
+  tieBreakEnabled: boolean;           // Tie break enabled (constant)
   phases: TeamKingPhase[];
   currentPhaseNumber: number | null;  // null if no phase in progress
   winnerTeam?: {

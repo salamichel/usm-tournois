@@ -8,6 +8,7 @@
  */
 
 import type {
+  TeamKingGameMode,
   TeamKingPhaseConfig,
   TeamKingPhase,
   TeamKingTournamentData,
@@ -138,8 +139,7 @@ function generateKOBMatches(
   poolId: string,
   poolName: string,
   numRounds: number,
-  phaseNumber: number,
-  gameMode: string
+  phaseNumber: number
 ): TeamKingMatch[] {
   const matches: TeamKingMatch[] = [];
   const numTeams = poolTeams.length;
@@ -170,7 +170,6 @@ function generateKOBMatches(
         matchNumber: matchNumber,
         team1: poolTeams[team1Idx],
         team2: poolTeams[team2Idx],
-        gameMode: gameMode as any,
         status: 'pending',
         roundId,
         roundName,
@@ -222,7 +221,6 @@ export function generatePhasePoolsAndMatches(
   console.log(`  - estimatedRounds: ${estimatedRounds}`);
   console.log(`  - numberOfPools: ${config.numberOfPools}`);
   console.log(`  - teamsPerPool: ${config.teamsPerPool}`);
-  console.log(`  - gameMode: ${config.gameMode}`);
 
   const pools: TeamKingPool[] = [];
   const allMatches: TeamKingMatch[] = [];
@@ -243,8 +241,7 @@ export function generatePhasePoolsAndMatches(
       poolId,
       poolName,
       estimatedRounds,
-      config.phaseNumber,
-      config.gameMode
+      config.phaseNumber
     );
 
     const pool: TeamKingPool = {
@@ -441,8 +438,19 @@ export function createTeamKingPhase(
 /**
  * Initialize Team King tournament data
  */
-export function initializeTeamKingTournament(): TeamKingTournamentData {
+export function initializeTeamKingTournament(
+  gameMode: TeamKingGameMode,
+  playersPerTeam: number,
+  setsPerMatch: number = 2,
+  pointsPerSet: number = 21,
+  tieBreakEnabled: boolean = false
+): TeamKingTournamentData {
   return {
+    gameMode,
+    playersPerTeam,
+    setsPerMatch,
+    pointsPerSet,
+    tieBreakEnabled,
     phases: [],
     currentPhaseNumber: null,
     createdAt: new Date(),

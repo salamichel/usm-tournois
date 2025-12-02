@@ -115,13 +115,20 @@ export const getTeamKingDashboard = async (req: Request, res: Response) => {
  */
 export const initializeTeamKing = async (req: Request, res: Response) => {
   const { tournamentId } = req.params;
-  const { phases } = req.body; // Array of TeamKingPhaseConfig
+  const { phases, gameMode, playersPerTeam, setsPerMatch, pointsPerSet, tieBreakEnabled } = req.body;
 
   try {
     if (!phases || !Array.isArray(phases) || phases.length === 0) {
       return res.status(400).json({
         success: false,
         message: 'Phases configuration is required',
+      });
+    }
+
+    if (!gameMode || !playersPerTeam) {
+      return res.status(400).json({
+        success: false,
+        message: 'gameMode and playersPerTeam are required',
       });
     }
 
@@ -147,7 +154,13 @@ export const initializeTeamKing = async (req: Request, res: Response) => {
     }
 
     // Initialize Team King data structure
-    const kingData = teamKingService.initializeTeamKingTournament();
+    const kingData = teamKingService.initializeTeamKingTournament(
+      gameMode,
+      playersPerTeam,
+      setsPerMatch || 2,
+      pointsPerSet || 21,
+      tieBreakEnabled || false
+    );
 
     // Create phases
     const allTeamIds = teams.map((t) => t.id);
@@ -177,6 +190,11 @@ export const initializeTeamKing = async (req: Request, res: Response) => {
 
     // Save main Team King data
     batch.set(teamKingDocRef, {
+      gameMode: kingData.gameMode,
+      playersPerTeam: kingData.playersPerTeam,
+      setsPerMatch: kingData.setsPerMatch,
+      pointsPerSet: kingData.pointsPerSet,
+      tieBreakEnabled: kingData.tieBreakEnabled,
       currentPhaseNumber: null,
       winnerTeam: null,
       createdAt: kingData.createdAt,

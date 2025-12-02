@@ -24,8 +24,18 @@ class TeamKingService {
   /**
    * Initialize Team King Mode with phase configurations
    */
-  async initializeTeamKing(tournamentId: string, phases: TeamKingPhaseConfig[]) {
-    return apiService.post(`/team-king/tournaments/${tournamentId}/initialize`, { phases });
+  async initializeTeamKing(
+    tournamentId: string,
+    config: {
+      gameMode: string;
+      playersPerTeam: number;
+      setsPerMatch: number;
+      pointsPerSet: number;
+      tieBreakEnabled: boolean;
+      phases: TeamKingPhaseConfig[];
+    }
+  ) {
+    return apiService.post(`/team-king/tournaments/${tournamentId}/initialize`, config);
   }
 
   /**

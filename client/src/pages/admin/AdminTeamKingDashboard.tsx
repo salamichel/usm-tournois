@@ -19,61 +19,47 @@ const AdminTeamKingDashboard = () => {
   const [isInitializing, setIsInitializing] = useState(false);
   const [selectedPhase, setSelectedPhase] = useState<number>(1);
 
-  // Configuration state for initialization
+  // Tournament-level configuration (constant for all phases)
+  const [gameMode, setGameMode] = useState<string>('4v4');
+  const [playersPerTeam, setPlayersPerTeam] = useState<number>(4);
+  const [setsPerMatch, setSetsPerMatch] = useState<number>(2);
+  const [pointsPerSet, setPointsPerSet] = useState<number>(21);
+  const [tieBreakEnabled, setTieBreakEnabled] = useState<boolean>(false);
+
+  // Phase configurations (simplified - no game mode)
   const [phaseConfigs, setPhaseConfigs] = useState<TeamKingPhaseConfig[]>([
     {
       phaseNumber: 1,
-      gameMode: '4v4',
-      phaseFormat: 'kob',
-      playersPerTeam: 4,
       totalTeams: 16,
       numberOfPools: 4,
       teamsPerPool: 4,
       qualifiedPerPool: 2,
       totalQualified: 8,
-      fields: 2,
       estimatedRounds: 5,
-      totalMatches: 40,
-      estimatedTime: 200,
-      setsPerMatch: 2,
-      pointsPerSet: 21,
-      tieBreakEnabled: false,
+      scheduledDate: '',
+      phaseLabel: 'Journée 1',
     },
     {
       phaseNumber: 2,
-      gameMode: '3v3',
-      phaseFormat: 'kob',
-      playersPerTeam: 3,
       totalTeams: 8,
       numberOfPools: 2,
       teamsPerPool: 4,
       qualifiedPerPool: 2,
       totalQualified: 4,
-      fields: 2,
       estimatedRounds: 5,
-      totalMatches: 20,
-      estimatedTime: 100,
-      setsPerMatch: 2,
-      pointsPerSet: 21,
-      tieBreakEnabled: false,
+      scheduledDate: '',
+      phaseLabel: 'Journée 2',
     },
     {
       phaseNumber: 3,
-      gameMode: '2v2',
-      phaseFormat: 'kob',
-      playersPerTeam: 2,
       totalTeams: 4,
       numberOfPools: 1,
       teamsPerPool: 4,
       qualifiedPerPool: 1,
       totalQualified: 1,
-      fields: 2,
       estimatedRounds: 7,
-      totalMatches: 14,
-      estimatedTime: 70,
-      setsPerMatch: 2,
-      pointsPerSet: 21,
-      tieBreakEnabled: false,
+      scheduledDate: '',
+      phaseLabel: 'Finale',
     },
   ]);
 
@@ -108,7 +94,14 @@ const AdminTeamKingDashboard = () => {
 
     try {
       setIsInitializing(true);
-      await teamKingService.initializeTeamKing(tournamentId, phaseConfigs);
+      await teamKingService.initializeTeamKing(tournamentId, {
+        gameMode,
+        playersPerTeam,
+        setsPerMatch,
+        pointsPerSet,
+        tieBreakEnabled,
+        phases: phaseConfigs,
+      });
       toast.success('Mode Team King initialisé avec succès !');
       await loadDashboard();
     } catch (error: any) {
@@ -211,17 +204,32 @@ const AdminTeamKingDashboard = () => {
             <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-6">
               <p className="text-sm text-purple-900">
                 <strong>Mode Team King :</strong> Les équipes fixes (inscrites par un capitaine)
-                s'affrontent dans un format progressif par phases. Chaque phase élimine des équipes
-                jusqu'à désigner un champion.
+                s'affrontent dans un format progressif par phases. Le format de jeu ({gameMode}) reste
+                constant sur toutes les phases. Chaque phase élimine des équipes jusqu'à désigner un champion.
               </p>
             </div>
 
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold mb-3">🎯 Format du tournoi</h2>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-lg">
+                <div>
+                  <span className="font-medium">Format:</span> <span className="text-lg font-bold text-purple-600">{gameMode}</span>
+                </div>
+                <div>
+                  <span className="font-medium">Joueurs/équipe:</span> {playersPerTeam}
+                </div>
+                <div>
+                  <span className="font-medium">Sets/match:</span> {setsPerMatch}
+                </div>
+              </div>
+            </div>
+
             <div className="space-y-4 mb-6">
-              <h2 className="text-xl font-semibold">Configuration des phases</h2>
+              <h2 className="text-xl font-semibold">📅 Configuration des phases (journées)</h2>
               {phaseConfigs.map((config, index) => (
                 <div key={index} className="border border-gray-200 rounded-lg p-4">
                   <h3 className="font-semibold text-lg mb-2">
-                    Phase {config.phaseNumber} - {config.gameMode}
+                    {config.phaseLabel || `Phase ${config.phaseNumber}`}
                   </h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                     <div>
@@ -234,7 +242,7 @@ const AdminTeamKingDashboard = () => {
                       <span className="font-medium">Qualifiés:</span> {config.totalQualified}
                     </div>
                     <div>
-                      <span className="font-medium">Matchs:</span> {config.totalMatches}
+                      <span className="font-medium">Tours KOB:</span> {config.estimatedRounds}
                     </div>
                   </div>
                 </div>
@@ -326,7 +334,7 @@ const AdminTeamKingDashboard = () => {
             <div className="bg-white rounded-lg shadow-md p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-2xl font-bold">
-                  Phase {currentPhase.phaseNumber} - {currentPhase.config.gameMode}
+                  {currentPhase.config.phaseLabel || `Phase ${currentPhase.phaseNumber}`} - {dashboardData.teamKingData.gameMode}
                 </h2>
                 <span
                   className={`px-3 py-1 rounded-full text-sm font-semibold ${
