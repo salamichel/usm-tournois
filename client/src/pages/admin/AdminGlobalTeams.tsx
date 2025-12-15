@@ -112,6 +112,22 @@ const AdminGlobalTeams = () => {
     }
   };
 
+  const handleRecalculateRanking = async (tournamentId: string, tournamentName: string) => {
+    if (!confirm(`Recalculer le ranking de toutes les équipes du tournoi "${tournamentName}" ?\n\nCela mettra à jour le total des points de chaque équipe en fonction des points actuels de leurs membres.`)) {
+      return;
+    }
+
+    try {
+      const response = await adminService.recalculateTeamsRanking(tournamentId);
+      if (response.success) {
+        toast.success(response.message || 'Ranking recalculé avec succès');
+        fetchAllTeams();
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur lors du recalcul');
+    }
+  };
+
   const toggleTournament = (tournamentId: string) => {
     setExpandedTournaments(prev => {
       const newSet = new Set(prev);
@@ -272,6 +288,16 @@ const AdminGlobalTeams = () => {
                     <span className={`badge ${tournament.isActive ? 'badge-success' : 'badge-default'}`}>
                       {tournament.isActive ? 'Actif' : 'Inactif'}
                     </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRecalculateRanking(tournament.id, tournament.name);
+                      }}
+                      className="btn-sm bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs"
+                      title="Recalculer le ranking de toutes les équipes"
+                    >
+                      Recalculer Ranking
+                    </button>
                     <Link
                       to={`/admin/tournaments/${tournament.id}/teams`}
                       className="btn-sm btn-secondary"

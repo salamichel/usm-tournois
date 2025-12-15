@@ -106,6 +106,10 @@ class AdminService {
     }>(`/admin/tournaments/${tournamentId}/generate-random-teams`);
   }
 
+  async recalculateTeamsRanking(tournamentId: string) {
+    return apiService.post(`/admin/tournaments/${tournamentId}/teams/recalculate-ranking`);
+  }
+
   /**
    * Pool Management
    */

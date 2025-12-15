@@ -107,14 +107,12 @@ const AdminTeamForm = () => {
     try {
       // Update team with member removed
       const updatedMembers = formData.members.filter(m => m.userId !== memberId);
-      await adminService.updateTeam(tournamentId!, teamId!, {
+      const response = await adminService.updateTeam(tournamentId!, teamId!, {
         members: updatedMembers
       });
 
-      setFormData(prev => ({
-        ...prev,
-        members: updatedMembers
-      }));
+      // Reload team to get updated globalRanking
+      await loadTeam();
 
       // Refresh unassigned players
       loadUnassignedPlayers();
@@ -145,10 +143,8 @@ const AdminTeamForm = () => {
         members: updatedMembers
       });
 
-      setFormData(prev => ({
-        ...prev,
-        members: updatedMembers
-      }));
+      // Reload team to get updated globalRanking
+      await loadTeam();
 
       setSelectedPlayerId('');
       loadUnassignedPlayers();
@@ -292,14 +288,12 @@ const AdminTeamForm = () => {
                   id="globalRanking"
                   name="globalRanking"
                   value={formData.globalRanking}
-                  onChange={handleChange}
-                  min="0"
-                  step="1"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Ex: 100"
+                  readOnly
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 cursor-not-allowed"
+                  placeholder="Calculé automatiquement"
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  Nombre de points total de l'équipe
+                <p className="text-xs text-blue-600 mt-1">
+                  ✨ Calculé automatiquement en additionnant les points des membres
                 </p>
               </div>
             </div>

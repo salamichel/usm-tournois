@@ -55,6 +55,7 @@ router.post('/tournaments/:tournamentId/teams', asyncHandler(adminController.cre
 router.put('/tournaments/:tournamentId/teams/:teamId', asyncHandler(adminController.updateTeam));
 router.delete('/tournaments/:tournamentId/teams/:teamId', asyncHandler(adminController.deleteTeam));
 router.post('/tournaments/:tournamentId/generate-random-teams', asyncHandler(adminController.generateRandomTeams));
+router.post('/tournaments/:tournamentId/teams/recalculate-ranking', asyncHandler(adminController.recalculateTeamsRanking));
 
 /**
  * User Management
