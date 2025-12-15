@@ -23,6 +23,8 @@ export interface Team {
   registeredAt: string; // ISO date string
   poolId?: string;
   poolName?: string;
+  weight?: number; // Poids de l'équipe pour répartition homogène des poules
+  globalRanking?: number; // Nombre de points global (ranking) de l'équipe
   createdAt?: Date;
   updatedAt?: Date;
 }

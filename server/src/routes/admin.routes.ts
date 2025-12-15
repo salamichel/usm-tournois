@@ -31,6 +31,7 @@ router.put('/tournaments/:tournamentId/pools/:poolId', asyncHandler(adminControl
 router.delete('/tournaments/:tournamentId/pools/:poolId', asyncHandler(adminController.deletePool));
 router.post('/tournaments/:tournamentId/pools/:poolId/assign-teams', asyncHandler(adminController.assignTeamsToPool));
 router.post('/tournaments/:tournamentId/pools/:poolId/generate-matches', asyncHandler(adminController.generatePoolMatches));
+router.post('/tournaments/:tournamentId/pools/distribute-teams', asyncHandler(adminController.distributeTeamsToPoolsAutomatically));
 
 /**
  * Elimination Management

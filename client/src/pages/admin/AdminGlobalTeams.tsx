@@ -26,6 +26,8 @@ interface Team {
   recruitmentOpen: boolean;
   poolId?: string;
   poolName?: string;
+  weight?: number;
+  globalRanking?: number;
 }
 
 interface Tournament {
@@ -290,6 +292,8 @@ const AdminGlobalTeams = () => {
                             <th className="pb-2 font-medium">Équipe</th>
                             <th className="pb-2 font-medium">Capitaine</th>
                             <th className="pb-2 font-medium">Membres</th>
+                            <th className="pb-2 font-medium text-center">Poids</th>
+                            <th className="pb-2 font-medium text-center">Ranking</th>
                             <th className="pb-2 font-medium">Statut</th>
                             <th className="pb-2 font-medium text-right">Actions</th>
                           </tr>
@@ -320,6 +324,16 @@ const AdminGlobalTeams = () => {
                                     {team.members?.length || 0}/{tournament.playersPerTeam}
                                   </span>
                                 </div>
+                              </td>
+                              <td className="py-3 text-center">
+                                <span className="text-sm font-medium text-gray-700">
+                                  {team.weight || '-'}
+                                </span>
+                              </td>
+                              <td className="py-3 text-center">
+                                <span className="text-sm font-medium text-gray-700">
+                                  {team.globalRanking || '-'}
+                                </span>
                               </td>
                               <td className="py-3">
                                 <div className="flex flex-wrap gap-1">

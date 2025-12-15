@@ -125,6 +125,10 @@ class AdminService {
     return apiService.post(`/admin/tournaments/${tournamentId}/pools/${poolId}/generate-matches`);
   }
 
+  async distributeTeamsToPoolsAutomatically(tournamentId: string, sortBy: 'weight' | 'globalRanking' = 'weight') {
+    return apiService.post(`/admin/tournaments/${tournamentId}/pools/distribute-teams`, { sortBy });
+  }
+
   async updatePoolName(tournamentId: string, poolId: string, name: string) {
     return apiService.put(`/admin/tournaments/${tournamentId}/pools/${poolId}`, { name });
   }

@@ -570,6 +570,147 @@ export const assignTeamsToPool = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * Distributes teams automatically across pools in a balanced way based on weight/ranking
+ * Uses snake draft algorithm for fair distribution
+ */
+export const distributeTeamsToPoolsAutomatically = async (req: Request, res: Response) => {
+  try {
+    const { tournamentId } = req.params;
+    const { sortBy = 'weight' } = req.body; // 'weight' or 'globalRanking'
+
+    // Get all teams
+    const teamsSnapshot = await adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('teams')
+      .get();
+
+    const allTeams = teamsSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      name: doc.data()?.name || 'Unknown Team',
+      weight: doc.data()?.weight || 0,
+      globalRanking: doc.data()?.globalRanking || 0,
+      poolId: doc.data()?.poolId,
+    }));
+
+    // Filter teams not already assigned to a pool
+    const unassignedTeams = allTeams.filter((team) => !team.poolId);
+
+    if (unassignedTeams.length === 0) {
+      throw new AppError('No unassigned teams to distribute', 400);
+    }
+
+    // Sort teams by the selected criterion (descending order - strongest first)
+    const sortedTeams = unassignedTeams.sort((a, b) => {
+      const valueA = sortBy === 'weight' ? a.weight : a.globalRanking;
+      const valueB = sortBy === 'weight' ? b.weight : b.globalRanking;
+      return valueB - valueA;
+    });
+
+    // Get all pools
+    const poolsSnapshot = await adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('pools')
+      .get();
+
+    if (poolsSnapshot.empty) {
+      throw new AppError('No pools found. Please create pools first.', 400);
+    }
+
+    const pools = poolsSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      name: doc.data()?.name || 'Unknown Pool',
+      teams: doc.data()?.teams || [],
+    }));
+
+    // Snake draft distribution
+    const poolAssignments: { [poolId: string]: any[] } = {};
+    pools.forEach((pool) => {
+      poolAssignments[pool.id] = [...pool.teams];
+    });
+
+    let poolIndex = 0;
+    let direction = 1; // 1 for forward, -1 for backward
+
+    for (const team of sortedTeams) {
+      const currentPool = pools[poolIndex];
+      poolAssignments[currentPool.id].push({
+        id: team.id,
+        name: team.name,
+      });
+
+      // Move to next pool
+      poolIndex += direction;
+
+      // Reverse direction at the ends (snake pattern)
+      if (poolIndex >= pools.length) {
+        poolIndex = pools.length - 1;
+        direction = -1;
+      } else if (poolIndex < 0) {
+        poolIndex = 0;
+        direction = 1;
+      }
+    }
+
+    // Update pools and teams in batch
+    const batch = adminDb.batch();
+
+    // Update each pool with its assigned teams
+    for (const poolId in poolAssignments) {
+      const poolRef = adminDb
+        .collection('events')
+        .doc(tournamentId)
+        .collection('pools')
+        .doc(poolId);
+
+      batch.update(poolRef, {
+        teams: poolAssignments[poolId],
+        updatedAt: new Date(),
+      });
+    }
+
+    // Update each team with its pool assignment
+    for (const team of sortedTeams) {
+      const assignedPoolId = Object.keys(poolAssignments).find((poolId) =>
+        poolAssignments[poolId].some((t) => t.id === team.id)
+      );
+
+      if (assignedPoolId) {
+        const teamRef = adminDb
+          .collection('events')
+          .doc(tournamentId)
+          .collection('teams')
+          .doc(team.id);
+
+        const assignedPool = pools.find((p) => p.id === assignedPoolId);
+
+        batch.update(teamRef, {
+          poolId: assignedPoolId,
+          poolName: assignedPool?.name,
+          updatedAt: new Date(),
+        });
+      }
+    }
+
+    await batch.commit();
+
+    res.json({
+      success: true,
+      message: `${sortedTeams.length} teams distributed across ${pools.length} pools`,
+      data: {
+        teamsDistributed: sortedTeams.length,
+        poolsCount: pools.length,
+      },
+    });
+  } catch (error: any) {
+    console.error('Error distributing teams to pools:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error distributing teams to pools', 500);
+  }
+};
+
 export const generatePoolMatches = async (req: Request, res: Response) => {
   try {
     const { tournamentId, poolId } = req.params;
