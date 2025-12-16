@@ -607,7 +607,7 @@ export const assignTeamsToPool = async (req: Request, res: Response) => {
 export const distributeTeamsToPoolsAutomatically = async (req: Request, res: Response) => {
   try {
     const { tournamentId } = req.params;
-    const { sortBy = 'weight' } = req.body; // 'weight' or 'globalRanking'
+    const { sortBy = 'weight', clearExisting = false } = req.body; // 'weight' or 'globalRanking', clearExisting to redistribute all teams
 
     // Get all teams
     const teamsSnapshot = await adminDb
@@ -624,15 +624,15 @@ export const distributeTeamsToPoolsAutomatically = async (req: Request, res: Res
       poolId: doc.data()?.poolId,
     }));
 
-    // Filter teams not already assigned to a pool
-    const unassignedTeams = allTeams.filter((team) => !team.poolId);
+    // If clearExisting is true, we'll redistribute ALL teams (not just unassigned)
+    const teamsToDistribute = clearExisting ? allTeams : allTeams.filter((team) => !team.poolId);
 
-    if (unassignedTeams.length === 0) {
+    if (teamsToDistribute.length === 0) {
       throw new AppError('No unassigned teams to distribute', 400);
     }
 
     // Sort teams by the selected criterion (descending order - strongest first)
-    const sortedTeams = unassignedTeams.sort((a, b) => {
+    const sortedTeams = teamsToDistribute.sort((a, b) => {
       const valueA = sortBy === 'weight' ? a.weight : a.globalRanking;
       const valueB = sortBy === 'weight' ? b.weight : b.globalRanking;
       return valueB - valueA;
@@ -656,9 +656,10 @@ export const distributeTeamsToPoolsAutomatically = async (req: Request, res: Res
     }));
 
     // Snake draft distribution
+    // If clearExisting, start fresh. Otherwise, keep existing assignments.
     const poolAssignments: { [poolId: string]: any[] } = {};
     pools.forEach((pool) => {
-      poolAssignments[pool.id] = [...pool.teams];
+      poolAssignments[pool.id] = clearExisting ? [] : [...pool.teams];
     });
 
     let poolIndex = 0;
