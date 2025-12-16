@@ -22,6 +22,7 @@ const AdminPoolsManagement = () => {
   const [showQualificationPanel, setShowQualificationPanel] = useState(false);
   const [showDistributeModal, setShowDistributeModal] = useState(false);
   const [distributeSortBy, setDistributeSortBy] = useState<'weight' | 'globalRanking'>('weight');
+  const [distributeClearExisting, setDistributeClearExisting] = useState(false);
 
   // Clé localStorage unique par tournoi
   const qualifiedTeamsStorageKey = `qualified-teams-${tournamentId}`;
@@ -184,10 +185,15 @@ const AdminPoolsManagement = () => {
     }
 
     try {
-      const response = await adminService.distributeTeamsToPoolsAutomatically(tournamentId!, distributeSortBy);
+      const response = await adminService.distributeTeamsToPoolsAutomatically(
+        tournamentId!,
+        distributeSortBy,
+        distributeClearExisting
+      );
       if (response.success) {
         toast.success(response.message || 'Équipes distribuées avec succès');
         setShowDistributeModal(false);
+        setDistributeClearExisting(false);
         loadData();
       }
     } catch (error: any) {
@@ -429,7 +435,7 @@ const AdminPoolsManagement = () => {
             <p className="text-gray-600 mb-4">
               Choisissez le critère de tri pour distribuer les équipes de manière homogène dans les poules.
             </p>
-            <div className="mb-6">
+            <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Critère de tri
               </label>
@@ -443,6 +449,22 @@ const AdminPoolsManagement = () => {
               </select>
               <p className="text-xs text-gray-500 mt-2">
                 Les équipes seront triées par ordre décroissant et distribuées selon l'algorithme "serpent" pour équilibrer les poules.
+              </p>
+            </div>
+            <div className="mb-6">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={distributeClearExisting}
+                  onChange={(e) => setDistributeClearExisting(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm font-medium text-gray-700">
+                  Redistribuer toutes les équipes
+                </span>
+              </label>
+              <p className="text-xs text-gray-500 mt-1 ml-6">
+                Cochez cette option pour effacer les assignations existantes et redistribuer toutes les équipes, pas seulement celles qui ne sont pas encore assignées.
               </p>
             </div>
             <div className="flex gap-3">
