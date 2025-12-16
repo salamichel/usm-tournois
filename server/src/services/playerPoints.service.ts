@@ -40,6 +40,7 @@ export async function awardPointsToTeam(
 ): Promise<void> {
   const points = getPointsForRank(rank);
   const batch = adminDb.batch();
+  const awardedPlayerIds: string[] = [];
 
   // Find the season for this tournament date
   const season = await findSeasonForDate(tournamentDate);
@@ -49,24 +50,35 @@ export async function awardPointsToTeam(
 
   // Award points to each team member
   for (const member of teamMembers) {
-    // Skip virtual/placeholder members
+    // Skip virtual/placeholder members (check both member flag and user document)
     if (member.isVirtual) continue;
 
-    // Fetch player's club info
+    // Fetch player's user document to check if virtual and get club info
     let clubId: string | undefined;
     let clubName: string | undefined;
+    let isVirtualUser = false;
 
     try {
       const userDoc = await adminDb.collection('users').doc(member.userId).get();
-      clubId = userDoc.data()?.clubId;
+      const userData = userDoc.data();
+
+      // Check if user is virtual (for backwards compatibility with existing data)
+      if (userData?.isVirtual) {
+        isVirtualUser = true;
+      }
+
+      clubId = userData?.clubId;
 
       if (clubId) {
         const clubDoc = await adminDb.collection('clubs').doc(clubId).get();
         clubName = clubDoc.data()?.name;
       }
     } catch (error) {
-      console.error(`Error fetching club info for player ${member.userId}:`, error);
+      console.error(`Error fetching user info for player ${member.userId}:`, error);
     }
+
+    // Skip if user document indicates virtual account
+    if (isVirtualUser) continue;
 
     const playerPoints: PlayerTournamentPoints = {
       playerId: member.userId,
@@ -92,12 +104,15 @@ export async function awardPointsToTeam(
       .doc(tournamentId);
 
     batch.set(pointsRef, playerPoints);
+    awardedPlayerIds.push(member.userId);
   }
 
   await batch.commit();
 
-  // Update global rankings for all players
-  await updateGlobalRankings(teamMembers.filter(m => !m.isVirtual).map(m => m.userId));
+  // Update global rankings only for real players who received points
+  if (awardedPlayerIds.length > 0) {
+    await updateGlobalRankings(awardedPlayerIds);
+  }
 }
 
 /**
@@ -436,6 +451,7 @@ export async function awardPointsToFlexibleKingPlayers(
 ): Promise<{ playersUpdated: number; totalPoints: number }> {
   const batch = adminDb.batch();
   let totalPoints = 0;
+  const awardedPlayerIds: string[] = [];
 
   // Find the season for this tournament date
   const season = await findSeasonForDate(tournamentDate);
@@ -448,23 +464,35 @@ export async function awardPointsToFlexibleKingPlayers(
     const player = ranking[i];
     const rank = i + 1;
     const points = getPointsForRank(rank);
-    totalPoints += points;
 
-    // Fetch player's club info
+    // Fetch player's user document to check if virtual and get club info
     let clubId: string | undefined;
     let clubName: string | undefined;
+    let isVirtualUser = false;
 
     try {
       const userDoc = await adminDb.collection('users').doc(player.playerId).get();
-      clubId = userDoc.data()?.clubId;
+      const userData = userDoc.data();
+
+      // Check if user is virtual
+      if (userData?.isVirtual) {
+        isVirtualUser = true;
+      }
+
+      clubId = userData?.clubId;
 
       if (clubId) {
         const clubDoc = await adminDb.collection('clubs').doc(clubId).get();
         clubName = clubDoc.data()?.name;
       }
     } catch (error) {
-      console.error(`Error fetching club info for player ${player.playerId}:`, error);
+      console.error(`Error fetching user info for player ${player.playerId}:`, error);
     }
+
+    // Skip virtual accounts - they should not receive points
+    if (isVirtualUser) continue;
+
+    totalPoints += points;
 
     const playerPoints: PlayerTournamentPoints = {
       playerId: player.playerId,
@@ -490,16 +518,18 @@ export async function awardPointsToFlexibleKingPlayers(
       .doc(tournamentId);
 
     batch.set(pointsRef, playerPoints);
+    awardedPlayerIds.push(player.playerId);
   }
 
   await batch.commit();
 
-  // Update global rankings for all players
-  const playerIds = ranking.map(p => p.playerId);
-  await updateGlobalRankings(playerIds);
+  // Update global rankings only for real players who received points
+  if (awardedPlayerIds.length > 0) {
+    await updateGlobalRankings(awardedPlayerIds);
+  }
 
   return {
-    playersUpdated: ranking.length,
+    playersUpdated: awardedPlayerIds.length,
     totalPoints
   };
 }

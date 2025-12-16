@@ -1317,17 +1317,19 @@ export const freezeRanking = async (req: Request, res: Response) => {
       const rank = i + 1;
 
       if (teamData.members && Array.isArray(teamData.members) && teamData.members.length > 0) {
-        const playerIds = await awardPointsToTeam(
+        await awardPointsToTeam(
           tournamentId,
           tournamentName,
           tournamentDate,
-          teamData,
+          teamData.name || 'Équipe',
+          teamData.members,
           rank
         );
 
-        playerIds.forEach(id => {
-          if (!newAffectedPlayerIds.includes(id)) {
-            newAffectedPlayerIds.push(id);
+        // Add non-virtual member IDs to affected list
+        teamData.members.forEach((member: any) => {
+          if (!member.isVirtual && !newAffectedPlayerIds.includes(member.userId)) {
+            newAffectedPlayerIds.push(member.userId);
           }
         });
       }
@@ -2505,6 +2507,59 @@ export const linkVirtualToRealUser = async (req: Request, res: Response) => {
     // Commit all changes
     await batch.commit();
 
+    // Transfer tournament points from virtual user to real user
+    let pointsTransferred = 0;
+    try {
+      const virtualPointsSnapshot = await adminDb
+        .collection('playerTournamentPoints')
+        .doc(virtualUserId)
+        .collection('tournaments')
+        .get();
+
+      if (!virtualPointsSnapshot.empty) {
+        const pointsBatch = adminDb.batch();
+
+        for (const pointsDoc of virtualPointsSnapshot.docs) {
+          const pointsData = pointsDoc.data();
+
+          // Transfer points to real user (update playerId and pseudo)
+          const realPointsRef = adminDb
+            .collection('playerTournamentPoints')
+            .doc(realUserId)
+            .collection('tournaments')
+            .doc(pointsDoc.id);
+
+          pointsBatch.set(realPointsRef, {
+            ...pointsData,
+            playerId: realUserId,
+            playerPseudo: realUserData.pseudo,
+          });
+
+          // Delete old virtual user points
+          pointsBatch.delete(pointsDoc.ref);
+          pointsTransferred++;
+        }
+
+        await pointsBatch.commit();
+
+        // Delete virtual user's playerTournamentPoints parent document if it exists
+        await adminDb.collection('playerTournamentPoints').doc(virtualUserId).delete().catch(() => {
+          // Ignore error if document doesn't exist
+        });
+
+        // Delete virtual user's global ranking if it exists
+        await adminDb.collection('globalPlayerRanking').doc(virtualUserId).delete().catch(() => {
+          // Ignore error if document doesn't exist
+        });
+
+        // Recalculate global ranking for the real user
+        await updateGlobalRankings([realUserId]);
+      }
+    } catch (error) {
+      console.error('Error transferring tournament points:', error);
+      // Don't throw - the main linking operation succeeded
+    }
+
     // Delete virtual user from Firebase Auth
     try {
       await adminAuth.deleteUser(virtualUserId);
@@ -2514,7 +2569,7 @@ export const linkVirtualToRealUser = async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      message: 'Virtual account successfully linked to real account',
+      message: `Virtual account successfully linked to real account. ${pointsTransferred} tournament points transferred.`,
     });
   } catch (error) {
     console.error('Error linking virtual to real user:', error);
