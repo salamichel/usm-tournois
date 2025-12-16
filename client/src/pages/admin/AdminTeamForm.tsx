@@ -33,6 +33,8 @@ const AdminTeamForm = () => {
     captainId: '',
     captainPseudo: '',
     recruitmentOpen: true,
+    weight: 0,
+    globalRanking: 0,
   });
 
   useEffect(() => {
@@ -57,6 +59,8 @@ const AdminTeamForm = () => {
             captainId: team.captainId || '',
             captainPseudo: team.captainPseudo || '',
             recruitmentOpen: team.recruitmentOpen !== false,
+            weight: team.weight || 0,
+            globalRanking: team.globalRanking || 0,
           });
         } else {
           toast.error('Équipe non trouvée');
@@ -103,14 +107,12 @@ const AdminTeamForm = () => {
     try {
       // Update team with member removed
       const updatedMembers = formData.members.filter(m => m.userId !== memberId);
-      await adminService.updateTeam(tournamentId!, teamId!, {
+      const response = await adminService.updateTeam(tournamentId!, teamId!, {
         members: updatedMembers
       });
 
-      setFormData(prev => ({
-        ...prev,
-        members: updatedMembers
-      }));
+      // Reload team to get updated globalRanking
+      await loadTeam();
 
       // Refresh unassigned players
       loadUnassignedPlayers();
@@ -141,10 +143,8 @@ const AdminTeamForm = () => {
         members: updatedMembers
       });
 
-      setFormData(prev => ({
-        ...prev,
-        members: updatedMembers
-      }));
+      // Reload team to get updated globalRanking
+      await loadTeam();
 
       setSelectedPlayerId('');
       loadUnassignedPlayers();
@@ -189,13 +189,17 @@ const AdminTeamForm = () => {
       if (isEditMode) {
         await adminService.updateTeam(tournamentId!, teamId!, {
           name: formData.name,
-          recruitmentOpen: formData.recruitmentOpen
+          recruitmentOpen: formData.recruitmentOpen,
+          weight: formData.weight,
+          globalRanking: formData.globalRanking
         });
         toast.success('Équipe mise à jour avec succès');
       } else {
         await adminService.createTeam(tournamentId!, {
           name: formData.name,
-          recruitmentOpen: formData.recruitmentOpen
+          recruitmentOpen: formData.recruitmentOpen,
+          weight: formData.weight,
+          globalRanking: formData.globalRanking
         });
         toast.success('Équipe créée avec succès');
       }
@@ -252,6 +256,46 @@ const AdminTeamForm = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="weight" className="block text-sm font-medium text-gray-700 mb-1">
+                  Poids de l'équipe
+                </label>
+                <input
+                  type="number"
+                  id="weight"
+                  name="weight"
+                  value={formData.weight}
+                  onChange={handleChange}
+                  min="0"
+                  step="1"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ex: 1500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Utilisé pour équilibrer les poules
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="globalRanking" className="block text-sm font-medium text-gray-700 mb-1">
+                  Points de ranking global
+                </label>
+                <input
+                  type="number"
+                  id="globalRanking"
+                  name="globalRanking"
+                  value={formData.globalRanking}
+                  readOnly
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 cursor-not-allowed"
+                  placeholder="Calculé automatiquement"
+                />
+                <p className="text-xs text-blue-600 mt-1">
+                  ✨ Calculé automatiquement en additionnant les points des membres
+                </p>
+              </div>
             </div>
 
             {isEditMode && (

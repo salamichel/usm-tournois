@@ -7,6 +7,36 @@ import { generateEliminationBracket as generateEliminationBracketService, Qualif
 import { awardPointsToTeam, deleteTournamentPoints, updateGlobalRankings } from '../services/playerPoints.service';
 
 /**
+ * Helper function to calculate team's global ranking based on members' points
+ */
+async function calculateTeamGlobalRanking(members: any[]): Promise<number> {
+  let totalPoints = 0;
+
+  for (const member of members) {
+    // Skip virtual/placeholder members
+    if (member.isVirtual) continue;
+
+    try {
+      // Get player's global ranking
+      const playerRankingDoc = await adminDb
+        .collection('globalPlayerRanking')
+        .doc(member.userId)
+        .get();
+
+      if (playerRankingDoc.exists) {
+        const rankingData = playerRankingDoc.data();
+        totalPoints += rankingData?.totalPoints || 0;
+      }
+    } catch (error) {
+      console.error(`Error fetching points for player ${member.userId}:`, error);
+      // Continue with other members even if one fails
+    }
+  }
+
+  return totalPoints;
+}
+
+/**
  * Tournament Management
  */
 export const getAllTournaments = async (req: Request, res: Response) => {
@@ -567,6 +597,147 @@ export const assignTeamsToPool = async (req: Request, res: Response) => {
     console.error('Error assigning teams to pool:', error);
     if (error instanceof AppError) throw error;
     throw new AppError('Error assigning teams to pool', 500);
+  }
+};
+
+/**
+ * Distributes teams automatically across pools in a balanced way based on weight/ranking
+ * Uses snake draft algorithm for fair distribution
+ */
+export const distributeTeamsToPoolsAutomatically = async (req: Request, res: Response) => {
+  try {
+    const { tournamentId } = req.params;
+    const { sortBy = 'weight' } = req.body; // 'weight' or 'globalRanking'
+
+    // Get all teams
+    const teamsSnapshot = await adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('teams')
+      .get();
+
+    const allTeams = teamsSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      name: doc.data()?.name || 'Unknown Team',
+      weight: doc.data()?.weight || 0,
+      globalRanking: doc.data()?.globalRanking || 0,
+      poolId: doc.data()?.poolId,
+    }));
+
+    // Filter teams not already assigned to a pool
+    const unassignedTeams = allTeams.filter((team) => !team.poolId);
+
+    if (unassignedTeams.length === 0) {
+      throw new AppError('No unassigned teams to distribute', 400);
+    }
+
+    // Sort teams by the selected criterion (descending order - strongest first)
+    const sortedTeams = unassignedTeams.sort((a, b) => {
+      const valueA = sortBy === 'weight' ? a.weight : a.globalRanking;
+      const valueB = sortBy === 'weight' ? b.weight : b.globalRanking;
+      return valueB - valueA;
+    });
+
+    // Get all pools
+    const poolsSnapshot = await adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('pools')
+      .get();
+
+    if (poolsSnapshot.empty) {
+      throw new AppError('No pools found. Please create pools first.', 400);
+    }
+
+    const pools = poolsSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      name: doc.data()?.name || 'Unknown Pool',
+      teams: doc.data()?.teams || [],
+    }));
+
+    // Snake draft distribution
+    const poolAssignments: { [poolId: string]: any[] } = {};
+    pools.forEach((pool) => {
+      poolAssignments[pool.id] = [...pool.teams];
+    });
+
+    let poolIndex = 0;
+    let direction = 1; // 1 for forward, -1 for backward
+
+    for (const team of sortedTeams) {
+      const currentPool = pools[poolIndex];
+      poolAssignments[currentPool.id].push({
+        id: team.id,
+        name: team.name,
+      });
+
+      // Move to next pool
+      poolIndex += direction;
+
+      // Reverse direction at the ends (snake pattern)
+      if (poolIndex >= pools.length) {
+        poolIndex = pools.length - 1;
+        direction = -1;
+      } else if (poolIndex < 0) {
+        poolIndex = 0;
+        direction = 1;
+      }
+    }
+
+    // Update pools and teams in batch
+    const batch = adminDb.batch();
+
+    // Update each pool with its assigned teams
+    for (const poolId in poolAssignments) {
+      const poolRef = adminDb
+        .collection('events')
+        .doc(tournamentId)
+        .collection('pools')
+        .doc(poolId);
+
+      batch.update(poolRef, {
+        teams: poolAssignments[poolId],
+        updatedAt: new Date(),
+      });
+    }
+
+    // Update each team with its pool assignment
+    for (const team of sortedTeams) {
+      const assignedPoolId = Object.keys(poolAssignments).find((poolId) =>
+        poolAssignments[poolId].some((t) => t.id === team.id)
+      );
+
+      if (assignedPoolId) {
+        const teamRef = adminDb
+          .collection('events')
+          .doc(tournamentId)
+          .collection('teams')
+          .doc(team.id);
+
+        const assignedPool = pools.find((p) => p.id === assignedPoolId);
+
+        batch.update(teamRef, {
+          poolId: assignedPoolId,
+          poolName: assignedPool?.name,
+          updatedAt: new Date(),
+        });
+      }
+    }
+
+    await batch.commit();
+
+    res.json({
+      success: true,
+      message: `${sortedTeams.length} teams distributed across ${pools.length} pools`,
+      data: {
+        teamsDistributed: sortedTeams.length,
+        poolsCount: pools.length,
+      },
+    });
+  } catch (error: any) {
+    console.error('Error distributing teams to pools:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error distributing teams to pools', 500);
   }
 };
 
@@ -1591,7 +1762,7 @@ export const getTeams = async (req: Request, res: Response) => {
 export const createTeam = async (req: Request, res: Response) => {
   try {
     const { tournamentId } = req.params;
-    const { name, captainId, members, recruitmentOpen } = req.body;
+    const { name, captainId, members, recruitmentOpen, weight } = req.body;
 
     if (!name) {
       throw new AppError('Team name is required', 400);
@@ -1601,6 +1772,7 @@ export const createTeam = async (req: Request, res: Response) => {
       name,
       members: members || [],
       recruitmentOpen: recruitmentOpen !== undefined ? recruitmentOpen : false,
+      weight: weight ? parseInt(weight) : 0,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -1627,6 +1799,9 @@ export const createTeam = async (req: Request, res: Response) => {
       }
     }
 
+    // Automatically calculate globalRanking based on members' points
+    teamData.globalRanking = await calculateTeamGlobalRanking(teamData.members);
+
     const teamRef = await adminDb
       .collection('events')
       .doc(tournamentId)
@@ -1636,7 +1811,10 @@ export const createTeam = async (req: Request, res: Response) => {
     res.json({
       success: true,
       message: 'Team created successfully',
-      data: { id: teamRef.id },
+      data: {
+        id: teamRef.id,
+        globalRanking: teamData.globalRanking
+      },
     });
   } catch (error: any) {
     console.error('Error creating team:', error);
@@ -1648,7 +1826,7 @@ export const createTeam = async (req: Request, res: Response) => {
 export const updateTeam = async (req: Request, res: Response) => {
   try {
     const { tournamentId, teamId } = req.params;
-    const { name, captainId, captainPseudo, members, recruitmentOpen } = req.body;
+    const { name, captainId, captainPseudo, members, recruitmentOpen, weight } = req.body;
 
     const teamRef = adminDb
       .collection('events')
@@ -1681,14 +1859,22 @@ export const updateTeam = async (req: Request, res: Response) => {
         }
       }
     }
-    if (members !== undefined && members !== null) updateData.members = members;
+    if (members !== undefined && members !== null) {
+      updateData.members = members;
+      // Automatically calculate globalRanking based on members' points
+      updateData.globalRanking = await calculateTeamGlobalRanking(members);
+    }
     if (recruitmentOpen !== undefined && recruitmentOpen !== null) updateData.recruitmentOpen = recruitmentOpen === true || recruitmentOpen === 'true';
+    if (weight !== undefined && weight !== null) updateData.weight = parseInt(weight) || 0;
 
     await teamRef.update(updateData);
 
     res.json({
       success: true,
       message: 'Team updated successfully',
+      data: {
+        globalRanking: updateData.globalRanking
+      }
     });
   } catch (error: any) {
     console.error('Error updating team:', error);
@@ -1722,6 +1908,60 @@ export const deleteTeam = async (req: Request, res: Response) => {
     console.error('Error deleting team:', error);
     if (error instanceof AppError) throw error;
     throw new AppError('Error deleting team', 500);
+  }
+};
+
+/**
+ * Recalculate globalRanking for all teams in a tournament
+ */
+export const recalculateTeamsRanking = async (req: Request, res: Response) => {
+  try {
+    const { tournamentId } = req.params;
+
+    // Get all teams for this tournament
+    const teamsSnapshot = await adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('teams')
+      .get();
+
+    if (teamsSnapshot.empty) {
+      throw new AppError('No teams found for this tournament', 404);
+    }
+
+    const batch = adminDb.batch();
+    let updatedCount = 0;
+
+    // Calculate and update globalRanking for each team
+    for (const teamDoc of teamsSnapshot.docs) {
+      const teamData = teamDoc.data();
+      const members = teamData.members || [];
+
+      // Calculate new globalRanking
+      const globalRanking = await calculateTeamGlobalRanking(members);
+
+      // Update team with new globalRanking
+      batch.update(teamDoc.ref, {
+        globalRanking,
+        updatedAt: new Date(),
+      });
+
+      updatedCount++;
+    }
+
+    await batch.commit();
+
+    res.json({
+      success: true,
+      message: `Successfully recalculated ranking for ${updatedCount} teams`,
+      data: {
+        teamsUpdated: updatedCount,
+      },
+    });
+  } catch (error: any) {
+    console.error('Error recalculating teams ranking:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error recalculating teams ranking', 500);
   }
 };
 

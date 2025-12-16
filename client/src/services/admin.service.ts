@@ -106,6 +106,10 @@ class AdminService {
     }>(`/admin/tournaments/${tournamentId}/generate-random-teams`);
   }
 
+  async recalculateTeamsRanking(tournamentId: string) {
+    return apiService.post(`/admin/tournaments/${tournamentId}/teams/recalculate-ranking`);
+  }
+
   /**
    * Pool Management
    */
@@ -123,6 +127,10 @@ class AdminService {
 
   async generatePoolMatches(tournamentId: string, poolId: string) {
     return apiService.post(`/admin/tournaments/${tournamentId}/pools/${poolId}/generate-matches`);
+  }
+
+  async distributeTeamsToPoolsAutomatically(tournamentId: string, sortBy: 'weight' | 'globalRanking' = 'weight') {
+    return apiService.post(`/admin/tournaments/${tournamentId}/pools/distribute-teams`, { sortBy });
   }
 
   async updatePoolName(tournamentId: string, poolId: string, name: string) {

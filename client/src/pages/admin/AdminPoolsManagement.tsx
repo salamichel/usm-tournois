@@ -20,6 +20,8 @@ const AdminPoolsManagement = () => {
   const [selectedPoolId, setSelectedPoolId] = useState<string>('');
   const [qualifiedTeams, setQualifiedTeams] = useState<string[]>([]);
   const [showQualificationPanel, setShowQualificationPanel] = useState(false);
+  const [showDistributeModal, setShowDistributeModal] = useState(false);
+  const [distributeSortBy, setDistributeSortBy] = useState<'weight' | 'globalRanking'>('weight');
 
   // Clé localStorage unique par tournoi
   const qualifiedTeamsStorageKey = `qualified-teams-${tournamentId}`;
@@ -175,6 +177,24 @@ const AdminPoolsManagement = () => {
     }
   };
 
+  const handleDistributeTeams = async () => {
+    if (pools.length === 0) {
+      toast.error('Veuillez créer des poules avant de distribuer les équipes');
+      return;
+    }
+
+    try {
+      const response = await adminService.distributeTeamsToPoolsAutomatically(tournamentId!, distributeSortBy);
+      if (response.success) {
+        toast.success(response.message || 'Équipes distribuées avec succès');
+        setShowDistributeModal(false);
+        loadData();
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur lors de la distribution');
+    }
+  };
+
   if (loading) {
     return (
       <AdminLayout>
@@ -215,6 +235,26 @@ const AdminPoolsManagement = () => {
             </button>
           </form>
         </div>
+
+        {/* Distribution automatique des équipes */}
+        {pools.length > 0 && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+            <h2 className="text-xl font-bold mb-2 flex items-center gap-2">
+              <Users size={20} />
+              Distribution Automatique des Équipes
+            </h2>
+            <p className="text-gray-700 mb-4">
+              Distribuez automatiquement les équipes non assignées dans les poules de manière homogène en fonction de leur poids ou ranking.
+            </p>
+            <button
+              onClick={() => setShowDistributeModal(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md flex items-center gap-2"
+            >
+              <Users size={18} />
+              Distribuer les équipes automatiquement
+            </button>
+          </div>
+        )}
 
         {/* Phase d'élimination */}
         {tournament?.eliminationPhaseEnabled && (
@@ -380,6 +420,48 @@ const AdminPoolsManagement = () => {
           </div>
         )}
       </div>
+
+      {/* Distribution Modal */}
+      {showDistributeModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-bold mb-4">Distribution Automatique</h3>
+            <p className="text-gray-600 mb-4">
+              Choisissez le critère de tri pour distribuer les équipes de manière homogène dans les poules.
+            </p>
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Critère de tri
+              </label>
+              <select
+                value={distributeSortBy}
+                onChange={(e) => setDistributeSortBy(e.target.value as 'weight' | 'globalRanking')}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="weight">Poids de l'équipe</option>
+                <option value="globalRanking">Points de ranking global</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-2">
+                Les équipes seront triées par ordre décroissant et distribuées selon l'algorithme "serpent" pour équilibrer les poules.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDistributeModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleDistributeTeams}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                Distribuer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Score Modal */}
       <MatchScoreModal

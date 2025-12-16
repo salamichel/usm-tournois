@@ -26,6 +26,8 @@ interface Team {
   recruitmentOpen: boolean;
   poolId?: string;
   poolName?: string;
+  weight?: number;
+  globalRanking?: number;
 }
 
 interface Tournament {
@@ -107,6 +109,22 @@ const AdminGlobalTeams = () => {
       }
     } catch (error: any) {
       toast.error(error.message || 'Erreur lors de la suppression');
+    }
+  };
+
+  const handleRecalculateRanking = async (tournamentId: string, tournamentName: string) => {
+    if (!confirm(`Recalculer le ranking de toutes les équipes du tournoi "${tournamentName}" ?\n\nCela mettra à jour le total des points de chaque équipe en fonction des points actuels de leurs membres.`)) {
+      return;
+    }
+
+    try {
+      const response = await adminService.recalculateTeamsRanking(tournamentId);
+      if (response.success) {
+        toast.success(response.message || 'Ranking recalculé avec succès');
+        fetchAllTeams();
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur lors du recalcul');
     }
   };
 
@@ -270,6 +288,16 @@ const AdminGlobalTeams = () => {
                     <span className={`badge ${tournament.isActive ? 'badge-success' : 'badge-default'}`}>
                       {tournament.isActive ? 'Actif' : 'Inactif'}
                     </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRecalculateRanking(tournament.id, tournament.name);
+                      }}
+                      className="btn-sm bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs"
+                      title="Recalculer le ranking de toutes les équipes"
+                    >
+                      Recalculer Ranking
+                    </button>
                     <Link
                       to={`/admin/tournaments/${tournament.id}/teams`}
                       className="btn-sm btn-secondary"
@@ -290,6 +318,8 @@ const AdminGlobalTeams = () => {
                             <th className="pb-2 font-medium">Équipe</th>
                             <th className="pb-2 font-medium">Capitaine</th>
                             <th className="pb-2 font-medium">Membres</th>
+                            <th className="pb-2 font-medium text-center">Poids</th>
+                            <th className="pb-2 font-medium text-center">Ranking</th>
                             <th className="pb-2 font-medium">Statut</th>
                             <th className="pb-2 font-medium text-right">Actions</th>
                           </tr>
@@ -320,6 +350,16 @@ const AdminGlobalTeams = () => {
                                     {team.members?.length || 0}/{tournament.playersPerTeam}
                                   </span>
                                 </div>
+                              </td>
+                              <td className="py-3 text-center">
+                                <span className="text-sm font-medium text-gray-700">
+                                  {team.weight || '-'}
+                                </span>
+                              </td>
+                              <td className="py-3 text-center">
+                                <span className="text-sm font-medium text-gray-700">
+                                  {team.globalRanking || '-'}
+                                </span>
                               </td>
                               <td className="py-3">
                                 <div className="flex flex-wrap gap-1">

@@ -31,6 +31,7 @@ router.put('/tournaments/:tournamentId/pools/:poolId', asyncHandler(adminControl
 router.delete('/tournaments/:tournamentId/pools/:poolId', asyncHandler(adminController.deletePool));
 router.post('/tournaments/:tournamentId/pools/:poolId/assign-teams', asyncHandler(adminController.assignTeamsToPool));
 router.post('/tournaments/:tournamentId/pools/:poolId/generate-matches', asyncHandler(adminController.generatePoolMatches));
+router.post('/tournaments/:tournamentId/pools/distribute-teams', asyncHandler(adminController.distributeTeamsToPoolsAutomatically));
 
 /**
  * Elimination Management
@@ -54,6 +55,7 @@ router.post('/tournaments/:tournamentId/teams', asyncHandler(adminController.cre
 router.put('/tournaments/:tournamentId/teams/:teamId', asyncHandler(adminController.updateTeam));
 router.delete('/tournaments/:tournamentId/teams/:teamId', asyncHandler(adminController.deleteTeam));
 router.post('/tournaments/:tournamentId/generate-random-teams', asyncHandler(adminController.generateRandomTeams));
+router.post('/tournaments/:tournamentId/teams/recalculate-ranking', asyncHandler(adminController.recalculateTeamsRanking));
 
 /**
  * User Management
