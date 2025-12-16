@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { adminDb } from '../config/firebase.config';
+import { adminDb, adminAuth } from '../config/firebase.config';
 import { AppError } from '../middlewares/error.middleware';
 import { convertTimestamps } from '../utils/firestore.utils';
 import { calculateMatchOutcome, propagateEliminationMatchResults } from '../services/match.service';
@@ -2003,7 +2003,7 @@ export const getAllUsers = async (req: Request, res: Response) => {
 
 export const createUser = async (req: Request, res: Response) => {
   try {
-    const { email, pseudo, level, role, clubId } = req.body;
+    const { email, pseudo, level, role, clubId, password } = req.body;
 
     if (!email) {
       throw new AppError('Email is required', 400);
@@ -2013,26 +2013,48 @@ export const createUser = async (req: Request, res: Response) => {
       throw new AppError('Pseudo is required', 400);
     }
 
+    if (!password || password.length < 6) {
+      throw new AppError('Password must be at least 6 characters', 400);
+    }
+
+    // Create Firebase Auth account
+    const userRecord = await adminAuth.createUser({
+      email,
+      password,
+      displayName: pseudo,
+    });
+
+    const userId = userRecord.uid;
+
     const userData: any = {
       email,
       pseudo,
       level: level || 'Débutant',
       role: role || 'user',
       clubId: clubId || null,
+      isVirtual: false,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
 
-    const userRef = await adminDb.collection('users').add(userData);
+    // Use Firebase Auth UID as document ID for consistency
+    await adminDb.collection('users').doc(userId).set(userData);
 
     res.json({
       success: true,
       message: 'User created successfully',
-      data: { id: userRef.id },
+      data: { id: userId },
     });
   } catch (error: any) {
     console.error('Error creating user:', error);
     if (error instanceof AppError) throw error;
+    // Handle Firebase Auth specific errors
+    if (error.code === 'auth/email-already-exists') {
+      throw new AppError('Un compte avec cet email existe déjà', 400);
+    }
+    if (error.code === 'auth/invalid-email') {
+      throw new AppError('Email invalide', 400);
+    }
     throw new AppError('Error creating user', 500);
   }
 };
@@ -2484,7 +2506,6 @@ export const linkVirtualToRealUser = async (req: Request, res: Response) => {
     await batch.commit();
 
     // Delete virtual user from Firebase Auth
-    const { adminAuth } = await import('../config/firebase.config');
     try {
       await adminAuth.deleteUser(virtualUserId);
     } catch (error) {

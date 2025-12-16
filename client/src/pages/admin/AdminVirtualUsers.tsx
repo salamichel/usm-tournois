@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { UserCog, Link as LinkIcon, Users, ArrowLeft } from 'lucide-react';
+import { UserCog, Link as LinkIcon, Users, ArrowLeft, UserPlus, CheckSquare, Square } from 'lucide-react';
+import type { UserLevel } from '@shared/types';
 
 interface VirtualUser {
   id: string;
@@ -31,9 +32,19 @@ const AdminVirtualUsers = () => {
   const [realUsers, setRealUsers] = useState<RealUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showLinkModal, setShowLinkModal] = useState(false);
-  const [selectedVirtualUser, setSelectedVirtualUser] = useState<VirtualUser | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [selectedVirtualUsers, setSelectedVirtualUsers] = useState<VirtualUser[]>([]);
   const [selectedRealUserId, setSelectedRealUserId] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Form state for creating new real user
+  const [newUserForm, setNewUserForm] = useState({
+    pseudo: '',
+    email: '',
+    password: '',
+    level: 'Intermédiaire' as UserLevel,
+  });
 
   useEffect(() => {
     fetchData();
@@ -75,37 +86,62 @@ const AdminVirtualUsers = () => {
     }
   };
 
-  const handleLinkClick = (virtualUser: VirtualUser) => {
-    setSelectedVirtualUser(virtualUser);
+  const toggleSelectUser = (user: VirtualUser) => {
+    setSelectedVirtualUsers((prev) => {
+      const isSelected = prev.some((u) => u.id === user.id);
+      if (isSelected) {
+        return prev.filter((u) => u.id !== user.id);
+      } else {
+        return [...prev, user];
+      }
+    });
+  };
+
+  const selectAll = () => {
+    if (selectedVirtualUsers.length === filteredUsers.length) {
+      setSelectedVirtualUsers([]);
+    } else {
+      setSelectedVirtualUsers([...filteredUsers]);
+    }
+  };
+
+  const handleLinkClick = () => {
+    if (selectedVirtualUsers.length === 0) {
+      toast.error('Sélectionnez au moins un compte virtuel');
+      return;
+    }
     setShowLinkModal(true);
   };
 
   const handleLink = async () => {
-    if (!selectedVirtualUser || !selectedRealUserId) return;
+    if (selectedVirtualUsers.length === 0 || !selectedRealUserId) return;
 
     try {
       setProcessing(true);
 
-      const response = await fetch('/api/admin/virtual-users/link', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          virtualUserId: selectedVirtualUser.id,
-          realUserId: selectedRealUserId,
-        }),
-      });
+      // Link each virtual user to the real user
+      for (const virtualUser of selectedVirtualUsers) {
+        const response = await fetch('/api/admin/virtual-users/link', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            virtualUserId: virtualUser.id,
+            realUserId: selectedRealUserId,
+          }),
+        });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error?.message || 'Failed to link accounts');
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error?.message || `Erreur lors de la liaison de ${virtualUser.pseudo}`);
+        }
       }
 
-      toast.success('Compte virtuel lié avec succès !');
+      toast.success(`${selectedVirtualUsers.length} compte(s) virtuel(s) lié(s) avec succès !`);
       setShowLinkModal(false);
-      setSelectedVirtualUser(null);
+      setSelectedVirtualUsers([]);
       setSelectedRealUserId('');
       fetchData();
     } catch (error: any) {
@@ -115,6 +151,86 @@ const AdminVirtualUsers = () => {
       setProcessing(false);
     }
   };
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!newUserForm.pseudo || !newUserForm.email || !newUserForm.password) {
+      toast.error('Veuillez remplir tous les champs obligatoires');
+      return;
+    }
+
+    if (newUserForm.password.length < 6) {
+      toast.error('Le mot de passe doit contenir au moins 6 caractères');
+      return;
+    }
+
+    try {
+      setProcessing(true);
+
+      const response = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          pseudo: newUserForm.pseudo,
+          email: newUserForm.email,
+          password: newUserForm.password,
+          level: newUserForm.level,
+          role: 'player',
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Erreur lors de la création');
+      }
+
+      const result = await response.json();
+
+      toast.success('Compte réel créé avec succès !');
+      setShowCreateModal(false);
+      setNewUserForm({ pseudo: '', email: '', password: '', level: 'Intermédiaire' });
+
+      // Refresh data and auto-select the new user
+      await fetchData();
+      setSelectedRealUserId(result.data.id);
+
+      // If there were selected virtual users, ask if they want to link now
+      if (selectedVirtualUsers.length > 0) {
+        setShowLinkModal(true);
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur lors de la création du compte');
+      console.error(error);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleCreateAndLink = () => {
+    // Pre-fill the form with the first selected virtual user's info
+    if (selectedVirtualUsers.length > 0) {
+      const firstUser = selectedVirtualUsers[0];
+      setNewUserForm({
+        pseudo: firstUser.pseudo,
+        email: '',
+        password: '',
+        level: firstUser.level as UserLevel,
+      });
+    }
+    setShowCreateModal(true);
+  };
+
+  // Filter users based on search
+  const filteredUsers = virtualUsers.filter(
+    (user) =>
+      user.pseudo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.teams.some((t) => t.teamName.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
   if (isLoading) {
     return (
@@ -140,7 +256,20 @@ const AdminVirtualUsers = () => {
           Gestion des comptes virtuels
         </h1>
         <p className="text-gray-600 mt-2">
-          Gérer et lier les comptes virtuels aux comptes réels
+          Consolidez les comptes virtuels en les liant à un compte réel pour unifier les points
+        </p>
+      </div>
+
+      {/* Info box */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+        <h3 className="font-semibold text-blue-900 mb-2">Comment consolider les comptes ?</h3>
+        <ol className="text-sm text-blue-800 list-decimal list-inside space-y-1">
+          <li>Sélectionnez les comptes virtuels qui appartiennent à la même personne</li>
+          <li>Créez un compte réel pour cette personne (ou sélectionnez-en un existant)</li>
+          <li>Liez tous les comptes virtuels sélectionnés à ce compte réel</li>
+        </ol>
+        <p className="text-sm text-blue-700 mt-2">
+          Les points seront automatiquement consolidés sur le compte réel.
         </p>
       </div>
 
@@ -150,117 +279,167 @@ const AdminVirtualUsers = () => {
           <p className="text-gray-500 text-lg">Aucun compte virtuel trouvé</p>
         </div>
       ) : (
-        <div className="card">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">
-            Comptes virtuels ({virtualUsers.length})
-          </h2>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Pseudo
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Email
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Niveau
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Équipes
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {virtualUsers.map((user) => (
-                  <tr key={user.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="font-medium text-gray-900">{user.pseudo}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500">{user.email}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                        {user.level}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      {user.teams.length > 0 ? (
-                        <div className="text-sm text-gray-900">
-                          {user.teams.map((team, idx) => (
-                            <div key={idx} className="mb-1">
-                              {team.teamName} ({team.tournamentName})
-                              {team.isCaptain && (
-                                <span className="ml-2 text-xs text-primary-600 font-semibold">
-                                  Capitaine
-                                </span>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-sm text-gray-400">Aucune équipe</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <button
-                        onClick={() => handleLinkClick(user)}
-                        className="btn-primary-outline flex items-center gap-2"
-                      >
-                        <LinkIcon size={16} />
-                        Lier à un compte réel
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <>
+          {/* Search and actions bar */}
+          <div className="mb-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <input
+              type="text"
+              placeholder="Rechercher par pseudo, email ou équipe..."
+              className="input max-w-md"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+
+            <div className="flex gap-2 flex-wrap">
+              {selectedVirtualUsers.length > 0 && (
+                <>
+                  <span className="text-sm text-gray-600 self-center">
+                    {selectedVirtualUsers.length} sélectionné(s)
+                  </span>
+                  <button
+                    onClick={handleCreateAndLink}
+                    className="btn-secondary flex items-center gap-2"
+                  >
+                    <UserPlus size={16} />
+                    Créer un compte réel
+                  </button>
+                  <button
+                    onClick={handleLinkClick}
+                    className="btn-primary flex items-center gap-2"
+                  >
+                    <LinkIcon size={16} />
+                    Lier à un compte existant
+                  </button>
+                </>
+              )}
+            </div>
           </div>
-        </div>
+
+          <div className="card">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              Comptes virtuels ({filteredUsers.length})
+            </h2>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left">
+                      <button
+                        onClick={selectAll}
+                        className="text-gray-500 hover:text-gray-700"
+                        title={selectedVirtualUsers.length === filteredUsers.length ? 'Tout désélectionner' : 'Tout sélectionner'}
+                      >
+                        {selectedVirtualUsers.length === filteredUsers.length && filteredUsers.length > 0 ? (
+                          <CheckSquare size={20} />
+                        ) : (
+                          <Square size={20} />
+                        )}
+                      </button>
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Pseudo
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Niveau
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Équipes
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredUsers.map((user) => {
+                    const isSelected = selectedVirtualUsers.some((u) => u.id === user.id);
+                    return (
+                      <tr
+                        key={user.id}
+                        className={`cursor-pointer transition-colors ${isSelected ? 'bg-primary-50' : 'hover:bg-gray-50'}`}
+                        onClick={() => toggleSelectUser(user)}
+                      >
+                        <td className="px-4 py-4">
+                          {isSelected ? (
+                            <CheckSquare size={20} className="text-primary-600" />
+                          ) : (
+                            <Square size={20} className="text-gray-400" />
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="font-medium text-gray-900">{user.pseudo}</div>
+                          <div className="text-xs text-gray-400">{user.email}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                            {user.level}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          {user.teams.length > 0 ? (
+                            <div className="text-sm text-gray-900">
+                              {user.teams.map((team, idx) => (
+                                <div key={idx} className="mb-1">
+                                  {team.teamName} ({team.tournamentName})
+                                  {team.isCaptain && (
+                                    <span className="ml-2 text-xs text-primary-600 font-semibold">
+                                      Capitaine
+                                    </span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-sm text-gray-400">Aucune équipe</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={() => {
+                              setSelectedVirtualUsers([user]);
+                              setShowLinkModal(true);
+                            }}
+                            className="btn-primary-outline flex items-center gap-2"
+                          >
+                            <LinkIcon size={16} />
+                            Lier
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Link Modal */}
-      {showLinkModal && selectedVirtualUser && (
+      {showLinkModal && selectedVirtualUsers.length > 0 && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-bold text-gray-900 mb-4">
-              Lier le compte virtuel "{selectedVirtualUser.pseudo}"
+              Lier {selectedVirtualUsers.length} compte(s) virtuel(s)
             </h3>
 
-            <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-              <h4 className="font-semibold text-gray-900 mb-2">Compte virtuel</h4>
-              <p className="text-sm text-gray-700">
-                <strong>Pseudo:</strong> {selectedVirtualUser.pseudo}
-              </p>
-              <p className="text-sm text-gray-700">
-                <strong>Email:</strong> {selectedVirtualUser.email}
-              </p>
-              <p className="text-sm text-gray-700">
-                <strong>Niveau:</strong> {selectedVirtualUser.level}
-              </p>
-              {selectedVirtualUser.teams.length > 0 && (
-                <div className="mt-2">
-                  <strong className="text-sm text-gray-700">Équipes:</strong>
-                  <ul className="list-disc list-inside text-sm text-gray-700">
-                    {selectedVirtualUser.teams.map((team, idx) => (
-                      <li key={idx}>
-                        {team.teamName} - {team.tournamentName}
-                        {team.isCaptain && ' (Capitaine)'}
-                      </li>
-                    ))}
-                  </ul>
+            <div className="mb-6 p-4 bg-blue-50 rounded-lg max-h-48 overflow-y-auto">
+              <h4 className="font-semibold text-gray-900 mb-2">Comptes virtuels à lier :</h4>
+              {selectedVirtualUsers.map((user) => (
+                <div key={user.id} className="text-sm text-gray-700 mb-2 pb-2 border-b border-blue-100 last:border-0">
+                  <strong>{user.pseudo}</strong> ({user.level})
+                  {user.teams.length > 0 && (
+                    <span className="text-gray-500 ml-2">
+                      - {user.teams.map((t) => t.teamName).join(', ')}
+                    </span>
+                  )}
                 </div>
-              )}
+              ))}
             </div>
 
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Sélectionner le compte réel
+                Sélectionner le compte réel de destination
               </label>
               <select
                 className="input"
@@ -276,6 +455,19 @@ const AdminVirtualUsers = () => {
               </select>
             </div>
 
+            <div className="mb-4">
+              <button
+                onClick={() => {
+                  setShowLinkModal(false);
+                  handleCreateAndLink();
+                }}
+                className="text-primary-600 hover:text-primary-700 text-sm flex items-center gap-1"
+              >
+                <UserPlus size={16} />
+                Ou créer un nouveau compte réel
+              </button>
+            </div>
+
             <div className="flex gap-3">
               <button
                 onClick={handleLink}
@@ -287,7 +479,6 @@ const AdminVirtualUsers = () => {
               <button
                 onClick={() => {
                   setShowLinkModal(false);
-                  setSelectedVirtualUser(null);
                   setSelectedRealUserId('');
                 }}
                 disabled={processing}
@@ -296,6 +487,101 @@ const AdminVirtualUsers = () => {
                 Annuler
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create User Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <UserPlus size={24} />
+              Créer un compte réel
+            </h3>
+
+            <form onSubmit={handleCreateUser} className="space-y-4">
+              <div>
+                <label htmlFor="pseudo" className="block text-sm font-medium text-gray-700 mb-1">
+                  Pseudo *
+                </label>
+                <input
+                  type="text"
+                  id="pseudo"
+                  className="input"
+                  value={newUserForm.pseudo}
+                  onChange={(e) => setNewUserForm({ ...newUserForm, pseudo: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  className="input"
+                  value={newUserForm.email}
+                  onChange={(e) => setNewUserForm({ ...newUserForm, email: e.target.value })}
+                  required
+                  placeholder="email@example.com"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                  Mot de passe * (min. 6 caractères)
+                </label>
+                <input
+                  type="password"
+                  id="password"
+                  className="input"
+                  value={newUserForm.password}
+                  onChange={(e) => setNewUserForm({ ...newUserForm, password: e.target.value })}
+                  required
+                  minLength={6}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="level" className="block text-sm font-medium text-gray-700 mb-1">
+                  Niveau
+                </label>
+                <select
+                  id="level"
+                  className="input"
+                  value={newUserForm.level}
+                  onChange={(e) => setNewUserForm({ ...newUserForm, level: e.target.value as UserLevel })}
+                >
+                  <option value="Débutant">Débutant</option>
+                  <option value="Intermédiaire">Intermédiaire</option>
+                  <option value="Confirmé">Confirmé</option>
+                </select>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="submit"
+                  disabled={processing}
+                  className="btn-primary flex-1"
+                >
+                  {processing ? 'Création...' : 'Créer le compte'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    setNewUserForm({ pseudo: '', email: '', password: '', level: 'Intermédiaire' });
+                  }}
+                  disabled={processing}
+                  className="btn-secondary flex-1"
+                >
+                  Annuler
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
