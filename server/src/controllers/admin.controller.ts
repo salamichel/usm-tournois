@@ -2262,6 +2262,85 @@ export const removeUnassignedPlayer = async (req: Request, res: Response) => {
   }
 };
 
+export const addUnassignedPlayer = async (req: Request, res: Response) => {
+  try {
+    const { tournamentId } = req.params;
+    const { userId } = req.body;
+
+    // Validate parameters
+    if (!tournamentId || typeof tournamentId !== 'string' || tournamentId.trim() === '') {
+      throw new AppError('Tournament ID is required', 400);
+    }
+    if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+      throw new AppError('User ID is required', 400);
+    }
+
+    // Check if tournament exists
+    const tournamentDoc = await adminDb.collection('events').doc(tournamentId).get();
+    if (!tournamentDoc.exists) {
+      throw new AppError('Tournament not found', 404);
+    }
+
+    // Get user data
+    const userDoc = await adminDb.collection('users').doc(userId).get();
+    if (!userDoc.exists) {
+      throw new AppError('User not found', 404);
+    }
+    const userData = userDoc.data();
+
+    // Check if player is already in the unassigned list
+    const existingPlayerDoc = await adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('unassignedPlayers')
+      .doc(userId)
+      .get();
+
+    if (existingPlayerDoc.exists) {
+      throw new AppError('Ce joueur est déjà dans la liste des joueurs non assignés', 400);
+    }
+
+    // Check if player is already in a team
+    const teamsSnapshot = await adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('teams')
+      .get();
+
+    for (const teamDoc of teamsSnapshot.docs) {
+      const teamData = teamDoc.data();
+      const members = teamData.members || [];
+      if (members.some((m: any) => m.userId === userId)) {
+        throw new AppError('Ce joueur est déjà membre d\'une équipe dans ce tournoi', 400);
+      }
+    }
+
+    // Add player to unassigned list
+    await adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('unassignedPlayers')
+      .doc(userId)
+      .set({
+        userId: userId,
+        pseudo: userData?.pseudo || 'Inconnu',
+        email: userData?.email || '',
+        level: userData?.level || 'N/A',
+        sexe: userData?.sexe || 'homme',
+        registeredAt: new Date(),
+      });
+
+    res.json({
+      success: true,
+      message: 'Joueur ajouté avec succès',
+    });
+  } catch (error: any) {
+    console.error('Error adding unassigned player:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error adding unassigned player', 500);
+  }
+};
+
 /**
  * Dashboard
  */

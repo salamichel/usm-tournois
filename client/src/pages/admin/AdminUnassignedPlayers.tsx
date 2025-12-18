@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import AdminLayout from '@components/AdminLayout';
 import adminService from '@services/admin.service';
 import toast from 'react-hot-toast';
-import { ArrowLeft, UserMinus, Trash2, Shuffle } from 'lucide-react';
+import { ArrowLeft, UserMinus, Trash2, Shuffle, UserPlus, X, Search } from 'lucide-react';
 
 const AdminUnassignedPlayers = () => {
   const { tournamentId } = useParams();
@@ -12,9 +12,33 @@ const AdminUnassignedPlayers = () => {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
 
+  // Modal state
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [addingPlayer, setAddingPlayer] = useState(false);
+
   useEffect(() => {
     loadData();
   }, [tournamentId]);
+
+  useEffect(() => {
+    // Filter users based on search term
+    if (searchTerm.trim() === '') {
+      setFilteredUsers(allUsers);
+    } else {
+      const term = searchTerm.toLowerCase();
+      setFilteredUsers(
+        allUsers.filter(
+          (user) =>
+            user.pseudo?.toLowerCase().includes(term) ||
+            user.email?.toLowerCase().includes(term)
+        )
+      );
+    }
+  }, [searchTerm, allUsers]);
 
   const loadData = async () => {
     try {
@@ -30,6 +54,52 @@ const AdminUnassignedPlayers = () => {
       toast.error(error.message || 'Erreur lors du chargement');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAllUsers = async () => {
+    try {
+      setLoadingUsers(true);
+      const response = await adminService.getAllUsers();
+      const users = response.data?.users || [];
+
+      // Filter out users who are already in the unassigned list
+      const playerIds = players.map((p) => p.id);
+      const availableUsers = users.filter((u: any) => !playerIds.includes(u.id));
+
+      setAllUsers(availableUsers);
+      setFilteredUsers(availableUsers);
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur lors du chargement des utilisateurs');
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const handleOpenAddModal = () => {
+    setShowAddModal(true);
+    setSearchTerm('');
+    loadAllUsers();
+  };
+
+  const handleCloseAddModal = () => {
+    setShowAddModal(false);
+    setSearchTerm('');
+    setAllUsers([]);
+    setFilteredUsers([]);
+  };
+
+  const handleAddPlayer = async (userId: string) => {
+    try {
+      setAddingPlayer(true);
+      await adminService.addUnassignedPlayer(tournamentId!, userId);
+      toast.success('Joueur ajouté avec succès');
+      handleCloseAddModal();
+      loadData();
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur lors de l\'ajout du joueur');
+    } finally {
+      setAddingPlayer(false);
     }
   };
 
@@ -91,23 +161,32 @@ const AdminUnassignedPlayers = () => {
         </div>
 
         <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
             <p className="text-gray-600">
               {tournament?.registrationMode === 'random'
                 ? `${players.length} joueur(s) inscrit(s). Les équipes seront générées de manière équilibrée par niveau.`
                 : 'Ces joueurs se sont inscrits au tournoi mais n\'ont pas encore rejoint ou créé d\'équipe.'}
             </p>
-            {tournament?.registrationMode === 'random' && players.length > 0 && (
+            <div className="flex items-center gap-2 flex-shrink-0">
               <button
-                onClick={handleGenerateRandomTeams}
-                disabled={generating || players.length < tournament.playersPerTeam}
-                className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                title={players.length < tournament.playersPerTeam ? `Besoin d'au moins ${tournament.playersPerTeam} joueurs` : 'Générer les équipes équilibrées par niveau'}
+                onClick={handleOpenAddModal}
+                className="btn-secondary flex items-center gap-2"
               >
-                <Shuffle size={18} />
-                {generating ? 'Génération...' : 'Générer les équipes équilibrées'}
+                <UserPlus size={18} />
+                Ajouter un joueur
               </button>
-            )}
+              {tournament?.registrationMode === 'random' && players.length > 0 && (
+                <button
+                  onClick={handleGenerateRandomTeams}
+                  disabled={generating || players.length < tournament.playersPerTeam}
+                  className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  title={players.length < tournament.playersPerTeam ? `Besoin d'au moins ${tournament.playersPerTeam} joueurs` : 'Générer les équipes équilibrées par niveau'}
+                >
+                  <Shuffle size={18} />
+                  {generating ? 'Génération...' : 'Générer les équipes équilibrées'}
+                </button>
+              )}
+            </div>
           </div>
 
           {players.length > 0 ? (
@@ -176,6 +255,87 @@ const AdminUnassignedPlayers = () => {
           )}
         </div>
       </div>
+
+      {/* Modal d'ajout de joueur */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="text-xl font-semibold flex items-center gap-2">
+                <UserPlus size={20} />
+                Ajouter un joueur
+              </h2>
+              <button
+                onClick={handleCloseAddModal}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="p-4 border-b">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                <input
+                  type="text"
+                  placeholder="Rechercher par pseudo ou email..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4">
+              {loadingUsers ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-gray-600">Chargement des utilisateurs...</div>
+                </div>
+              ) : filteredUsers.length > 0 ? (
+                <div className="space-y-2">
+                  {filteredUsers.map((user) => (
+                    <div
+                      key={user.id}
+                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-gray-900 truncate">{user.pseudo}</p>
+                        <p className="text-sm text-gray-500 truncate">{user.email}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                            user.level?.toLowerCase() === 'débutant' ? 'bg-gray-100 text-gray-800' :
+                            user.level?.toLowerCase() === 'intermédiaire' ? 'bg-blue-100 text-blue-800' :
+                            user.level?.toLowerCase() === 'confirmé' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {user.level || 'N/A'}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {user.sexe === 'femme' ? 'F' : 'H'}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleAddPlayer(user.id)}
+                        disabled={addingPlayer}
+                        className="ml-4 px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                      >
+                        <UserPlus size={16} />
+                        Ajouter
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  {searchTerm ? 'Aucun utilisateur trouvé' : 'Aucun utilisateur disponible'}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 };

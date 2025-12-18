@@ -71,6 +71,7 @@ router.delete('/users/:id', asyncHandler(adminController.deleteUser));
  * Unassigned Players Management
  */
 router.get('/tournaments/:tournamentId/unassigned-players', asyncHandler(adminController.getUnassignedPlayers));
+router.post('/tournaments/:tournamentId/unassigned-players', asyncHandler(adminController.addUnassignedPlayer));
 router.delete('/tournaments/:tournamentId/unassigned-players/:userId', asyncHandler(adminController.removeUnassignedPlayer));
 
 /**
