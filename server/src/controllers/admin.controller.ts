@@ -2702,6 +2702,126 @@ export const linkVirtualToRealUser = async (req: Request, res: Response) => {
 };
 
 /**
+ * Delete a virtual user
+ */
+export const deleteVirtualUser = async (req: Request, res: Response) => {
+  const { userId } = req.params;
+
+  if (!userId) {
+    throw new AppError('User ID is required', 400);
+  }
+
+  try {
+    // Verify user exists and is virtual
+    const userDoc = await adminDb.collection('users').doc(userId).get();
+
+    if (!userDoc.exists) {
+      throw new AppError('User not found', 404);
+    }
+
+    const userData = userDoc.data();
+
+    // Check if user is virtual by email pattern or flag
+    const isVirtualByEmail = userData?.email?.endsWith('@virtual.tournoi.com');
+    const isVirtualByFlag = userData?.isVirtual;
+
+    if (!isVirtualByEmail && !isVirtualByFlag) {
+      throw new AppError('This is not a virtual account', 400);
+    }
+
+    const batch = adminDb.batch();
+
+    // Remove virtual user from all teams
+    const eventsSnapshot = await adminDb.collection('events').get();
+
+    for (const eventDoc of eventsSnapshot.docs) {
+      const teamsSnapshot = await eventDoc.ref.collection('teams').get();
+
+      for (const teamDoc of teamsSnapshot.docs) {
+        const teamData = teamDoc.data();
+        const members = teamData.members || [];
+
+        // Check if virtual user is in this team
+        const memberIndex = members.findIndex((m: any) => m.userId === userId);
+
+        if (memberIndex !== -1) {
+          // Remove virtual user from team
+          members.splice(memberIndex, 1);
+
+          batch.update(teamDoc.ref, {
+            members,
+            updatedAt: new Date(),
+          });
+
+          // If virtual user was captain and there are remaining members, transfer captainship
+          if (teamData.captainId === userId && members.length > 0) {
+            batch.update(teamDoc.ref, {
+              captainId: members[0].userId,
+              captainPseudo: members[0].pseudo,
+            });
+          }
+        }
+      }
+
+      // Remove from unassigned players
+      const unassignedRef = eventDoc.ref.collection('unassignedPlayers').doc(userId);
+      const unassignedDoc = await unassignedRef.get();
+
+      if (unassignedDoc.exists) {
+        batch.delete(unassignedRef);
+      }
+    }
+
+    // Delete user document
+    batch.delete(adminDb.collection('users').doc(userId));
+
+    // Commit all changes
+    await batch.commit();
+
+    // Delete tournament points if any
+    try {
+      const pointsSnapshot = await adminDb
+        .collection('playerTournamentPoints')
+        .doc(userId)
+        .collection('tournaments')
+        .get();
+
+      if (!pointsSnapshot.empty) {
+        const pointsBatch = adminDb.batch();
+        for (const pointsDoc of pointsSnapshot.docs) {
+          pointsBatch.delete(pointsDoc.ref);
+        }
+        await pointsBatch.commit();
+      }
+
+      // Delete parent document
+      await adminDb.collection('playerTournamentPoints').doc(userId).delete().catch(() => {});
+
+      // Delete global ranking
+      await adminDb.collection('globalPlayerRanking').doc(userId).delete().catch(() => {});
+    } catch (error) {
+      console.error('Error deleting tournament points:', error);
+    }
+
+    // Delete from Firebase Auth
+    try {
+      await adminAuth.deleteUser(userId);
+    } catch (error) {
+      console.warn('Failed to delete virtual user from Firebase Auth:', error);
+    }
+
+    res.json({
+      success: true,
+      message: 'Virtual account deleted successfully',
+    });
+  } catch (error) {
+    console.error('Error deleting virtual user:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error deleting virtual account', 500);
+  }
+};
+
+/**
  * Generate random teams from unassigned players
  */
 export const generateRandomTeams = async (req: Request, res: Response) => {
