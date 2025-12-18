@@ -3263,3 +3263,411 @@ export const deletePool = async (req: Request, res: Response) => {
     throw new AppError('Error deleting pool', 500);
   }
 };
+
+/**
+ * Round Schedule Management
+ */
+
+/**
+ * Generate round schedule for all pool matches
+ * POST /admin/tournaments/:tournamentId/generate-round-schedule
+ *
+ * Algorithm:
+ * - Collect all matches from all pools
+ * - Distribute matches across rounds based on number of fields (courts)
+ * - Alternate between pools to balance the schedule
+ */
+export const generateRoundSchedule = async (req: Request, res: Response) => {
+  try {
+    const { tournamentId } = req.params;
+
+    // Get tournament configuration
+    const tournamentDoc = await adminDb.collection('events').doc(tournamentId).get();
+    if (!tournamentDoc.exists) {
+      throw new AppError('Tournament not found', 404);
+    }
+
+    const tournament = tournamentDoc.data();
+    const numberOfFields = tournament?.fields || 1;
+
+    // Get all pools with their matches
+    const poolsSnapshot = await adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('pools')
+      .get();
+
+    if (poolsSnapshot.empty) {
+      throw new AppError('No pools found for this tournament', 404);
+    }
+
+    // Collect all matches from all pools
+    interface PoolMatchData {
+      poolId: string;
+      poolName: string;
+      matchId: string;
+      matchRef: FirebaseFirestore.DocumentReference;
+      match: any;
+    }
+
+    const poolMatches: Map<string, PoolMatchData[]> = new Map();
+
+    for (const poolDoc of poolsSnapshot.docs) {
+      const poolData = poolDoc.data();
+      const matchesSnapshot = await poolDoc.ref.collection('matches').orderBy('matchNumber').get();
+
+      const matches: PoolMatchData[] = matchesSnapshot.docs.map(matchDoc => ({
+        poolId: poolDoc.id,
+        poolName: poolData.name || 'Unknown Pool',
+        matchId: matchDoc.id,
+        matchRef: matchDoc.ref,
+        match: matchDoc.data(),
+      }));
+
+      if (matches.length > 0) {
+        poolMatches.set(poolDoc.id, matches);
+      }
+    }
+
+    if (poolMatches.size === 0) {
+      throw new AppError('No matches found in any pool', 404);
+    }
+
+    // Build the round schedule by alternating between pools
+    const poolIds = Array.from(poolMatches.keys());
+    const poolIndices: Map<string, number> = new Map(poolIds.map(id => [id, 0]));
+
+    let roundNumber = 1;
+    let fieldNumber = 1;
+    const batch = adminDb.batch();
+    const scheduledMatches: any[] = [];
+
+    // Keep distributing until all matches are scheduled
+    let hasUnscheduledMatches = true;
+    while (hasUnscheduledMatches) {
+      hasUnscheduledMatches = false;
+
+      // For each field in this round, pick a match from the next pool in rotation
+      for (let field = 1; field <= numberOfFields; field++) {
+        // Find the next pool that has unscheduled matches
+        let matchAssigned = false;
+        for (let attempt = 0; attempt < poolIds.length; attempt++) {
+          const poolId = poolIds[(field - 1 + attempt) % poolIds.length];
+          const poolMatchList = poolMatches.get(poolId)!;
+          const currentIndex = poolIndices.get(poolId)!;
+
+          if (currentIndex < poolMatchList.length) {
+            const matchData = poolMatchList[currentIndex];
+
+            // Update the match with round and field info
+            batch.update(matchData.matchRef, {
+              roundNumber: roundNumber,
+              fieldNumber: field,
+              updatedAt: new Date(),
+            });
+
+            scheduledMatches.push({
+              matchId: matchData.matchId,
+              poolId: matchData.poolId,
+              poolName: matchData.poolName,
+              team1Name: matchData.match.team1?.name || 'TBD',
+              team2Name: matchData.match.team2?.name || 'TBD',
+              roundNumber: roundNumber,
+              fieldNumber: field,
+              status: matchData.match.status,
+            });
+
+            poolIndices.set(poolId, currentIndex + 1);
+            matchAssigned = true;
+            hasUnscheduledMatches = true;
+            break;
+          }
+        }
+
+        // If no match was assigned for this field, try to fill from any pool with remaining matches
+        if (!matchAssigned) {
+          for (const poolId of poolIds) {
+            const poolMatchList = poolMatches.get(poolId)!;
+            const currentIndex = poolIndices.get(poolId)!;
+
+            if (currentIndex < poolMatchList.length) {
+              const matchData = poolMatchList[currentIndex];
+
+              batch.update(matchData.matchRef, {
+                roundNumber: roundNumber,
+                fieldNumber: field,
+                updatedAt: new Date(),
+              });
+
+              scheduledMatches.push({
+                matchId: matchData.matchId,
+                poolId: matchData.poolId,
+                poolName: matchData.poolName,
+                team1Name: matchData.match.team1?.name || 'TBD',
+                team2Name: matchData.match.team2?.name || 'TBD',
+                roundNumber: roundNumber,
+                fieldNumber: field,
+                status: matchData.match.status,
+              });
+
+              poolIndices.set(poolId, currentIndex + 1);
+              hasUnscheduledMatches = true;
+              break;
+            }
+          }
+        }
+      }
+
+      // Rotate pool order for next round to ensure better alternation
+      if (hasUnscheduledMatches) {
+        poolIds.push(poolIds.shift()!);
+        roundNumber++;
+      }
+    }
+
+    await batch.commit();
+
+    // Group scheduled matches by round for response
+    const rounds: { roundNumber: number; matches: any[] }[] = [];
+    for (let r = 1; r < roundNumber; r++) {
+      rounds.push({
+        roundNumber: r,
+        matches: scheduledMatches.filter(m => m.roundNumber === r).sort((a, b) => a.fieldNumber - b.fieldNumber),
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Round schedule generated: ${roundNumber - 1} rounds for ${scheduledMatches.length} matches on ${numberOfFields} fields`,
+      data: {
+        totalRounds: roundNumber - 1,
+        totalMatches: scheduledMatches.length,
+        numberOfFields,
+        rounds,
+      },
+    });
+  } catch (error: any) {
+    console.error('Error generating round schedule:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error generating round schedule', 500);
+  }
+};
+
+/**
+ * Get round schedule for a tournament
+ * GET /admin/tournaments/:tournamentId/round-schedule
+ */
+export const getRoundSchedule = async (req: Request, res: Response) => {
+  try {
+    const { tournamentId } = req.params;
+
+    // Get tournament configuration
+    const tournamentDoc = await adminDb.collection('events').doc(tournamentId).get();
+    if (!tournamentDoc.exists) {
+      throw new AppError('Tournament not found', 404);
+    }
+
+    const tournament = tournamentDoc.data();
+    const numberOfFields = tournament?.fields || 1;
+
+    // Get all pools with their matches
+    const poolsSnapshot = await adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('pools')
+      .get();
+
+    const scheduledMatches: any[] = [];
+
+    for (const poolDoc of poolsSnapshot.docs) {
+      const poolData = poolDoc.data();
+      const matchesSnapshot = await poolDoc.ref.collection('matches').get();
+
+      for (const matchDoc of matchesSnapshot.docs) {
+        const matchData = matchDoc.data();
+        if (matchData.roundNumber !== undefined && matchData.fieldNumber !== undefined) {
+          scheduledMatches.push({
+            matchId: matchDoc.id,
+            poolId: poolDoc.id,
+            poolName: poolData.name || 'Unknown Pool',
+            team1Name: matchData.team1?.name || 'TBD',
+            team2Name: matchData.team2?.name || 'TBD',
+            roundNumber: matchData.roundNumber,
+            fieldNumber: matchData.fieldNumber,
+            status: matchData.status,
+          });
+        }
+      }
+    }
+
+    // Sort and group by round
+    scheduledMatches.sort((a, b) => {
+      if (a.roundNumber !== b.roundNumber) return a.roundNumber - b.roundNumber;
+      return a.fieldNumber - b.fieldNumber;
+    });
+
+    const rounds: { roundNumber: number; matches: any[] }[] = [];
+    const roundNumbers = [...new Set(scheduledMatches.map(m => m.roundNumber))].sort((a, b) => a - b);
+
+    for (const roundNum of roundNumbers) {
+      rounds.push({
+        roundNumber: roundNum,
+        matches: scheduledMatches.filter(m => m.roundNumber === roundNum),
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        totalRounds: rounds.length,
+        totalMatches: scheduledMatches.length,
+        numberOfFields,
+        rounds,
+      },
+    });
+  } catch (error: any) {
+    console.error('Error getting round schedule:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error getting round schedule', 500);
+  }
+};
+
+/**
+ * Update match schedule (for drag & drop reordering)
+ * PUT /admin/tournaments/:tournamentId/pools/:poolId/matches/:matchId/schedule
+ */
+export const updateMatchSchedule = async (req: Request, res: Response) => {
+  try {
+    const { tournamentId, poolId, matchId } = req.params;
+    const { roundNumber, fieldNumber } = req.body;
+
+    if (roundNumber === undefined || fieldNumber === undefined) {
+      throw new AppError('roundNumber and fieldNumber are required', 400);
+    }
+
+    const matchRef = adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('pools')
+      .doc(poolId)
+      .collection('matches')
+      .doc(matchId);
+
+    const matchDoc = await matchRef.get();
+    if (!matchDoc.exists) {
+      throw new AppError('Match not found', 404);
+    }
+
+    await matchRef.update({
+      roundNumber,
+      fieldNumber,
+      updatedAt: new Date(),
+    });
+
+    res.json({
+      success: true,
+      message: 'Match schedule updated successfully',
+    });
+  } catch (error: any) {
+    console.error('Error updating match schedule:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error updating match schedule', 500);
+  }
+};
+
+/**
+ * Bulk update match schedules (for drag & drop reordering multiple matches)
+ * PUT /admin/tournaments/:tournamentId/round-schedule
+ */
+export const bulkUpdateMatchSchedules = async (req: Request, res: Response) => {
+  try {
+    const { tournamentId } = req.params;
+    const { updates } = req.body;
+
+    if (!Array.isArray(updates) || updates.length === 0) {
+      throw new AppError('updates array is required', 400);
+    }
+
+    const batch = adminDb.batch();
+
+    for (const update of updates) {
+      const { poolId, matchId, roundNumber, fieldNumber } = update;
+
+      if (!poolId || !matchId || roundNumber === undefined || fieldNumber === undefined) {
+        throw new AppError('Each update must include poolId, matchId, roundNumber, and fieldNumber', 400);
+      }
+
+      const matchRef = adminDb
+        .collection('events')
+        .doc(tournamentId)
+        .collection('pools')
+        .doc(poolId)
+        .collection('matches')
+        .doc(matchId);
+
+      batch.update(matchRef, {
+        roundNumber,
+        fieldNumber,
+        updatedAt: new Date(),
+      });
+    }
+
+    await batch.commit();
+
+    res.json({
+      success: true,
+      message: `${updates.length} match schedules updated successfully`,
+    });
+  } catch (error: any) {
+    console.error('Error bulk updating match schedules:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error bulk updating match schedules', 500);
+  }
+};
+
+/**
+ * Clear round schedule (remove roundNumber and fieldNumber from all matches)
+ * DELETE /admin/tournaments/:tournamentId/round-schedule
+ */
+export const clearRoundSchedule = async (req: Request, res: Response) => {
+  try {
+    const { tournamentId } = req.params;
+
+    // Get all pools with their matches
+    const poolsSnapshot = await adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('pools')
+      .get();
+
+    const batch = adminDb.batch();
+    let matchCount = 0;
+
+    for (const poolDoc of poolsSnapshot.docs) {
+      const matchesSnapshot = await poolDoc.ref.collection('matches').get();
+
+      for (const matchDoc of matchesSnapshot.docs) {
+        const matchData = matchDoc.data();
+        if (matchData.roundNumber !== undefined || matchData.fieldNumber !== undefined) {
+          batch.update(matchDoc.ref, {
+            roundNumber: null,
+            fieldNumber: null,
+            updatedAt: new Date(),
+          });
+          matchCount++;
+        }
+      }
+    }
+
+    await batch.commit();
+
+    res.json({
+      success: true,
+      message: `Round schedule cleared for ${matchCount} matches`,
+    });
+  } catch (error: any) {
+    console.error('Error clearing round schedule:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error clearing round schedule', 500);
+  }
+};

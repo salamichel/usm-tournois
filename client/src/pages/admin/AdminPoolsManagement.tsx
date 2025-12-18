@@ -4,7 +4,29 @@ import AdminLayout from '@components/AdminLayout';
 import MatchScoreModal from '@components/admin/MatchScoreModal';
 import adminService from '@services/admin.service';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Plus, Edit2, Trash2, Users, Trophy, Save, X as XIcon } from 'lucide-react';
+import { ArrowLeft, Plus, Edit2, Trash2, Users, Trophy, Save, X as XIcon, Calendar, RefreshCw, GripVertical } from 'lucide-react';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+
+interface ScheduledMatch {
+  matchId: string;
+  poolId: string;
+  poolName: string;
+  team1Name: string;
+  team2Name: string;
+  roundNumber: number;
+  fieldNumber: number;
+  status: string;
+}
+
+interface RoundScheduleData {
+  totalRounds: number;
+  totalMatches: number;
+  numberOfFields: number;
+  rounds: {
+    roundNumber: number;
+    matches: ScheduledMatch[];
+  }[];
+}
 
 const AdminPoolsManagement = () => {
   const { tournamentId } = useParams();
@@ -23,6 +45,11 @@ const AdminPoolsManagement = () => {
   const [showDistributeModal, setShowDistributeModal] = useState(false);
   const [distributeSortBy, setDistributeSortBy] = useState<'weight' | 'globalRanking'>('weight');
   const [distributeClearExisting, setDistributeClearExisting] = useState(false);
+
+  // Round schedule states
+  const [viewMode, setViewMode] = useState<'pools' | 'rounds'>('pools');
+  const [roundSchedule, setRoundSchedule] = useState<RoundScheduleData | null>(null);
+  const [loadingSchedule, setLoadingSchedule] = useState(false);
 
   // Clé localStorage unique par tournoi
   const qualifiedTeamsStorageKey = `qualified-teams-${tournamentId}`;
@@ -201,6 +228,160 @@ const AdminPoolsManagement = () => {
     }
   };
 
+  // Round schedule functions
+  const loadRoundSchedule = async () => {
+    try {
+      setLoadingSchedule(true);
+      const response = await adminService.getRoundSchedule(tournamentId!);
+      const scheduleData = response.data?.data || response.data;
+      setRoundSchedule(scheduleData as RoundScheduleData | null);
+    } catch (error: any) {
+      console.error('Error loading round schedule:', error);
+      setRoundSchedule(null);
+    } finally {
+      setLoadingSchedule(false);
+    }
+  };
+
+  const handleGenerateRoundSchedule = async () => {
+    // Check if matches exist
+    const hasMatches = pools.some((pool) => pool.matches && pool.matches.length > 0);
+    if (!hasMatches) {
+      toast.error('Veuillez d\'abord générer les matchs dans les poules');
+      return;
+    }
+
+    if (!confirm('Ceci va régénérer le planning des rounds. Les modifications manuelles seront perdues. Continuer ?')) return;
+
+    try {
+      setLoadingSchedule(true);
+      const response = await adminService.generateRoundSchedule(tournamentId!);
+      const message = (response as any).message || 'Planning généré avec succès';
+      toast.success(message);
+      const scheduleData = (response as any).data?.data || (response as any).data;
+      setRoundSchedule(scheduleData as RoundScheduleData | null);
+      setViewMode('rounds');
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur lors de la génération du planning');
+    } finally {
+      setLoadingSchedule(false);
+    }
+  };
+
+  const handleClearRoundSchedule = async () => {
+    if (!confirm('Êtes-vous sûr de vouloir effacer le planning des rounds ?')) return;
+
+    try {
+      await adminService.clearRoundSchedule(tournamentId!);
+      toast.success('Planning effacé');
+      setRoundSchedule(null);
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur lors de l\'effacement du planning');
+    }
+  };
+
+  const handleDragEnd = async (result: DropResult) => {
+    if (!result.destination || !roundSchedule) return;
+
+    const { source, destination } = result;
+
+    // Parse source and destination
+    const sourceRoundIndex = parseInt(source.droppableId.split('-')[1]);
+    const destRoundIndex = parseInt(destination.droppableId.split('-')[1]);
+    const sourceFieldIndex = source.index;
+    const destFieldIndex = destination.index;
+
+    // Find the match being dragged
+    const sourceRound = roundSchedule.rounds[sourceRoundIndex];
+    const draggedMatch = sourceRound.matches[sourceFieldIndex];
+
+    if (!draggedMatch) return;
+
+    // Create a copy of the rounds
+    const newRounds = [...roundSchedule.rounds];
+
+    // If moving within the same round
+    if (sourceRoundIndex === destRoundIndex) {
+      const round = { ...newRounds[sourceRoundIndex] };
+      const matches = [...round.matches];
+
+      // Swap the matches
+      const [removed] = matches.splice(sourceFieldIndex, 1);
+      matches.splice(destFieldIndex, 0, removed);
+
+      // Update field numbers
+      matches.forEach((match, idx) => {
+        match.fieldNumber = idx + 1;
+      });
+
+      round.matches = matches;
+      newRounds[sourceRoundIndex] = round;
+    } else {
+      // Moving between different rounds
+      const sourceRoundCopy = { ...newRounds[sourceRoundIndex] };
+      const destRoundCopy = { ...newRounds[destRoundIndex] };
+
+      const sourceMatches = [...sourceRoundCopy.matches];
+      const destMatches = [...destRoundCopy.matches];
+
+      // Remove from source
+      const [removed] = sourceMatches.splice(sourceFieldIndex, 1);
+
+      // Add to destination
+      destMatches.splice(destFieldIndex, 0, removed);
+
+      // Update round and field numbers
+      sourceMatches.forEach((match, idx) => {
+        match.fieldNumber = idx + 1;
+      });
+      destMatches.forEach((match, idx) => {
+        match.roundNumber = destRoundCopy.roundNumber;
+        match.fieldNumber = idx + 1;
+      });
+      removed.roundNumber = destRoundCopy.roundNumber;
+
+      sourceRoundCopy.matches = sourceMatches;
+      destRoundCopy.matches = destMatches;
+
+      newRounds[sourceRoundIndex] = sourceRoundCopy;
+      newRounds[destRoundIndex] = destRoundCopy;
+    }
+
+    // Optimistically update UI
+    setRoundSchedule({
+      ...roundSchedule,
+      rounds: newRounds,
+    });
+
+    // Prepare updates for backend
+    const updates: { poolId: string; matchId: string; roundNumber: number; fieldNumber: number }[] = [];
+    newRounds.forEach((round) => {
+      round.matches.forEach((match) => {
+        updates.push({
+          poolId: match.poolId,
+          matchId: match.matchId,
+          roundNumber: match.roundNumber,
+          fieldNumber: match.fieldNumber,
+        });
+      });
+    });
+
+    try {
+      await adminService.bulkUpdateMatchSchedules(tournamentId!, updates);
+    } catch (error: any) {
+      toast.error('Erreur lors de la mise à jour du planning');
+      // Reload schedule to revert
+      loadRoundSchedule();
+    }
+  };
+
+  // Load round schedule when switching to rounds view
+  useEffect(() => {
+    if (viewMode === 'rounds' && !roundSchedule && !loadingSchedule) {
+      loadRoundSchedule();
+    }
+  }, [viewMode]);
+
   if (loading) {
     return (
       <AdminLayout>
@@ -223,11 +404,40 @@ const AdminPoolsManagement = () => {
           </h1>
         </div>
 
-        {/* Créer une nouvelle poule */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h2 className="text-xl font-bold mb-4">Créer une nouvelle Poule</h2>
-          <form onSubmit={handleCreatePool} className="flex gap-4">
-            <input
+        {/* View mode toggle */}
+        <div className="flex gap-2 border-b border-gray-200 mb-6">
+          <button
+            onClick={() => setViewMode('pools')}
+            className={`px-4 py-2 font-medium transition-colors ${
+              viewMode === 'pools'
+                ? 'text-blue-600 border-b-2 border-blue-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <Users size={18} className="inline mr-2" />
+            Poules
+          </button>
+          <button
+            onClick={() => setViewMode('rounds')}
+            className={`px-4 py-2 font-medium transition-colors ${
+              viewMode === 'rounds'
+                ? 'text-blue-600 border-b-2 border-blue-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <Calendar size={18} className="inline mr-2" />
+            Planning des Rounds
+          </button>
+        </div>
+
+        {/* Pools View */}
+        {viewMode === 'pools' && (
+          <>
+            {/* Créer une nouvelle poule */}
+            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+              <h2 className="text-xl font-bold mb-4">Créer une nouvelle Poule</h2>
+              <form onSubmit={handleCreatePool} className="flex gap-4">
+                <input
               type="text"
               value={newPoolName}
               onChange={(e) => setNewPoolName(e.target.value)}
@@ -393,7 +603,7 @@ const AdminPoolsManagement = () => {
                     }}
                     className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md"
                   >
-                    Fermer (sélection sauvegardée)
+                      Fermer (sélection sauvegardée)
                   </button>
                 </div>
               </>
@@ -401,28 +611,159 @@ const AdminPoolsManagement = () => {
           </div>
         )}
 
-        {/* Liste des poules */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {pools.map((pool, index) => (
-            <PoolCard
-              key={pool.id}
-              pool={pool}
-              teams={teams}
-              tournamentId={tournamentId!}
-              colorIndex={index}
-              tournament={tournament}
-              onGenerateMatches={handleGenerateMatches}
-              onAssignTeams={handleAssignTeams}
-              onUpdateName={handleUpdatePoolName}
-              onDelete={handleDeletePool}
-              onEditMatchScore={handleEditMatchScore}
-            />
-          ))}
-        </div>
+            {/* Liste des poules */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {pools.map((pool, index) => (
+                <PoolCard
+                  key={pool.id}
+                  pool={pool}
+                  teams={teams}
+                  tournamentId={tournamentId!}
+                  colorIndex={index}
+                  tournament={tournament}
+                  onGenerateMatches={handleGenerateMatches}
+                  onAssignTeams={handleAssignTeams}
+                  onUpdateName={handleUpdatePoolName}
+                  onDelete={handleDeletePool}
+                  onEditMatchScore={handleEditMatchScore}
+                />
+              ))}
+            </div>
 
-        {pools.length === 0 && (
-          <div className="bg-gray-50 rounded-lg p-8 text-center">
-            <p className="text-gray-600">Aucune poule créée pour ce tournoi</p>
+            {pools.length === 0 && (
+              <div className="bg-gray-50 rounded-lg p-8 text-center">
+                <p className="text-gray-600">Aucune poule créée pour ce tournoi</p>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Rounds View */}
+        {viewMode === 'rounds' && (
+          <div>
+            {/* Generate/Clear buttons */}
+            <div className="bg-green-50 border border-green-200 rounded-lg p-6 mb-6">
+              <h2 className="text-xl font-bold mb-2 flex items-center gap-2">
+                <Calendar size={20} />
+                Planning des Rounds
+              </h2>
+              <p className="text-gray-700 mb-4">
+                Générez automatiquement le planning des matchs par round. Avec {tournament?.fields || 1} terrain{(tournament?.fields || 1) > 1 ? 's' : ''},
+                les matchs seront distribués en alternant entre les poules.
+              </p>
+              <div className="flex gap-4 flex-wrap">
+                <button
+                  onClick={handleGenerateRoundSchedule}
+                  disabled={loadingSchedule}
+                  className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-md flex items-center gap-2"
+                >
+                  <RefreshCw size={18} className={loadingSchedule ? 'animate-spin' : ''} />
+                  {roundSchedule ? 'Régénérer le planning' : 'Générer le planning'}
+                </button>
+                {roundSchedule && (
+                  <button
+                    onClick={handleClearRoundSchedule}
+                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md flex items-center gap-2"
+                  >
+                    <Trash2 size={18} />
+                    Effacer le planning
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Round schedule display */}
+            {loadingSchedule ? (
+              <div className="flex items-center justify-center h-64">
+                <div className="text-gray-600">Chargement du planning...</div>
+              </div>
+            ) : roundSchedule && roundSchedule.rounds.length > 0 ? (
+              <DragDropContext onDragEnd={handleDragEnd}>
+                <div className="space-y-4">
+                  <div className="text-sm text-gray-600 mb-4">
+                    {roundSchedule.totalRounds} round{roundSchedule.totalRounds > 1 ? 's' : ''} - {roundSchedule.totalMatches} match{roundSchedule.totalMatches > 1 ? 's' : ''} - {roundSchedule.numberOfFields} terrain{roundSchedule.numberOfFields > 1 ? 's' : ''}
+                    <span className="ml-4 text-blue-600">Glissez-déposez les matchs pour réorganiser</span>
+                  </div>
+                  {roundSchedule.rounds.map((round, roundIndex) => (
+                    <div key={round.roundNumber} className="bg-white rounded-lg shadow-md overflow-hidden">
+                      <div className="bg-gray-100 px-4 py-3 border-b border-gray-200">
+                        <h3 className="font-bold text-lg">Round {round.roundNumber}</h3>
+                      </div>
+                      <Droppable droppableId={`round-${roundIndex}`} direction="horizontal">
+                        {(provided, snapshot) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.droppableProps}
+                            className={`p-4 flex gap-4 flex-wrap ${snapshot.isDraggingOver ? 'bg-blue-50' : ''}`}
+                          >
+                            {round.matches.map((match, matchIndex) => (
+                              <Draggable
+                                key={`${match.poolId}-${match.matchId}`}
+                                draggableId={`${match.poolId}-${match.matchId}`}
+                                index={matchIndex}
+                              >
+                                {(provided, snapshot) => (
+                                  <div
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    {...provided.dragHandleProps}
+                                    className={`flex-1 min-w-[280px] max-w-[350px] p-4 rounded-lg border-2 ${
+                                      snapshot.isDragging
+                                        ? 'border-blue-500 bg-blue-50 shadow-lg'
+                                        : 'border-gray-200 bg-gray-50 hover:border-gray-300'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <GripVertical size={16} className="text-gray-400" />
+                                      <span className="text-xs font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded">
+                                        Terrain {match.fieldNumber}
+                                      </span>
+                                      <span className={`text-xs px-2 py-1 rounded ${
+                                        match.poolName.includes('A') ? 'bg-purple-100 text-purple-700' :
+                                        match.poolName.includes('B') ? 'bg-orange-100 text-orange-700' :
+                                        match.poolName.includes('C') ? 'bg-green-100 text-green-700' :
+                                        match.poolName.includes('D') ? 'bg-red-100 text-red-700' :
+                                        'bg-gray-100 text-gray-700'
+                                      }`}>
+                                        {match.poolName}
+                                      </span>
+                                    </div>
+                                    <div className="font-medium text-sm">
+                                      {match.team1Name}
+                                      <span className="mx-2 text-gray-400">vs</span>
+                                      {match.team2Name}
+                                    </div>
+                                    <div className="mt-2">
+                                      <span className={`text-xs px-2 py-1 rounded ${
+                                        match.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                        match.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
+                                        'bg-gray-100 text-gray-600'
+                                      }`}>
+                                        {match.status === 'completed' ? 'Terminé' :
+                                         match.status === 'in_progress' ? 'En cours' : 'En attente'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
+                              </Draggable>
+                            ))}
+                            {provided.placeholder}
+                          </div>
+                        )}
+                      </Droppable>
+                    </div>
+                  ))}
+                </div>
+              </DragDropContext>
+            ) : (
+              <div className="bg-gray-50 rounded-lg p-8 text-center">
+                <Calendar size={48} className="mx-auto text-gray-400 mb-4" />
+                <p className="text-gray-600 mb-2">Aucun planning généré</p>
+                <p className="text-sm text-gray-500">
+                  Créez d'abord des poules, assignez des équipes et générez les matchs, puis générez le planning des rounds.
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>
