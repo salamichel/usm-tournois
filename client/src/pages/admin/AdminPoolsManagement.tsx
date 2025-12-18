@@ -676,10 +676,17 @@ const PoolCard = ({
                     className="h-4 w-4 mt-0.5"
                   />
                   <div className="flex-1">
-                    <span className="text-sm font-medium">
-                      {team.name}
-                      {isInOtherPool && <span className="text-gray-500 ml-1">(Assignée)</span>}
-                    </span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">
+                        {team.name}
+                        {isInOtherPool && <span className="text-gray-500 ml-1">(Assignée)</span>}
+                      </span>
+                      {(team.globalRanking ?? 0) > 0 && (
+                        <span className="text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">
+                          {team.globalRanking} pts
+                        </span>
+                      )}
+                    </div>
                     {(team.player1 || team.player2) && (
                       <div className="text-xs text-gray-500 mt-0.5">
                         {team.player1?.name || team.player1?.displayName || 'Joueur 1'}
