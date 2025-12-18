@@ -2493,7 +2493,11 @@ export const linkVirtualToRealUser = async (req: Request, res: Response) => {
 
     const virtualUserData = virtualUserDoc.data();
 
-    if (!virtualUserData?.isVirtual) {
+    // Check if user is virtual by email pattern (consistent with getAllVirtualUsers)
+    const isVirtualByEmail = virtualUserData?.email?.endsWith('@virtual.tournoi.com');
+    const isVirtualByFlag = virtualUserData?.isVirtual;
+
+    if (!isVirtualByEmail && !isVirtualByFlag) {
       throw new AppError('This is not a virtual account', 400);
     }
 
@@ -2506,7 +2510,11 @@ export const linkVirtualToRealUser = async (req: Request, res: Response) => {
 
     const realUserData = realUserDoc.data();
 
-    if (realUserData?.isVirtual) {
+    // Check if target is virtual (by email pattern or flag)
+    const targetIsVirtualByEmail = realUserData?.email?.endsWith('@virtual.tournoi.com');
+    const targetIsVirtualByFlag = realUserData?.isVirtual;
+
+    if (targetIsVirtualByEmail || targetIsVirtualByFlag) {
       throw new AppError('Target user is also a virtual account', 400);
     }
 
