@@ -374,6 +374,7 @@ export const addVirtualMember = async (req: Request, res: Response) => {
           userId: virtualUserId,
           pseudo: pseudo,
           level: level,
+          isVirtual: true,
         },
       ],
       updatedAt: new Date(),
