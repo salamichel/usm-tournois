@@ -21,7 +21,7 @@ interface VirtualUser {
 }
 
 interface RealUser {
-  uid: string;
+  id: string;
   pseudo: string;
   email: string;
   level: string;
@@ -448,7 +448,7 @@ const AdminVirtualUsers = () => {
               >
                 <option value="">-- Choisir un utilisateur --</option>
                 {realUsers.map((user) => (
-                  <option key={user.uid} value={user.uid}>
+                  <option key={user.id} value={user.id}>
                     {user.pseudo} ({user.email}) - {user.level}
                   </option>
                 ))}
