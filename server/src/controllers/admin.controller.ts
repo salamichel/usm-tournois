@@ -1711,6 +1711,14 @@ export const getTeams = async (req: Request, res: Response) => {
       .collection('pools')
       .get();
 
+    // Get all global rankings to enrich members with points
+    const rankingsSnapshot = await adminDb.collection('globalPlayerRanking').get();
+    const rankingsMap = new Map<string, number>();
+    rankingsSnapshot.docs.forEach((doc) => {
+      const data = doc.data();
+      rankingsMap.set(doc.id, data.totalPoints || 0);
+    });
+
     // Create a set of team IDs that are already assigned to pools
     const assignedTeamIds = new Set<string>();
     poolsSnapshot.docs.forEach((poolDoc) => {
@@ -1742,9 +1750,16 @@ export const getTeams = async (req: Request, res: Response) => {
         }
       }
 
+      // Enrich members with their points
+      const members = (teamData.members || []).map((member: any) => ({
+        ...member,
+        totalPoints: rankingsMap.get(member.userId) || 0,
+      }));
+
       return convertTimestamps({
         id: doc.id,
         ...teamData,
+        members,
         captainPseudo,
         isAssigned: assignedTeamIds.has(doc.id),
       });
@@ -1975,11 +1990,20 @@ export const getAllUsers = async (req: Request, res: Response) => {
   try {
     const usersSnapshot = await adminDb.collection('users').orderBy('pseudo').get();
 
+    // Get all global rankings to enrich users with points
+    const rankingsSnapshot = await adminDb.collection('globalPlayerRanking').get();
+    const rankingsMap = new Map<string, number>();
+    rankingsSnapshot.docs.forEach((doc) => {
+      const data = doc.data();
+      rankingsMap.set(doc.id, data.totalPoints || 0);
+    });
+
     // Filter out virtual accounts and fake players
     const users = usersSnapshot.docs
       .map((doc) => convertTimestamps({
         id: doc.id,
         ...doc.data(),
+        totalPoints: rankingsMap.get(doc.id) || 0,
       }))
       .filter((user: any) => {
         // Exclude virtual accounts (emails ending with @virtual.tournoi.com)
@@ -2211,12 +2235,24 @@ export const getUnassignedPlayers = async (req: Request, res: Response) => {
       .collection('unassignedPlayers')
       .get();
 
-    const players = unassignedPlayersSnapshot.docs.map((doc) =>
-      convertTimestamps({
+    // Get all global rankings to enrich players with points
+    const rankingsSnapshot = await adminDb.collection('globalPlayerRanking').get();
+    const rankingsMap = new Map<string, number>();
+    rankingsSnapshot.docs.forEach((doc) => {
+      const data = doc.data();
+      rankingsMap.set(doc.id, data.totalPoints || 0);
+    });
+
+    const players = unassignedPlayersSnapshot.docs.map((doc) => {
+      const data = doc.data();
+      // Use userId if available, otherwise use doc.id
+      const playerId = data.userId || doc.id;
+      return convertTimestamps({
         id: doc.id,
-        ...doc.data(),
-      })
-    );
+        ...data,
+        totalPoints: rankingsMap.get(playerId) || 0,
+      });
+    });
 
     res.json({
       success: true,
