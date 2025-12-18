@@ -84,6 +84,7 @@ router.get('/dashboard', asyncHandler(adminController.getDashboard));
  */
 router.get('/virtual-users', asyncHandler(adminController.getAllVirtualUsers));
 router.post('/virtual-users/link', asyncHandler(adminController.linkVirtualToRealUser));
+router.delete('/virtual-users/:userId', asyncHandler(adminController.deleteVirtualUser));
 
 /**
  * King Mode Management

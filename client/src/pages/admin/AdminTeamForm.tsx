@@ -3,12 +3,13 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import AdminLayout from '@components/AdminLayout';
 import adminService from '@services/admin.service';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Save, Users, Trash2, Plus, Crown, UserMinus, UserPlus } from 'lucide-react';
+import { ArrowLeft, Save, Users, Trash2, Plus, Crown, UserMinus, UserPlus, Award } from 'lucide-react';
 
 interface Member {
   userId: string;
   pseudo: string;
   level: string;
+  totalPoints?: number;
 }
 
 interface UnassignedPlayer {
@@ -16,6 +17,7 @@ interface UnassignedPlayer {
   odisplay: string;
   pseudo: string;
   level: string;
+  totalPoints?: number;
 }
 
 const AdminTeamForm = () => {
@@ -333,6 +335,12 @@ const AdminTeamForm = () => {
                             <span className="text-xs text-gray-500 ml-2">({member.level})</span>
                           )}
                         </div>
+                        {(member.totalPoints ?? 0) > 0 && (
+                          <span className="text-xs px-2 py-1 bg-yellow-50 text-yellow-700 rounded-full flex items-center gap-1">
+                            <Award size={12} />
+                            {member.totalPoints} pts
+                          </span>
+                        )}
                         {member.userId === formData.captainId && (
                           <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full flex items-center gap-1">
                             <Crown size={12} />
@@ -384,7 +392,7 @@ const AdminTeamForm = () => {
                       <option value="">Sélectionner un joueur...</option>
                       {unassignedPlayers.map((player) => (
                         <option key={player.id} value={player.id}>
-                          {player.pseudo} {player.level ? `(${player.level})` : ''}
+                          {player.pseudo} {player.level ? `(${player.level})` : ''} {(player.totalPoints ?? 0) > 0 ? `- ${player.totalPoints} pts` : ''}
                         </option>
                       ))}
                     </select>

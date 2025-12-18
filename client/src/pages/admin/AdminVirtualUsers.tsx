@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { UserCog, Link as LinkIcon, Users, ArrowLeft, UserPlus, CheckSquare, Square } from 'lucide-react';
+import { UserCog, Link as LinkIcon, Users, ArrowLeft, UserPlus, CheckSquare, Square, Trash2 } from 'lucide-react';
 import type { UserLevel } from '@shared/types';
 
 interface VirtualUser {
@@ -36,6 +36,7 @@ const AdminVirtualUsers = () => {
   const [selectedVirtualUsers, setSelectedVirtualUsers] = useState<VirtualUser[]>([]);
   const [selectedRealUserId, setSelectedRealUserId] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   // Form state for creating new real user
@@ -224,6 +225,41 @@ const AdminVirtualUsers = () => {
     setShowCreateModal(true);
   };
 
+  const handleDelete = async (user: VirtualUser) => {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer le compte virtuel "${user.pseudo}" ?\n\nCette action est irréversible et supprimera également ce joueur de toutes les équipes.`)) {
+      return;
+    }
+
+    try {
+      setDeletingId(user.id);
+
+      const response = await fetch(`/api/admin/virtual-users/${user.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Erreur lors de la suppression');
+      }
+
+      toast.success(`Compte virtuel "${user.pseudo}" supprimé avec succès`);
+
+      // Remove from selected users if it was selected
+      setSelectedVirtualUsers((prev) => prev.filter((u) => u.id !== user.id));
+
+      fetchData();
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur lors de la suppression du compte');
+      console.error(error);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   // Filter users based on search
   const filteredUsers = virtualUsers.filter(
     (user) =>
@@ -394,16 +430,30 @@ const AdminVirtualUsers = () => {
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            onClick={() => {
-                              setSelectedVirtualUsers([user]);
-                              setShowLinkModal(true);
-                            }}
-                            className="btn-primary-outline flex items-center gap-2"
-                          >
-                            <LinkIcon size={16} />
-                            Lier
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                setSelectedVirtualUsers([user]);
+                                setShowLinkModal(true);
+                              }}
+                              className="btn-primary-outline flex items-center gap-2"
+                            >
+                              <LinkIcon size={16} />
+                              Lier
+                            </button>
+                            <button
+                              onClick={() => handleDelete(user)}
+                              disabled={deletingId === user.id}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                              title="Supprimer le compte virtuel"
+                            >
+                              {deletingId === user.id ? (
+                                <div className="animate-spin h-4 w-4 border-2 border-red-600 border-t-transparent rounded-full" />
+                              ) : (
+                                <Trash2 size={16} />
+                              )}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );

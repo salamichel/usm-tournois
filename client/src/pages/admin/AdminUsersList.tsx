@@ -4,7 +4,7 @@ import AdminLayout from '@components/AdminLayout';
 import adminService from '@services/admin.service';
 import clubService from '@services/club.service';
 import toast from 'react-hot-toast';
-import { Plus, Edit, Trash2, Shield, User, Users } from 'lucide-react';
+import { Plus, Edit, Trash2, Shield, User, Users, Award } from 'lucide-react';
 import type { Club } from '@shared/types/club.types';
 
 const AdminUsersList = () => {
@@ -166,6 +166,7 @@ const AdminUsersList = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pseudo</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Niveau</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Points</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Club</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rôle</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
@@ -196,6 +197,16 @@ const AdminUsersList = () => {
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600">{user.email}</td>
                       <td className="px-6 py-4 text-sm text-gray-600">{user.level || 'N/A'}</td>
+                      <td className="px-6 py-4">
+                        {user.totalPoints > 0 ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-50 text-yellow-700 rounded-full text-sm font-medium">
+                            <Award size={14} />
+                            {user.totalPoints}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 text-sm">0</span>
+                        )}
+                      </td>
                       <td className="px-6 py-4 text-sm text-gray-600">
                         {userClub ? (
                           <div className="flex items-center gap-2">
