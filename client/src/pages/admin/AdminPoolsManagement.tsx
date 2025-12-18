@@ -676,10 +676,17 @@ const PoolCard = ({
                     className="h-4 w-4 mt-0.5"
                   />
                   <div className="flex-1">
-                    <span className="text-sm font-medium">
-                      {team.name}
-                      {isInOtherPool && <span className="text-gray-500 ml-1">(Assignée)</span>}
-                    </span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">
+                        {team.name}
+                        {isInOtherPool && <span className="text-gray-500 ml-1">(Assignée)</span>}
+                      </span>
+                      {(team.globalRanking ?? 0) > 0 && (
+                        <span className="text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">
+                          {team.globalRanking} pts
+                        </span>
+                      )}
+                    </div>
                     {(team.player1 || team.player2) && (
                       <div className="text-xs text-gray-500 mt-0.5">
                         {team.player1?.name || team.player1?.displayName || 'Joueur 1'}
@@ -701,7 +708,14 @@ const PoolCard = ({
 
       {/* Matchs */}
       <div>
-        <h4 className="text-lg font-semibold mb-2">Matchs</h4>
+        <div className="flex items-center justify-between mb-2">
+          <h4 className="text-lg font-semibold">Matchs</h4>
+          {pool.matches && pool.matches.length > 0 && (
+            <span className="text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded">
+              {pool.matches.length} match{pool.matches.length > 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
         <button
           onClick={() => onGenerateMatches(pool.id)}
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm mb-3"

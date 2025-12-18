@@ -786,23 +786,74 @@ export const generatePoolMatches = async (req: Request, res: Response) => {
       batch.delete(doc.ref);
     });
 
-    // Generate matches
+    // Generate matches using round-robin circle method for better distribution
+    // This ensures teams don't play multiple consecutive matches
+    const generateRoundRobinSchedule = (teamsList: any[]) => {
+      const matches: { team1: any; team2: any }[] = [];
+      const n = teamsList.length;
+
+      if (n < 2) return matches;
+
+      // For odd number of teams, add a "bye" placeholder
+      const teamsWithBye = n % 2 === 1 ? [...teamsList, null] : [...teamsList];
+      const numTeams = teamsWithBye.length;
+      const numRounds = numTeams - 1;
+
+      // Circle method: fix one team and rotate the others
+      for (let round = 0; round < numRounds; round++) {
+        for (let i = 0; i < numTeams / 2; i++) {
+          const home = i === 0 ? 0 : (round + i) % (numTeams - 1) + 1;
+          const away = (round + numTeams - 1 - i) % (numTeams - 1) + 1;
+
+          // Adjust indices for the fixed team (index 0)
+          const team1Idx = i === 0 ? 0 : home;
+          const team2Idx = away;
+
+          const team1 = teamsWithBye[team1Idx];
+          const team2 = teamsWithBye[team2Idx];
+
+          // Skip matches with "bye" (null)
+          if (team1 !== null && team2 !== null) {
+            matches.push({ team1, team2 });
+          }
+        }
+      }
+
+      return matches;
+    };
+
+    const roundRobinMatches = generateRoundRobinSchedule(teams);
+
     let matchNumber = 1;
-    for (let i = 0; i < teams.length; i++) {
-      for (let j = i + 1; j < teams.length; j++) {
-        const team1 = teams[i];
-        const team2 = teams[j];
+    for (const match of roundRobinMatches) {
+      const { team1, team2 } = match;
 
-        const initialSets = Array.from({ length: setsPerMatchPool }, () => ({
-          score1: null,
-          score2: null,
-        }));
+      const initialSets = Array.from({ length: setsPerMatchPool }, () => ({
+        score1: null,
+        score2: null,
+      }));
 
-        // Match aller
+      // Match aller
+      batch.set(matchesCollectionRef.doc(), {
+        matchNumber: matchNumber++,
+        team1: { id: team1.id, name: team1.name },
+        team2: { id: team2.id, name: team2.name },
+        sets: initialSets,
+        status: 'scheduled',
+        type: 'pool',
+        setsToWin: setsPerMatchPool,
+        pointsPerSet: pointsPerSetPool,
+        tieBreakEnabled: tieBreakEnabledPools,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      // Match retour (if aller_retour format)
+      if (matchFormat === 'aller_retour') {
         batch.set(matchesCollectionRef.doc(), {
           matchNumber: matchNumber++,
-          team1: { id: team1.id, name: team1.name },
-          team2: { id: team2.id, name: team2.name },
+          team1: { id: team2.id, name: team2.name },
+          team2: { id: team1.id, name: team1.name },
           sets: initialSets,
           status: 'scheduled',
           type: 'pool',
@@ -812,23 +863,6 @@ export const generatePoolMatches = async (req: Request, res: Response) => {
           createdAt: new Date(),
           updatedAt: new Date(),
         });
-
-        // Match retour (if aller_retour format)
-        if (matchFormat === 'aller_retour') {
-          batch.set(matchesCollectionRef.doc(), {
-            matchNumber: matchNumber++,
-            team1: { id: team2.id, name: team2.name },
-            team2: { id: team1.id, name: team1.name },
-            sets: initialSets,
-            status: 'scheduled',
-            type: 'pool',
-            setsToWin: setsPerMatchPool,
-            pointsPerSet: pointsPerSetPool,
-            tieBreakEnabled: tieBreakEnabledPools,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          });
-        }
       }
     }
 
