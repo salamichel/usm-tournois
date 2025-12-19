@@ -590,6 +590,57 @@ const TournamentDetailPage = () => {
         </button>
       </div>
 
+      {/* User Actions Banner - visible for registered users */}
+      {isRegistered && (
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <CheckCircle className="text-green-600 flex-shrink-0" size={24} />
+              <div>
+                <p className="font-medium text-green-900">
+                  {userTeam ? (
+                    <>Inscrit · <span className="text-green-700">{userTeam.name}</span></>
+                  ) : (
+                    'Inscrit comme joueur solo'
+                  )}
+                </p>
+                {userTeam && userTeam.captainId === user?.uid && (
+                  <p className="text-sm text-green-700">Capitaine</p>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {userTeam && userTeam.captainId === user?.uid && (
+                <>
+                  <button
+                    onClick={() => navigate(`/mes-matchs/${tournament.id}`)}
+                    className="btn-primary text-sm"
+                  >
+                    <ClipboardList size={18} className="mr-1.5" />
+                    Mes matchs
+                  </button>
+                  <button
+                    onClick={() => navigate(`/gestion-equipe/${tournament.id}/${userTeam.id}`)}
+                    className="btn-secondary text-sm"
+                  >
+                    <Settings size={18} className="mr-1.5" />
+                    Équipe
+                  </button>
+                </>
+              )}
+              <button
+                onClick={handleLeaveTournament}
+                disabled={processingAction}
+                className="btn-danger text-sm"
+              >
+                <UserMinus size={18} className="mr-1.5" />
+                Quitter
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {activeView === 'detail' ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
@@ -738,58 +789,6 @@ const TournamentDetailPage = () => {
                       Créer une équipe
                     </button>
                   )}
-                </div>
-              </div>
-            )}
-
-            {/* User is registered */}
-            {isRegistered && (
-              <div className="card bg-green-50 border-2 border-green-200">
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="text-green-600 flex-shrink-0" size={24} />
-                  <div className="flex-1">
-                    <h3 className="text-lg font-bold text-gray-900 mb-1">
-                      Vous êtes inscrit !
-                    </h3>
-                    {userTeam ? (
-                      <p className="text-gray-600">
-                        Équipe: <strong>{userTeam.name}</strong>
-                      </p>
-                    ) : (
-                      <p className="text-gray-600">
-                        Vous êtes inscrit comme joueur solo
-                      </p>
-                    )}
-
-                    <div className="flex flex-wrap gap-3 mt-4">
-                      {userTeam && userTeam.captainId === user?.uid && (
-                        <>
-                          <button
-                            onClick={() => navigate(`/gestion-equipe/${tournament.id}/${userTeam.id}`)}
-                            className="btn-primary"
-                          >
-                            <Settings size={20} className="mr-2" />
-                            Gérer mon équipe
-                          </button>
-                          <button
-                            onClick={() => navigate(`/mes-matchs/${tournament.id}`)}
-                            className="btn-secondary"
-                          >
-                            <ClipboardList size={20} className="mr-2" />
-                            Mes matchs
-                          </button>
-                        </>
-                      )}
-                      <button
-                        onClick={handleLeaveTournament}
-                        disabled={processingAction}
-                        className="btn-danger"
-                      >
-                        <UserMinus size={20} className="mr-2" />
-                        Se désinscrire
-                      </button>
-                    </div>
-                  </div>
                 </div>
               </div>
             )}
@@ -1151,23 +1150,6 @@ const TournamentDetailPage = () => {
       ) : (
         // Results View
         <div>
-          {/* Captain quick action */}
-          {userTeam && userTeam.captainId === user?.uid && (
-            <div className="mb-6 p-4 bg-primary-50 border border-primary-200 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div>
-                <p className="font-medium text-primary-900">Capitaine de {userTeam.name}</p>
-                <p className="text-sm text-primary-700">Accédez à vos matchs pour saisir les scores</p>
-              </div>
-              <button
-                onClick={() => navigate(`/mes-matchs/${tournament.id}`)}
-                className="btn-primary whitespace-nowrap"
-              >
-                <ClipboardList size={20} className="mr-2" />
-                Mes matchs
-              </button>
-            </div>
-          )}
-
           {/* Results Tabs */}
           <div className="flex gap-2 border-b border-gray-200 mb-6">
             <button
