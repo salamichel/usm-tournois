@@ -19,7 +19,6 @@ import {
   Zap,
   BarChart3,
   UsersRound,
-  UserCheck,
   Search,
   ClipboardList
 } from 'lucide-react';

@@ -70,22 +70,25 @@ export interface GetTournamentPlayerPointsParams {
  */
 export interface PlayerRankingResponse {
   success: boolean;
-  data: {
+  data?: {
     rankings: PlayerGlobalRanking[];
     total: number;
   };
+  message?: string;
 }
 
 export interface PlayerStatsResponse {
   success: boolean;
-  data: {
+  data?: {
     stats: PlayerStats;
   };
+  message?: string;
 }
 
 export interface TournamentPlayerPointsResponse {
   success: boolean;
-  data: {
+  data?: {
     points: PlayerTournamentPoints[];
   };
+  message?: string;
 }

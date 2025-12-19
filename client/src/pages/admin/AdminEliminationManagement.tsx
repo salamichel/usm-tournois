@@ -24,7 +24,7 @@ const AdminEliminationManagement = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [tournamentRes, matchesRes] = await Promise.all([
+      const [tournamentRes, matchesRes]: any[] = await Promise.all([
         adminService.getTournamentById(tournamentId!),
         adminService.getEliminationMatches(tournamentId!),
       ]);

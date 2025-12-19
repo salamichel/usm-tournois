@@ -434,8 +434,8 @@ export const verifyPasswordResetToken = async (req: Request, res: Response) => {
   }
 
   try {
-    // Verify the reset link/token
-    const email = await adminAuth.verifyPasswordResetCode(token);
+    // Verify the reset link/token (using any cast as verifyPasswordResetCode is not in admin types)
+    const email = await (adminAuth as any).verifyPasswordResetCode(token);
 
     res.json({
       success: true,
@@ -473,8 +473,8 @@ export const resetPassword = async (req: Request, res: Response) => {
   }
 
   try {
-    // Verify the token and get the email
-    const email = await adminAuth.verifyPasswordResetCode(token);
+    // Verify the token and get the email (using any cast as verifyPasswordResetCode is not in admin types)
+    const email = await (adminAuth as any).verifyPasswordResetCode(token);
 
     // Update the password
     const userRecord = await adminAuth.getUserByEmail(email);

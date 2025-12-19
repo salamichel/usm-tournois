@@ -59,7 +59,7 @@ const AdminPoolsManagement = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [tournamentRes, poolsRes, teamsRes] = await Promise.all([
+      const [tournamentRes, poolsRes, teamsRes]: any[] = await Promise.all([
         adminService.getTournamentById(tournamentId!),
         adminService.getPools(tournamentId!),
         adminService.getTeams(tournamentId!),
@@ -514,8 +514,8 @@ interface PoolCardProps {
 const PoolCard = ({
   pool,
   teams,
-  tournamentId,
-  tournament,
+  tournamentId: _tournamentId,
+  tournament: _tournament,
   colorIndex,
   onGenerateMatches,
   onAssignTeams,

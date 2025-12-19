@@ -8,24 +8,27 @@ import type { Season, SeasonRanking } from '@shared/types/season.types';
 
 interface SeasonListResponse {
   success: boolean;
-  data: {
+  data?: {
     seasons: Season[];
   };
+  message?: string;
 }
 
 interface SeasonResponse {
   success: boolean;
-  data: {
+  data?: {
     season: Season | null;
   };
+  message?: string;
 }
 
 interface SeasonRankingResponse {
   success: boolean;
-  data: {
+  data?: {
     rankings: SeasonRanking[];
     total: number;
   };
+  message?: string;
 }
 
 class SeasonService {
@@ -57,7 +60,7 @@ class SeasonService {
     name: string;
     startDate: Date;
     endDate: Date;
-  }): Promise<{ success: boolean; message: string; data?: { season: Season } }> {
+  }): Promise<{ success: boolean; message?: string; data?: { season: Season } }> {
     return apiService.post('/seasons', data);
   }
 
@@ -72,14 +75,14 @@ class SeasonService {
       endDate?: Date;
       isActive?: boolean;
     }
-  ): Promise<{ success: boolean; message: string }> {
+  ): Promise<{ success: boolean; message?: string }> {
     return apiService.put(`/seasons/${seasonId}`, data);
   }
 
   /**
    * Delete a season (admin only)
    */
-  async deleteSeason(seasonId: string): Promise<{ success: boolean; message: string }> {
+  async deleteSeason(seasonId: string): Promise<{ success: boolean; message?: string }> {
     return apiService.delete(`/seasons/${seasonId}`);
   }
 

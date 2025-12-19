@@ -4,8 +4,9 @@ import AdminLayout from '@components/AdminLayout';
 import adminService from '@services/admin.service';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Save, Calendar, Users, MapPin, DollarSign, Settings } from 'lucide-react';
-import KingConfigAssistant from '@components/KingConfigAssistant';
-import { KingConfiguration } from '@utils/kingConfigSuggestions';
+// KingConfigAssistant removed - to be added back when implemented
+// import KingConfigAssistant from '@components/KingConfigAssistant';
+// import { KingConfiguration } from '@utils/kingConfigSuggestions';
 
 // Helper function to format ISO date string to YYYY-MM-DD (converts from UTC to local timezone)
 const formatDateForInput = (isoString: string | undefined | null): string => {
@@ -88,7 +89,7 @@ const AdminTournamentForm = () => {
   });
   const [coverImage, setCoverImage] = useState<File | null>(null);
   const [currentCoverImage, setCurrentCoverImage] = useState<string>('');
-  const [kingConfig, setKingConfig] = useState<KingConfiguration | null>(null);
+  // const [kingConfig, setKingConfig] = useState<KingConfiguration | null>(null);
 
   useEffect(() => {
     if (isEditMode) {
