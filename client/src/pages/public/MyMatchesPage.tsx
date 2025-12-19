@@ -109,8 +109,33 @@ const MyMatchesPage = () => {
       }
     });
 
-    setMyMatches(matches);
+    // Sort matches
+    const sortedMatches = sortMatches(matches);
+    setMyMatches(sortedMatches);
   }, [tournament, user]);
+
+  // Sort matches: pools first (by match order), then elimination (by round descending - early rounds first)
+  const sortMatches = (matches: MatchWithContext[]): MatchWithContext[] => {
+    return [...matches].sort((a, b) => {
+      // Pool matches come before elimination matches
+      if (a.type === 'pool' && b.type === 'elimination') return -1;
+      if (a.type === 'elimination' && b.type === 'pool') return 1;
+
+      // Both are pool matches: sort by pool name, then by match order
+      if (a.type === 'pool' && b.type === 'pool') {
+        const poolCompare = (a.poolName || '').localeCompare(b.poolName || '');
+        if (poolCompare !== 0) return poolCompare;
+        return (a.match.order || 0) - (b.match.order || 0);
+      }
+
+      // Both are elimination matches: sort by round descending (16 before 8 before 4, etc.)
+      if (a.type === 'elimination' && b.type === 'elimination') {
+        return (b.match.round || 0) - (a.match.round || 0);
+      }
+
+      return 0;
+    });
+  };
 
   const getRoundName = (round: number): string => {
     const roundNames: { [key: number]: string } = {
@@ -203,9 +228,32 @@ const MyMatchesPage = () => {
     }
   };
 
-  // Separate matches by status
+  // Separate matches by status and apply different sorting
+  // Pending: pools first, then elimination (already sorted by sortMatches)
   const pendingMatches = myMatches.filter((m) => m.match.status !== 'completed');
-  const completedMatches = myMatches.filter((m) => m.match.status === 'completed');
+
+  // Completed: elimination first (finale first), then pools (reverse order)
+  const completedMatches = myMatches
+    .filter((m) => m.match.status === 'completed')
+    .sort((a, b) => {
+      // Elimination matches come before pool matches
+      if (a.type === 'elimination' && b.type === 'pool') return -1;
+      if (a.type === 'pool' && b.type === 'elimination') return 1;
+
+      // Both are elimination matches: sort by round ascending (finale first)
+      if (a.type === 'elimination' && b.type === 'elimination') {
+        return (a.match.round || 0) - (b.match.round || 0);
+      }
+
+      // Both are pool matches: reverse order (last played first)
+      if (a.type === 'pool' && b.type === 'pool') {
+        const poolCompare = (b.poolName || '').localeCompare(a.poolName || '');
+        if (poolCompare !== 0) return poolCompare;
+        return (b.match.order || 0) - (a.match.order || 0);
+      }
+
+      return 0;
+    });
 
   if (isLoading) {
     return (
