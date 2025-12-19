@@ -180,6 +180,68 @@ class AdminService {
   }
 
   /**
+   * Round Schedule Management
+   */
+  async getRoundSchedule(tournamentId: string) {
+    return apiService.get<{
+      data: {
+        totalRounds: number;
+        totalMatches: number;
+        numberOfFields: number;
+        rounds: {
+          roundNumber: number;
+          matches: {
+            matchId: string;
+            poolId: string;
+            poolName: string;
+            team1Name: string;
+            team2Name: string;
+            roundNumber: number;
+            fieldNumber: number;
+            status: string;
+          }[];
+        }[];
+      };
+    }>(`/admin/tournaments/${tournamentId}/round-schedule`);
+  }
+
+  async generateRoundSchedule(tournamentId: string) {
+    return apiService.post<{
+      message: string;
+      data: {
+        totalRounds: number;
+        totalMatches: number;
+        numberOfFields: number;
+        rounds: any[];
+      };
+    }>(`/admin/tournaments/${tournamentId}/generate-round-schedule`);
+  }
+
+  async bulkUpdateMatchSchedules(
+    tournamentId: string,
+    updates: { poolId: string; matchId: string; roundNumber: number; fieldNumber: number }[]
+  ) {
+    return apiService.put(`/admin/tournaments/${tournamentId}/round-schedule`, { updates });
+  }
+
+  async clearRoundSchedule(tournamentId: string) {
+    return apiService.delete(`/admin/tournaments/${tournamentId}/round-schedule`);
+  }
+
+  async updateMatchSchedule(
+    tournamentId: string,
+    poolId: string,
+    matchId: string,
+    roundNumber: number,
+    fieldNumber: number
+  ) {
+    return apiService.put(`/admin/tournaments/${tournamentId}/pools/${poolId}/matches/${matchId}/schedule`, {
+      roundNumber,
+      fieldNumber,
+    });
+  }
+
+  /**
    * Unassigned Players
    */
   async getUnassignedPlayers(tournamentId: string) {

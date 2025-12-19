@@ -31,6 +31,7 @@ import { fr } from 'date-fns/locale';
 type TabType = 'teams' | 'players' | 'waitingList';
 type ViewType = 'detail' | 'results';
 type ResultsTabType = 'pools' | 'finals' | 'ranking';
+type PoolsViewMode = 'byPool' | 'byRound';
 
 const TournamentDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -44,6 +45,7 @@ const TournamentDetailPage = () => {
   const [activeTab, setActiveTab] = useState<TabType>('teams');
   const [activeView, setActiveView] = useState<ViewType>('detail');
   const [activeResultsTab, setActiveResultsTab] = useState<ResultsTabType>('pools');
+  const [poolsViewMode, setPoolsViewMode] = useState<PoolsViewMode>('byPool');
   const [showScoreModal, setShowScoreModal] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<any>(null);
   const [matchContext, setMatchContext] = useState<{ type: 'pool' | 'elimination'; poolId?: string } | null>(null);
@@ -482,6 +484,57 @@ const TournamentDetailPage = () => {
       .filter((set: any) => set.score1 !== null && set.score2 !== null)
       .map((set: any) => `${set.score1}-${set.score2}`)
       .join(', ');
+  };
+
+  // Group all pool matches by round number
+  const getMatchesByRound = (): { roundNumber: number; matches: any[] }[] => {
+    if (!tournament?.pools) return [];
+
+    // Collect all matches from all pools with pool info
+    const allMatches: any[] = [];
+    tournament.pools.forEach((pool: any) => {
+      if (pool.matches) {
+        pool.matches.forEach((match: any) => {
+          allMatches.push({
+            ...match,
+            poolId: pool.id,
+            poolName: pool.name,
+          });
+        });
+      }
+    });
+
+    // Check if any match has roundNumber assigned
+    const hasRoundSchedule = allMatches.some((m) => m.roundNumber !== undefined && m.roundNumber !== null);
+    if (!hasRoundSchedule) return [];
+
+    // Group by round number
+    const roundsMap = new Map<number, any[]>();
+    allMatches.forEach((match) => {
+      const roundNum = match.roundNumber || 0;
+      if (!roundsMap.has(roundNum)) {
+        roundsMap.set(roundNum, []);
+      }
+      roundsMap.get(roundNum)!.push(match);
+    });
+
+    // Sort rounds and matches within each round by field number
+    const rounds = Array.from(roundsMap.entries())
+      .sort(([a], [b]) => a - b)
+      .map(([roundNumber, matches]) => ({
+        roundNumber,
+        matches: matches.sort((a, b) => (a.fieldNumber || 0) - (b.fieldNumber || 0)),
+      }));
+
+    return rounds;
+  };
+
+  // Check if round schedule exists
+  const hasRoundSchedule = (): boolean => {
+    if (!tournament?.pools) return false;
+    return tournament.pools.some((pool: any) =>
+      pool.matches?.some((m: any) => m.roundNumber !== undefined && m.roundNumber !== null)
+    );
   };
 
   if (isLoading) {
@@ -1188,7 +1241,34 @@ const TournamentDetailPage = () => {
           <div className="min-h-[400px]">
             {activeResultsTab === 'pools' && (
               <div>
-                {tournament.pools && tournament.pools.length > 0 ? (
+                {/* View mode toggle when round schedule exists */}
+                {hasRoundSchedule() && (
+                  <div className="flex gap-2 mb-6">
+                    <button
+                      onClick={() => setPoolsViewMode('byPool')}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        poolsViewMode === 'byPool'
+                          ? 'bg-primary-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      Par Poule
+                    </button>
+                    <button
+                      onClick={() => setPoolsViewMode('byRound')}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        poolsViewMode === 'byRound'
+                          ? 'bg-primary-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      Par Round
+                    </button>
+                  </div>
+                )}
+
+                {/* Pools View (by Pool) */}
+                {poolsViewMode === 'byPool' && tournament.pools && tournament.pools.length > 0 && (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     {tournament.pools.map((pool: any) => (
                       <div key={pool.id} className="card">
@@ -1280,7 +1360,93 @@ const TournamentDetailPage = () => {
                       </div>
                     ))}
                   </div>
-                ) : (
+                )}
+
+                {/* Rounds View (by Round) */}
+                {poolsViewMode === 'byRound' && hasRoundSchedule() && (
+                  <div className="space-y-6">
+                    {getMatchesByRound().map((round) => (
+                      <div key={round.roundNumber} className="card">
+                        <h3 className="text-xl font-bold mb-4 text-center bg-gray-100 py-2 rounded-lg">
+                          Round {round.roundNumber}
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {round.matches.map((match: any) => {
+                            const { winner } = getMatchWinner(match);
+                            const score = formatSetsScore(match);
+                            const canEditScore = isCaptainInMatch(match) && !isRankingFrozen();
+
+                            return (
+                              <div
+                                key={`${match.poolId}-${match.id}`}
+                                className={`p-4 rounded-lg border-2 ${
+                                  match.status === 'completed'
+                                    ? 'border-green-200 bg-green-50'
+                                    : match.status === 'in_progress'
+                                    ? 'border-yellow-200 bg-yellow-50'
+                                    : 'border-gray-200 bg-gray-50'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-xs font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded">
+                                    Terrain {match.fieldNumber || '?'}
+                                  </span>
+                                  <span className={`text-xs px-2 py-1 rounded ${
+                                    match.poolName?.includes('A') ? 'bg-purple-100 text-purple-700' :
+                                    match.poolName?.includes('B') ? 'bg-orange-100 text-orange-700' :
+                                    match.poolName?.includes('C') ? 'bg-green-100 text-green-700' :
+                                    match.poolName?.includes('D') ? 'bg-red-100 text-red-700' :
+                                    'bg-gray-100 text-gray-700'
+                                  }`}>
+                                    {match.poolName}
+                                  </span>
+                                </div>
+                                <div className="font-medium text-sm mb-2">
+                                  {match.team1Name || match.team1?.name || 'TBD'}
+                                  <span className="mx-2 text-gray-400">vs</span>
+                                  {match.team2Name || match.team2?.name || 'TBD'}
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    {match.status === 'completed' && (
+                                      <span className="text-sm font-bold">{score}</span>
+                                    )}
+                                    {winner && (
+                                      <span className="text-xs text-green-600 ml-2">
+                                        ({winner})
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className={`text-xs px-2 py-1 rounded ${
+                                    match.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                    match.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
+                                    'bg-gray-100 text-gray-600'
+                                  }`}>
+                                    {match.status === 'completed' ? 'Terminé' :
+                                     match.status === 'in_progress' ? 'En cours' : 'En attente'}
+                                  </span>
+                                </div>
+                                {isAuthenticated && canEditScore && (
+                                  <button
+                                    onClick={() => handleOpenScoreModal(match, 'pool', match.poolId)}
+                                    className="mt-2 w-full btn-secondary text-xs py-1 px-2 inline-flex items-center justify-center gap-1"
+                                    title="Saisir le score"
+                                  >
+                                    <Edit size={14} />
+                                    Saisir le score
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* No pools message */}
+                {poolsViewMode === 'byPool' && (!tournament.pools || tournament.pools.length === 0) && (
                   <p className="text-gray-500 text-center">Aucune poule configurée pour ce tournoi.</p>
                 )}
               </div>
