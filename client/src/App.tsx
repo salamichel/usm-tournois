@@ -19,6 +19,7 @@ import DashboardPage from '@pages/public/DashboardPage';
 import TeamManagementPage from '@pages/public/TeamManagementPage';
 import ChangePasswordPage from '@pages/public/ChangePasswordPage';
 import PlayerRankingPage from '@pages/public/PlayerRankingPage';
+import MyMatchesPage from '@pages/public/MyMatchesPage';
 import NotFoundPage from '@pages/public/NotFoundPage';
 
 // Admin pages
@@ -87,6 +88,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <TeamManagementPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/mes-matchs/:tournamentId"
+              element={
+                <ProtectedRoute>
+                  <MyMatchesPage />
                 </ProtectedRoute>
               }
             />
