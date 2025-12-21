@@ -4,7 +4,7 @@ import AdminLayout from '@components/AdminLayout';
 import MatchScoreModal from '@components/admin/MatchScoreModal';
 import adminService from '@services/admin.service';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Trophy, Edit2, Lock } from 'lucide-react';
+import { ArrowLeft, Trophy, Edit2, Lock, Users, X } from 'lucide-react';
 
 const AdminEliminationManagement = () => {
   const { tournamentId } = useParams();
@@ -16,6 +16,10 @@ const AdminEliminationManagement = () => {
   // Modal states
   const [scoreModalOpen, setScoreModalOpen] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<any>(null);
+  const [teamsModalOpen, setTeamsModalOpen] = useState(false);
+  const [teams, setTeams] = useState<any[]>([]);
+  const [selectedTeam1, setSelectedTeam1] = useState<any>(null);
+  const [selectedTeam2, setSelectedTeam2] = useState<any>(null);
 
   useEffect(() => {
     loadData();
@@ -24,14 +28,16 @@ const AdminEliminationManagement = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [tournamentRes, matchesRes] = await Promise.all([
+      const [tournamentRes, matchesRes, teamsRes] = await Promise.all([
         adminService.getTournamentById(tournamentId!),
         adminService.getEliminationMatches(tournamentId!),
+        adminService.getTeams(tournamentId!),
       ]);
 
       setTournament(tournamentRes.tournament || tournamentRes.data?.tournament);
       setMatches(matchesRes.matches || matchesRes.data?.matches || []);
       setFinalRanking(matchesRes.finalRanking || matchesRes.data?.finalRanking || []);
+      setTeams(teamsRes.teams || teamsRes.data?.teams || []);
     } catch (error: any) {
       toast.error(error.message || 'Erreur lors du chargement');
     } finally {
@@ -42,6 +48,34 @@ const AdminEliminationManagement = () => {
   const handleEditMatchScore = (match: any) => {
     setSelectedMatch(match);
     setScoreModalOpen(true);
+  };
+
+  const handleEditMatchTeams = (match: any) => {
+    setSelectedMatch(match);
+    setSelectedTeam1(match.team1?.id ? { id: match.team1.id, name: match.team1.name } : null);
+    setSelectedTeam2(match.team2?.id ? { id: match.team2.id, name: match.team2.name } : null);
+    setTeamsModalOpen(true);
+  };
+
+  const handleSaveMatchTeams = async () => {
+    if (!selectedMatch) return;
+
+    try {
+      const team1 = selectedTeam1 ? { id: selectedTeam1.id, name: selectedTeam1.name } : undefined;
+      const team2 = selectedTeam2 ? { id: selectedTeam2.id, name: selectedTeam2.name } : undefined;
+
+      if (!team1 && !team2) {
+        toast.error('Veuillez sélectionner au moins une équipe');
+        return;
+      }
+
+      await adminService.updateEliminationMatchTeams(tournamentId!, selectedMatch.id, team1, team2);
+      toast.success('Équipes mises à jour avec succès');
+      setTeamsModalOpen(false);
+      loadData();
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur lors de la mise à jour des équipes');
+    }
   };
 
   const handleSaveMatchScore = async (sets: any[]) => {
@@ -215,14 +249,21 @@ const AdminEliminationManagement = () => {
                           </div>
                         </div>
 
-                        {/* Edit button */}
-                        <div className="flex justify-end">
+                        {/* Edit buttons */}
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => handleEditMatchTeams(match)}
+                            className="text-sm text-purple-600 hover:text-purple-800 flex items-center gap-1 px-3 py-1 rounded hover:bg-purple-50 transition-colors"
+                          >
+                            <Users size={14} />
+                            Équipes
+                          </button>
                           <button
                             onClick={() => handleEditMatchScore(match)}
                             className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 px-3 py-1 rounded hover:bg-blue-50 transition-colors"
                           >
                             <Edit2 size={14} />
-                            Modifier les scores
+                            Scores
                           </button>
                         </div>
 
@@ -307,6 +348,98 @@ const AdminEliminationManagement = () => {
         setsToWin={tournament?.setsPerMatchElimination || 3}
         pointsPerSet={tournament?.pointsPerSetElimination || 21}
       />
+
+      {/* Teams Modal */}
+      {teamsModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen px-4">
+            <div className="fixed inset-0 bg-black opacity-50" onClick={() => setTeamsModalOpen(false)}></div>
+            <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold">Modifier les équipes</h3>
+                <button onClick={() => setTeamsModalOpen(false)} className="text-gray-500 hover:text-gray-700">
+                  <X size={24} />
+                </button>
+              </div>
+
+              {selectedMatch?.status === 'completed' && (
+                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-800">
+                    <strong>Attention :</strong> Ce match est terminé. Modifier les équipes réinitialisera le score et effacera les résultats propagés.
+                  </p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Team 1 Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Équipe 1</label>
+                  <select
+                    value={selectedTeam1?.id || ''}
+                    onChange={(e) => {
+                      const team = teams.find(t => t.id === e.target.value);
+                      setSelectedTeam1(team ? { id: team.id, name: team.name } : null);
+                    }}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">-- Sélectionner --</option>
+                    {teams.map((team) => (
+                      <option key={team.id} value={team.id} disabled={team.id === selectedTeam2?.id}>
+                        {team.name}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedTeam1 && (
+                    <div className="mt-2 p-2 bg-gray-50 rounded text-sm">
+                      <span className="font-medium">{selectedTeam1.name}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Team 2 Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Équipe 2</label>
+                  <select
+                    value={selectedTeam2?.id || ''}
+                    onChange={(e) => {
+                      const team = teams.find(t => t.id === e.target.value);
+                      setSelectedTeam2(team ? { id: team.id, name: team.name } : null);
+                    }}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">-- Sélectionner --</option>
+                    {teams.map((team) => (
+                      <option key={team.id} value={team.id} disabled={team.id === selectedTeam1?.id}>
+                        {team.name}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedTeam2 && (
+                    <div className="mt-2 p-2 bg-gray-50 rounded text-sm">
+                      <span className="font-medium">{selectedTeam2.name}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
+                <button
+                  onClick={() => setTeamsModalOpen(false)}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleSaveMatchTeams}
+                  className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Enregistrer
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 };
