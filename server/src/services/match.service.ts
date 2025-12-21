@@ -114,31 +114,47 @@ export async function calculatePoolRanking(
 
   matches.forEach((match) => {
     if (match.status === 'completed' && match.sets && match.sets.length > 0) {
-      const team1Id = match.team1.id;
-      const team2Id = match.team2.id;
+      const team1Id = match.team1?.id;
+      const team2Id = match.team2?.id;
 
-      if (!ranking[team1Id] || !ranking[team2Id]) {
+      if (!team1Id || !team2Id || !ranking[team1Id] || !ranking[team2Id]) {
         return;
       }
 
       ranking[team1Id].matchesPlayed++;
       ranking[team2Id].matchesPlayed++;
 
-      let team1SetsWon = 0;
-      let team2SetsWon = 0;
+      // Use stored setsWon values if available, otherwise calculate
+      let team1SetsWon = match.setsWonTeam1 ?? 0;
+      let team2SetsWon = match.setsWonTeam2 ?? 0;
+
+      // Fallback calculation if setsWon not stored
+      if (match.setsWonTeam1 === undefined || match.setsWonTeam2 === undefined) {
+        team1SetsWon = 0;
+        team2SetsWon = 0;
+        const pointsPerSet = match.pointsPerSet || 21;
+
+        match.sets.forEach((set: MatchSet) => {
+          const outcome = calculateSetOutcome(set.score1, set.score2, pointsPerSet);
+          if (outcome === 1) {
+            team1SetsWon++;
+          } else if (outcome === 2) {
+            team2SetsWon++;
+          } else if (set.score1 != null && set.score2 != null) {
+            // Fallback: if no clear winner by rules, use simple comparison
+            if (set.score1 > set.score2) {
+              team1SetsWon++;
+            } else if (set.score2 > set.score1) {
+              team2SetsWon++;
+            }
+          }
+        });
+      }
+
+      // Calculate points from sets
       let team1PointsWonMatch = 0;
       let team2PointsWonMatch = 0;
-
-      const setsToWin = match.setsToWin || 1;
-      const pointsPerSet = match.pointsPerSet || 21;
-
       match.sets.forEach((set: MatchSet) => {
-        const outcome = calculateSetOutcome(set.score1, set.score2, pointsPerSet);
-        if (outcome === 1) {
-          team1SetsWon++;
-        } else if (outcome === 2) {
-          team2SetsWon++;
-        }
         team1PointsWonMatch += set.score1 || 0;
         team2PointsWonMatch += set.score2 || 0;
       });
@@ -153,7 +169,16 @@ export async function calculatePoolRanking(
       ranking[team2Id].pointsWon += team2PointsWonMatch;
       ranking[team2Id].pointsLost += team1PointsWonMatch;
 
-      if (team1SetsWon > team2SetsWon) {
+      // Determine winner: use stored winnerId if available, otherwise compare sets
+      if (match.winnerId) {
+        if (match.winnerId === team1Id) {
+          ranking[team1Id].wins++;
+          ranking[team2Id].losses++;
+        } else if (match.winnerId === team2Id) {
+          ranking[team2Id].wins++;
+          ranking[team1Id].losses++;
+        }
+      } else if (team1SetsWon > team2SetsWon) {
         ranking[team1Id].wins++;
         ranking[team2Id].losses++;
       } else if (team2SetsWon > team1SetsWon) {
