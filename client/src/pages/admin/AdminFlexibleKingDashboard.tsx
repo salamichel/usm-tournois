@@ -47,7 +47,7 @@ const AdminFlexibleKingDashboard = () => {
         setShowConfigModal(true);
         // Get tournament data from regular API to know player count
         try {
-          const tournamentResponse = await adminService.getTournamentById(tournamentId);
+          const tournamentResponse: any = await adminService.getTournamentById(tournamentId);
           if (tournamentResponse.success && tournamentResponse.data) {
             const unassignedPlayers = tournamentResponse.data.unassignedPlayers || [];
             setRegisteredPlayersCount(unassignedPlayers.length);
@@ -378,10 +378,10 @@ const AdminFlexibleKingDashboard = () => {
               <p className="text-lg text-yellow-700 mb-4">Le King du Tournoi est :</p>
               <div className="bg-white rounded-lg p-4 inline-block shadow-lg mb-4">
                 <p className="text-3xl font-bold text-primary-600">
-                  🏆 {phases[phases.length - 1].ranking[0]?.playerPseudo || 'Vainqueur'}
+                  🏆 {phases[phases.length - 1]?.ranking?.[0]?.playerPseudo || 'Vainqueur'}
                 </p>
                 <p className="text-sm text-gray-600 mt-2">
-                  {phases[phases.length - 1].ranking[0]?.wins || 0} victoires - {phases[phases.length - 1].ranking[0]?.losses || 0} défaites
+                  {phases[phases.length - 1]?.ranking?.[0]?.wins || 0} victoires - {phases[phases.length - 1]?.ranking?.[0]?.losses || 0} défaites
                 </p>
               </div>
 

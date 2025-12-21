@@ -4,12 +4,11 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Trophy, Medal, TrendingUp, Calendar, Award, Building2, Globe, CalendarRange } from 'lucide-react';
+import { Trophy, Medal, TrendingUp, Award, Building2, Globe, CalendarRange } from 'lucide-react';
 import playerRankingService from '@services/playerRanking.service';
 import seasonService from '@services/season.service';
 import type { PlayerGlobalRanking } from '@shared/types/playerPoints.types';
 import type { Season, SeasonRanking } from '@shared/types/season.types';
-import { Link } from 'react-router-dom';
 
 type ViewMode = 'global' | 'season';
 

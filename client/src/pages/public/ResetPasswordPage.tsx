@@ -27,7 +27,7 @@ const ResetPasswordPage = () => {
 
       try {
         const response = await authService.verifyPasswordResetToken(token);
-        setEmail(response.email);
+        setEmail(response.data?.email || '');
         setIsTokenValid(true);
       } catch (error: any) {
         toast.error(error.message || 'Le lien de réinitialisation est invalide ou expiré.');

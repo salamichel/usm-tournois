@@ -91,7 +91,7 @@ export const getKingDashboard = async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: 'Tournament not found' });
     }
 
-    const tournament = { id: tournamentDoc.id, ...tournamentDoc.data() };
+    const tournament: any = { id: tournamentDoc.id, ...tournamentDoc.data() };
 
     // Get King data
     const kingDocRef = tournamentDoc.ref.collection('king').doc('mainKingData');
@@ -105,7 +105,7 @@ export const getKingDashboard = async (req: Request, res: Response) => {
       const phaseDoc = await phaseDocRef.get();
       if (!phaseDoc.exists) return null;
 
-      const phase = { id: phaseDoc.id, ...phaseDoc.data() };
+      const phase: any = { id: phaseDoc.id, ...phaseDoc.data() };
 
       // Get pools and matches for this phase
       const poolsSnapshot = await phaseDocRef.collection('pools').get();
@@ -114,7 +114,7 @@ export const getKingDashboard = async (req: Request, res: Response) => {
       for (const poolDoc of poolsSnapshot.docs) {
         const poolData = poolDoc.data();
         const matchesSnapshot = await poolDoc.ref.collection('matches').get();
-        const matches = matchesSnapshot.docs.map((m) => ({ id: m.id, ...m.data() }));
+        const matches: any[] = matchesSnapshot.docs.map((m) => ({ id: m.id, ...m.data() }));
 
         // Group matches by round
         const matchesByRound = new Map<string, any[]>();
@@ -241,7 +241,7 @@ export const startKingPhase1 = async (req: Request, res: Response) => {
       .doc(tournamentId)
       .collection('unassignedPlayers')
       .get();
-    const players = unassignedPlayersSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    const players: any[] = unassignedPlayersSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
     if (!tournament || players.length === 0) {
       return res.status(400).json({
@@ -878,7 +878,7 @@ export const resetKingPhase2 = async (req: Request, res: Response) => {
     if (!tournamentDoc.exists) {
       return res.status(404).json({ success: false, message: 'Tournament not found.' });
     }
-    const tournament = { id: tournamentDoc.id, ...tournamentDoc.data() };
+    const tournament: any = { id: tournamentDoc.id, ...tournamentDoc.data() };
 
     if (tournament.tournamentFormat !== 'king' || !tournament.king) {
       return res.status(400).json({ success: false, message: 'This is not a valid King tournament.' });
@@ -924,7 +924,7 @@ export const resetKingPhase3 = async (req: Request, res: Response) => {
     if (!tournamentDoc.exists) {
       return res.status(404).json({ success: false, message: 'Tournament not found.' });
     }
-    const tournament = { id: tournamentDoc.id, ...tournamentDoc.data() };
+    const tournament: any = { id: tournamentDoc.id, ...tournamentDoc.data() };
 
     if (tournament.tournamentFormat !== 'king' || !tournament.king) {
       return res.status(400).json({ success: false, message: 'This is not a valid King tournament.' });

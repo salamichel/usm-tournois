@@ -241,7 +241,7 @@ const TournamentDetailPage = () => {
 
   // Check if ranking is frozen
   const isRankingFrozen = (): boolean => {
-    return tournament?.finalRanking && tournament.finalRanking.length > 0;
+    return !!(tournament?.finalRanking && tournament.finalRanking.length > 0);
   };
 
   // Open score modal for a match
@@ -293,7 +293,7 @@ const TournamentDetailPage = () => {
       team.members?.some((m) => m.userId === user.uid)
     );
     const isInWaitingList = tournament.waitingList?.some(
-      (p) => p.userId === user.uid
+      (p: any) => p.userId === user.uid
     );
     return isUnassigned || isInTeam || isInWaitingList;
   };
@@ -339,7 +339,7 @@ const TournamentDetailPage = () => {
 
   const isTeamComplete = (team: Team): boolean => {
     // A team is complete if it has at least minPlayersPerTeam members
-    const minPlayers = tournament?.minPlayersPerTeam || tournament?.playersPerTeam;
+    const minPlayers = tournament?.minPlayersPerTeam || tournament?.playersPerTeam || 0;
     return (team.members?.length || 0) >= minPlayers;
   };
 
@@ -1020,14 +1020,14 @@ const TournamentDetailPage = () => {
                   {tournament.waitingList && tournament.waitingList.length > 0 ? (
                     <div className="card">
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                        {tournament.waitingList.map((player, index) => (
+                        {tournament.waitingList.map((player: any, index) => (
                           <div
-                            key={player.userId}
+                            key={player.userId || player.id}
                             className="flex items-center gap-2 text-sm"
                           >
                             <span className="text-gray-400">#{index + 1}</span>
                             <Users size={14} className="text-gray-400" />
-                            <span>{player.pseudo}</span>
+                            <span>{player.pseudo || player.name}</span>
                           </div>
                         ))}
                       </div>
@@ -1556,7 +1556,7 @@ const TournamentDetailPage = () => {
                 <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">Phase d'Élimination</h2>
                 {tournament.eliminationMatches && tournament.eliminationMatches.length > 0 ? (
                   <TournamentBracket
-                    matches={tournament.eliminationMatches}
+                    matches={tournament.eliminationMatches as any}
                     user={user}
                     teams={tournament.teams}
                     onEditScore={(match) => handleOpenScoreModal(match, 'elimination')}

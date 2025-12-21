@@ -28,14 +28,16 @@ const AdminClubForm = () => {
     try {
       setLoadingData(true);
       const response = await clubService.getClubById(id!);
-      const club = response.data.club;
+      const club = response.data?.club;
 
-      setFormData({
-        name: club.name || '',
-      });
+      if (club) {
+        setFormData({
+          name: club.name || '',
+        });
 
-      if (club.logo) {
-        setLogoPreview(club.logo);
+        if (club.logo) {
+          setLogoPreview(club.logo);
+        }
       }
     } catch (error: any) {
       toast.error('Erreur lors du chargement du club');

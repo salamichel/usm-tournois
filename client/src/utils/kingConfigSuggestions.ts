@@ -770,7 +770,7 @@ export function generateMatchSchedule(phase: PhaseConfig): ScheduledMatch[] {
         const roundEnd = Math.min((round + 1) * matchesPerRound, allMatches.length);
         const roundMatches = allMatches.slice(roundStart, roundEnd);
 
-        roundMatches.forEach(([team1, team2], index) => {
+        roundMatches.forEach(([team1, team2]) => {
           poolMatches.push({
             round: round + 1,
             matchNumber: globalMatchNumber++,
@@ -830,7 +830,7 @@ function optimizeFieldAllocation(
   const optimizedSchedule: ScheduledMatch[] = [];
 
   // Pour chaque round, distribuer les matchs sur les terrains disponibles
-  matchesByRound.forEach((roundMatches, round) => {
+  matchesByRound.forEach((roundMatches, _round) => {
     roundMatches.forEach((match, index) => {
       optimizedSchedule.push({
         ...match,

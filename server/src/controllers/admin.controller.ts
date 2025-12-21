@@ -1430,7 +1430,7 @@ export const freezeEliminationRanking = async (req: Request, res: Response) => {
       .collection('eliminationMatches')
       .get();
 
-    const matches = eliminationMatchesSnapshot.docs.map((doc) => ({
+    const matches: any[] = eliminationMatchesSnapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     }));
@@ -2913,7 +2913,7 @@ export const generateRandomTeams = async (req: Request, res: Response) => {
       throw new AppError('No players registered for this tournament', 400);
     }
 
-    const players = unassignedPlayersSnapshot.docs.map(doc => ({
+    const players: any[] = unassignedPlayersSnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
     }));

@@ -125,8 +125,8 @@ const AdminUnassignedPlayers = () => {
       const response = await adminService.generateRandomTeams(tournamentId!);
       toast.success(response.message || 'Équipes générées avec succès');
 
-      if (response.data?.remainingPlayers > 0) {
-        toast.success(`${response.data.remainingPlayers} joueur(s) restant(s) non assigné(s)`, { duration: 5000 });
+      if ((response.data?.remainingPlayers ?? 0) > 0) {
+        toast.success(`${response.data?.remainingPlayers} joueur(s) restant(s) non assigné(s)`, { duration: 5000 });
       }
 
       loadData();

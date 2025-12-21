@@ -39,7 +39,7 @@ class PlayerRankingService {
   /**
    * Recalculate all global rankings (admin only)
    */
-  async recalculateRankings(): Promise<{ success: boolean; message: string }> {
+  async recalculateRankings(): Promise<{ success: boolean; message?: string }> {
     return apiService.post('/admin/players/recalculate-rankings');
   }
 }
