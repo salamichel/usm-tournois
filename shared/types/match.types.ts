@@ -48,6 +48,8 @@ export interface Match {
   winnerName?: string; // Name of winning team
   loserId?: string; // ID of losing team
   loserName?: string; // Name of losing team
+  roundNumber?: number; // Round number for scheduling
+  fieldNumber?: number; // Court/field number for scheduling
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -132,6 +134,34 @@ export interface GenerateMatchesDto {
 
 export interface GenerateEliminationBracketDto {
   tournamentId: string;
+}
+
+export interface GenerateRoundScheduleDto {
+  tournamentId: string;
+}
+
+export interface UpdateMatchScheduleDto {
+  tournamentId: string;
+  poolId: string;
+  matchId: string;
+  roundNumber: number;
+  fieldNumber: number;
+}
+
+export interface ScheduledMatch {
+  matchId: string;
+  poolId: string;
+  poolName: string;
+  team1Name: string;
+  team2Name: string;
+  roundNumber: number;
+  fieldNumber: number;
+  status: MatchStatus;
+}
+
+export interface RoundSchedule {
+  roundNumber: number;
+  matches: ScheduledMatch[];
 }
 
 export interface EliminationBracketStructure {

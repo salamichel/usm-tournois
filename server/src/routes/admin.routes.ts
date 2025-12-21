@@ -48,6 +48,15 @@ router.post('/tournaments/:tournamentId/pools/:poolId/matches/:matchId/update-sc
 router.post('/tournaments/:tournamentId/elimination/:matchId/update-score', asyncHandler(adminController.updateEliminationMatchScore));
 
 /**
+ * Round Schedule Management
+ */
+router.get('/tournaments/:tournamentId/round-schedule', asyncHandler(adminController.getRoundSchedule));
+router.post('/tournaments/:tournamentId/generate-round-schedule', asyncHandler(adminController.generateRoundSchedule));
+router.put('/tournaments/:tournamentId/round-schedule', asyncHandler(adminController.bulkUpdateMatchSchedules));
+router.delete('/tournaments/:tournamentId/round-schedule', asyncHandler(adminController.clearRoundSchedule));
+router.put('/tournaments/:tournamentId/pools/:poolId/matches/:matchId/schedule', asyncHandler(adminController.updateMatchSchedule));
+
+/**
  * Team Management
  */
 router.get('/tournaments/:tournamentId/teams', asyncHandler(adminController.getTeams));

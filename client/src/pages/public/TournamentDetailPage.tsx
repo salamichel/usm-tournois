@@ -24,6 +24,7 @@ import {
   XCircle,
   Settings,
   Edit,
+  ClipboardList,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -31,6 +32,7 @@ import { fr } from 'date-fns/locale';
 type TabType = 'teams' | 'players' | 'waitingList';
 type ViewType = 'detail' | 'results';
 type ResultsTabType = 'pools' | 'finals' | 'ranking';
+type PoolsViewMode = 'byPool' | 'byRound';
 
 const TournamentDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -44,6 +46,7 @@ const TournamentDetailPage = () => {
   const [activeTab, setActiveTab] = useState<TabType>('teams');
   const [activeView, setActiveView] = useState<ViewType>('detail');
   const [activeResultsTab, setActiveResultsTab] = useState<ResultsTabType>('pools');
+  const [poolsViewMode, setPoolsViewMode] = useState<PoolsViewMode>('byPool');
   const [showScoreModal, setShowScoreModal] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<any>(null);
   const [matchContext, setMatchContext] = useState<{ type: 'pool' | 'elimination'; poolId?: string } | null>(null);
@@ -484,6 +487,57 @@ const TournamentDetailPage = () => {
       .join(', ');
   };
 
+  // Group all pool matches by round number
+  const getMatchesByRound = (): { roundNumber: number; matches: any[] }[] => {
+    if (!tournament?.pools) return [];
+
+    // Collect all matches from all pools with pool info
+    const allMatches: any[] = [];
+    tournament.pools.forEach((pool: any) => {
+      if (pool.matches) {
+        pool.matches.forEach((match: any) => {
+          allMatches.push({
+            ...match,
+            poolId: pool.id,
+            poolName: pool.name,
+          });
+        });
+      }
+    });
+
+    // Check if any match has roundNumber assigned
+    const hasRoundSchedule = allMatches.some((m) => m.roundNumber !== undefined && m.roundNumber !== null);
+    if (!hasRoundSchedule) return [];
+
+    // Group by round number
+    const roundsMap = new Map<number, any[]>();
+    allMatches.forEach((match) => {
+      const roundNum = match.roundNumber || 0;
+      if (!roundsMap.has(roundNum)) {
+        roundsMap.set(roundNum, []);
+      }
+      roundsMap.get(roundNum)!.push(match);
+    });
+
+    // Sort rounds and matches within each round by field number
+    const rounds = Array.from(roundsMap.entries())
+      .sort(([a], [b]) => a - b)
+      .map(([roundNumber, matches]) => ({
+        roundNumber,
+        matches: matches.sort((a, b) => (a.fieldNumber || 0) - (b.fieldNumber || 0)),
+      }));
+
+    return rounds;
+  };
+
+  // Check if round schedule exists
+  const hasRoundSchedule = (): boolean => {
+    if (!tournament?.pools) return false;
+    return tournament.pools.some((pool: any) =>
+      pool.matches?.some((m: any) => m.roundNumber !== undefined && m.roundNumber !== null)
+    );
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -588,6 +642,57 @@ const TournamentDetailPage = () => {
           Résultats
         </button>
       </div>
+
+      {/* User Actions Banner - visible for registered users */}
+      {isRegistered && (
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <CheckCircle className="text-green-600 flex-shrink-0" size={24} />
+              <div>
+                <p className="font-medium text-green-900">
+                  {userTeam ? (
+                    <>Inscrit · <span className="text-green-700">{userTeam.name}</span></>
+                  ) : (
+                    'Inscrit comme joueur solo'
+                  )}
+                </p>
+                {userTeam && userTeam.captainId === user?.uid && (
+                  <p className="text-sm text-green-700">Capitaine</p>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {userTeam && userTeam.captainId === user?.uid && (
+                <>
+                  <button
+                    onClick={() => navigate(`/mes-matchs/${tournament.id}`)}
+                    className="btn-primary text-sm"
+                  >
+                    <ClipboardList size={18} className="mr-1.5" />
+                    Mes matchs
+                  </button>
+                  <button
+                    onClick={() => navigate(`/gestion-equipe/${tournament.id}/${userTeam.id}`)}
+                    className="btn-secondary text-sm"
+                  >
+                    <Settings size={18} className="mr-1.5" />
+                    Équipe
+                  </button>
+                </>
+              )}
+              <button
+                onClick={handleLeaveTournament}
+                disabled={processingAction}
+                className="btn-danger text-sm"
+              >
+                <UserMinus size={18} className="mr-1.5" />
+                Quitter
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {activeView === 'detail' ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -737,49 +842,6 @@ const TournamentDetailPage = () => {
                       Créer une équipe
                     </button>
                   )}
-                </div>
-              </div>
-            )}
-
-            {/* User is registered */}
-            {isRegistered && (
-              <div className="card bg-green-50 border-2 border-green-200">
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="text-green-600 flex-shrink-0" size={24} />
-                  <div className="flex-1">
-                    <h3 className="text-lg font-bold text-gray-900 mb-1">
-                      Vous êtes inscrit !
-                    </h3>
-                    {userTeam ? (
-                      <p className="text-gray-600">
-                        Équipe: <strong>{userTeam.name}</strong>
-                      </p>
-                    ) : (
-                      <p className="text-gray-600">
-                        Vous êtes inscrit comme joueur solo
-                      </p>
-                    )}
-
-                    <div className="flex gap-3 mt-4">
-                      {userTeam && userTeam.captainId === user?.uid && (
-                        <button
-                          onClick={() => navigate(`/gestion-equipe/${tournament.id}/${userTeam.id}`)}
-                          className="btn-primary"
-                        >
-                          <Settings size={20} className="mr-2" />
-                          Gérer mon équipe
-                        </button>
-                      )}
-                      <button
-                        onClick={handleLeaveTournament}
-                        disabled={processingAction}
-                        className="btn-danger"
-                      >
-                        <UserMinus size={20} className="mr-2" />
-                        Se désinscrire
-                      </button>
-                    </div>
-                  </div>
                 </div>
               </div>
             )}
@@ -1188,7 +1250,34 @@ const TournamentDetailPage = () => {
           <div className="min-h-[400px]">
             {activeResultsTab === 'pools' && (
               <div>
-                {tournament.pools && tournament.pools.length > 0 ? (
+                {/* View mode toggle when round schedule exists */}
+                {hasRoundSchedule() && (
+                  <div className="flex gap-2 mb-6">
+                    <button
+                      onClick={() => setPoolsViewMode('byPool')}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        poolsViewMode === 'byPool'
+                          ? 'bg-primary-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      Par Poule
+                    </button>
+                    <button
+                      onClick={() => setPoolsViewMode('byRound')}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        poolsViewMode === 'byRound'
+                          ? 'bg-primary-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      Par Round
+                    </button>
+                  </div>
+                )}
+
+                {/* Pools View (by Pool) */}
+                {poolsViewMode === 'byPool' && tournament.pools && tournament.pools.length > 0 && (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     {tournament.pools.map((pool: any) => (
                       <div key={pool.id} className="card">
@@ -1208,52 +1297,104 @@ const TournamentDetailPage = () => {
                         {pool.matches && pool.matches.length > 0 ? (
                           <div className="mb-6">
                             <h4 className="font-bold mb-3">Matchs</h4>
-                            <div className="overflow-x-auto">
+
+                            {/* Mobile: Card layout */}
+                            <div className="md:hidden space-y-3">
+                              {pool.matches.map((match: any, idx: number) => {
+                                const { winner, team1Wins, team2Wins } = getMatchWinner(match);
+                                const team1Name = match.team1Name || match.team1?.name || 'TBD';
+                                const team2Name = match.team2Name || match.team2?.name || 'TBD';
+                                const isTeam1Winner = winner === team1Name;
+                                const isTeam2Winner = winner === team2Name;
+                                const canEditScore = isCaptainInMatch(match) && !isRankingFrozen();
+
+                                return (
+                                  <div key={idx} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                                    {/* Teams */}
+                                    <div className="flex flex-col gap-2 mb-3">
+                                      <div className={`flex justify-between items-center ${isTeam1Winner ? 'text-green-600 font-bold' : 'text-gray-700'}`}>
+                                        <span className="flex items-center gap-2">
+                                          {isTeam1Winner && <Trophy size={16} className="text-green-500" />}
+                                          {team1Name}
+                                        </span>
+                                        <span className="font-mono font-bold">{team1Wins}</span>
+                                      </div>
+                                      <div className={`flex justify-between items-center ${isTeam2Winner ? 'text-green-600 font-bold' : 'text-gray-700'}`}>
+                                        <span className="flex items-center gap-2">
+                                          {isTeam2Winner && <Trophy size={16} className="text-green-500" />}
+                                          {team2Name}
+                                        </span>
+                                        <span className="font-mono font-bold">{team2Wins}</span>
+                                      </div>
+                                    </div>
+
+                                    {/* Score details & Status */}
+                                    <div className="flex items-center justify-between text-sm border-t border-gray-200 pt-2">
+                                      <span className="text-gray-500">{formatSetsScore(match)}</span>
+                                      <div className="flex items-center gap-2">
+                                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                          match.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                          match.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
+                                          'bg-gray-100 text-gray-800'
+                                        }`}>
+                                          {match.status === 'completed' ? 'Terminé' : match.status === 'in_progress' ? 'En cours' : 'À venir'}
+                                        </span>
+                                        {canEditScore && (
+                                          <button
+                                            onClick={() => handleOpenScoreModal(match, 'pool', pool.id)}
+                                            className="btn-primary text-xs py-1 px-2 inline-flex items-center gap-1"
+                                            title="Saisir le score"
+                                          >
+                                            <Edit size={14} />
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+                            {/* Desktop: Table layout */}
+                            <div className="hidden md:block overflow-x-auto">
                               <table className="w-full text-sm">
                                 <thead className="bg-gray-100">
                                   <tr>
                                     <th className="p-3 text-left rounded-l-lg">Match</th>
                                     <th className="p-3 text-center">Score</th>
-                                    <th className="p-3 text-center">Statut</th>
-                                    <th className="p-3 text-center">Gagnant</th>
-                                    {isAuthenticated && <th className="p-3 text-center rounded-r-lg">Actions</th>}
+                                    <th className="p-3 text-center rounded-r-lg">Statut</th>
                                   </tr>
                                 </thead>
                                 <tbody className="text-gray-700">
                                   {pool.matches.map((match: any, idx: number) => {
                                     const { winner } = getMatchWinner(match);
+                                    const team1Name = match.team1Name || match.team1?.name || 'TBD';
+                                    const team2Name = match.team2Name || match.team2?.name || 'TBD';
+                                    const isTeam1Winner = winner === team1Name;
+                                    const isTeam2Winner = winner === team2Name;
                                     const score = formatSetsScore(match);
                                     const canEditScore = isCaptainInMatch(match) && !isRankingFrozen();
 
                                     return (
                                       <tr key={idx} className="border-b border-gray-200">
                                         <td className="p-3 text-sm">
-                                          {match.team1Name || match.team1?.name || 'TBD'} vs {match.team2Name || match.team2?.name || 'TBD'}
+                                          <span className={isTeam1Winner ? 'text-green-600 font-bold' : ''}>{team1Name}</span>
+                                          <span className="text-gray-400 mx-2">vs</span>
+                                          <span className={isTeam2Winner ? 'text-green-600 font-bold' : ''}>{team2Name}</span>
                                         </td>
                                         <td className="text-center">
                                           <span className="font-bold">{score}</span>
                                         </td>
                                         <td className="text-center">
-                                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                                            match.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                            match.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
-                                            'bg-gray-100 text-gray-800'
-                                          }`}>
-                                            {match.status}
-                                          </span>
-                                        </td>
-                                        <td className="p-3 text-sm text-center">
-                                          {winner ? (
-                                            <span className="font-bold text-green-600">{winner}</span>
-                                          ) : match.status === 'completed' ? (
-                                            <span>Match nul</span>
-                                          ) : (
-                                            <span>N/A</span>
-                                          )}
-                                        </td>
-                                        {isAuthenticated && (
-                                          <td className="p-3 text-center">
-                                            {canEditScore ? (
+                                          <div className="flex items-center justify-center gap-2">
+                                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                              match.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                              match.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
+                                              'bg-gray-100 text-gray-800'
+                                            }`}>
+                                              {match.status === 'completed' ? 'Terminé' : match.status === 'in_progress' ? 'En cours' : 'À venir'}
+                                            </span>
+                                            {canEditScore && (
                                               <button
                                                 onClick={() => handleOpenScoreModal(match, 'pool', pool.id)}
                                                 className="btn-secondary text-xs py-1 px-2 inline-flex items-center gap-1"
@@ -1262,11 +1403,9 @@ const TournamentDetailPage = () => {
                                                 <Edit size={14} />
                                                 Saisir
                                               </button>
-                                            ) : (
-                                              <span className="text-gray-400 text-xs">-</span>
                                             )}
-                                          </td>
-                                        )}
+                                          </div>
+                                        </td>
                                       </tr>
                                     );
                                   })}
@@ -1280,7 +1419,93 @@ const TournamentDetailPage = () => {
                       </div>
                     ))}
                   </div>
-                ) : (
+                )}
+
+                {/* Rounds View (by Round) */}
+                {poolsViewMode === 'byRound' && hasRoundSchedule() && (
+                  <div className="space-y-6">
+                    {getMatchesByRound().map((round) => (
+                      <div key={round.roundNumber} className="card">
+                        <h3 className="text-xl font-bold mb-4 text-center bg-gray-100 py-2 rounded-lg">
+                          Round {round.roundNumber}
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {round.matches.map((match: any) => {
+                            const { winner } = getMatchWinner(match);
+                            const score = formatSetsScore(match);
+                            const canEditScore = isCaptainInMatch(match) && !isRankingFrozen();
+
+                            return (
+                              <div
+                                key={`${match.poolId}-${match.id}`}
+                                className={`p-4 rounded-lg border-2 ${
+                                  match.status === 'completed'
+                                    ? 'border-green-200 bg-green-50'
+                                    : match.status === 'in_progress'
+                                    ? 'border-yellow-200 bg-yellow-50'
+                                    : 'border-gray-200 bg-gray-50'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-xs font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded">
+                                    Terrain {match.fieldNumber || '?'}
+                                  </span>
+                                  <span className={`text-xs px-2 py-1 rounded ${
+                                    match.poolName?.includes('A') ? 'bg-purple-100 text-purple-700' :
+                                    match.poolName?.includes('B') ? 'bg-orange-100 text-orange-700' :
+                                    match.poolName?.includes('C') ? 'bg-green-100 text-green-700' :
+                                    match.poolName?.includes('D') ? 'bg-red-100 text-red-700' :
+                                    'bg-gray-100 text-gray-700'
+                                  }`}>
+                                    {match.poolName}
+                                  </span>
+                                </div>
+                                <div className="font-medium text-sm mb-2">
+                                  {match.team1Name || match.team1?.name || 'TBD'}
+                                  <span className="mx-2 text-gray-400">vs</span>
+                                  {match.team2Name || match.team2?.name || 'TBD'}
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    {match.status === 'completed' && (
+                                      <span className="text-sm font-bold">{score}</span>
+                                    )}
+                                    {winner && (
+                                      <span className="text-xs text-green-600 ml-2">
+                                        ({winner})
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className={`text-xs px-2 py-1 rounded ${
+                                    match.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                    match.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
+                                    'bg-gray-100 text-gray-600'
+                                  }`}>
+                                    {match.status === 'completed' ? 'Terminé' :
+                                     match.status === 'in_progress' ? 'En cours' : 'En attente'}
+                                  </span>
+                                </div>
+                                {isAuthenticated && canEditScore && (
+                                  <button
+                                    onClick={() => handleOpenScoreModal(match, 'pool', match.poolId)}
+                                    className="mt-2 w-full btn-secondary text-xs py-1 px-2 inline-flex items-center justify-center gap-1"
+                                    title="Saisir le score"
+                                  >
+                                    <Edit size={14} />
+                                    Saisir le score
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* No pools message */}
+                {poolsViewMode === 'byPool' && (!tournament.pools || tournament.pools.length === 0) && (
                   <p className="text-gray-500 text-center">Aucune poule configurée pour ce tournoi.</p>
                 )}
               </div>
