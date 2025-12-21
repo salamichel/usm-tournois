@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { adminDb, adminAuth } from '../config/firebase.config';
 import { AppError } from '../middlewares/error.middleware';
 import { convertTimestamps } from '../utils/firestore.utils';
-import { calculateMatchOutcome, propagateEliminationMatchResults } from '../services/match.service';
+import { calculateMatchOutcome, propagateEliminationMatchResults, calculatePoolRanking } from '../services/match.service';
 import { generateEliminationBracket as generateEliminationBracketService, QualifiedTeam, EliminationTournamentConfig } from '../services/elimination.service';
 import { awardPointsToTeam, deleteTournamentPoints, updateGlobalRankings } from '../services/playerPoints.service';
 
@@ -480,10 +480,35 @@ export const getPools = async (req: Request, res: Response) => {
           return enrichedMatch;
         });
 
+        // Calculate pool ranking from matches
+        const teamsInPool = (poolData.teams || []).map((team: any) => ({
+          id: team.id,
+          name: team.name,
+        }));
+
+        const ranking = await calculatePoolRanking(
+          tournamentId,
+          poolDoc.id,
+          teamsInPool,
+          matches
+        );
+
+        // Enrich ranking with player info
+        const enrichedRanking = ranking.map((standing) => {
+          const teamData = teamsMap[standing.teamId] || teamsByName[standing.teamName];
+          return {
+            ...standing,
+            name: standing.teamName,
+            player1: teamData?.members?.[0] || null,
+            player2: teamData?.members?.[1] || null,
+          };
+        });
+
         return convertTimestamps({
           id: poolDoc.id,
           ...poolData,
           matches,
+          ranking: enrichedRanking,
         });
       })
     );

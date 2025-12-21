@@ -962,15 +962,19 @@ const PoolCard = ({
             <table className="min-w-full bg-white rounded-lg overflow-hidden text-sm">
               <thead className="bg-gray-100">
                 <tr>
+                  <th className="py-2 px-2 text-center w-8">#</th>
                   <th className="py-2 px-3 text-left">Équipe</th>
                   <th className="py-2 px-2 text-center">V</th>
                   <th className="py-2 px-2 text-center">D</th>
                   <th className="py-2 px-2 text-center">Sets</th>
+                  <th className="py-2 px-2 text-center">Pts</th>
+                  <th className="py-2 px-2 text-center">Diff</th>
                 </tr>
               </thead>
               <tbody>
                 {pool.ranking.map((team: any, idx: number) => (
-                  <tr key={idx} className="border-t border-gray-200">
+                  <tr key={idx} className={`border-t border-gray-200 ${idx < (tournament?.teamsQualifiedPerPool || 2) ? 'bg-green-50' : ''}`}>
+                    <td className="py-2 px-2 text-center font-bold text-gray-500">{team.rank || idx + 1}</td>
                     <td className="py-2 px-3">
                       <div className="font-medium">{team.name}</div>
                       {(team.player1 || team.player2) && (
@@ -982,9 +986,15 @@ const PoolCard = ({
                         </div>
                       )}
                     </td>
-                    <td className="py-2 px-2 text-center">{team.wins || 0}</td>
-                    <td className="py-2 px-2 text-center">{team.losses || 0}</td>
+                    <td className="py-2 px-2 text-center text-green-600 font-medium">{team.wins || 0}</td>
+                    <td className="py-2 px-2 text-center text-red-600 font-medium">{team.losses || 0}</td>
                     <td className="py-2 px-2 text-center">{team.setsWon || 0}-{team.setsLost || 0}</td>
+                    <td className="py-2 px-2 text-center text-xs">{team.pointsWon || 0}-{team.pointsLost || 0}</td>
+                    <td className="py-2 px-2 text-center">
+                      <span className={`font-medium ${(team.pointsDifferential || 0) > 0 ? 'text-green-600' : (team.pointsDifferential || 0) < 0 ? 'text-red-600' : ''}`}>
+                        {(team.pointsDifferential || 0) > 0 ? '+' : ''}{team.pointsDifferential || 0}
+                      </span>
+                    </td>
                   </tr>
                 ))}
               </tbody>
