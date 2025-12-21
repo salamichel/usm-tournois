@@ -10,7 +10,6 @@ import {
   Users,
   UserCheck,
   Edit,
-  Eye,
   ArrowRight
 } from 'lucide-react';
 

@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@contexts/AuthContext';
 import teamService from '@services/team.service';
 import userService from '@services/user.service';
-import type { Team, AddTeamMemberDto, AddVirtualMemberDto, UserLevel, User } from '@shared/types';
+import type { Team, UserLevel, User } from '@shared/types';
 import toast from 'react-hot-toast';
 import { Users, UserPlus, UserMinus, Settings, ArrowLeft, Search } from 'lucide-react';
 
@@ -20,9 +20,10 @@ const TeamManagementPage = () => {
   const [searchResults, setSearchResults] = useState<User[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showVirtualForm, setShowVirtualForm] = useState(false);
-  const [addMemberFormData, setAddMemberFormData] = useState({
-    memberId: '',
-  });
+  // Removed: addMemberFormData was unused
+  // const [addMemberFormData, setAddMemberFormData] = useState({
+  //   memberId: '',
+  // });
   const [addVirtualMemberFormData, setAddVirtualMemberFormData] = useState({
     pseudo: '',
     level: 'Intermédiaire' as UserLevel,
@@ -86,33 +87,12 @@ const TeamManagementPage = () => {
     }
   };
 
-  const handleAddMember = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!id || !tournamentId || !addMemberFormData.memberId) return;
-
-    try {
-      setProcessingAction(true);
-      const response = await teamService.addMember(id, {
-        tournamentId,
-        memberId: addMemberFormData.memberId,
-      });
-      if (response.success) {
-        toast.success('Membre ajouté avec succès !');
-        setShowAddMemberModal(false);
-        setAddMemberFormData({ memberId: '' });
-        setSearchQuery('');
-        setSearchResults([]);
-        fetchTeam();
-      }
-    } catch (error: any) {
-      toast.error(
-        error.response?.data?.error?.message ||
-          'Erreur lors de l\'ajout du membre'
-      );
-    } finally {
-      setProcessingAction(false);
-    }
-  };
+  // Removed: handleAddMember was unused (handleSelectUser is used instead)
+  // const handleAddMember = async (e: React.FormEvent) => {
+  //   e.preventDefault();
+  //   if (!id || !tournamentId || !addMemberFormData.memberId) return;
+  //   ...
+  // };
 
   const handleSelectUser = async (selectedUser: User) => {
     if (!id || !tournamentId) return;
@@ -121,7 +101,7 @@ const TeamManagementPage = () => {
       setProcessingAction(true);
       const response = await teamService.addMember(id, {
         tournamentId,
-        memberId: selectedUser.id,
+        memberId: selectedUser.uid,
       });
       if (response.success) {
         toast.success(`${selectedUser.pseudo} ajouté avec succès !`);
@@ -303,8 +283,8 @@ const TeamManagementPage = () => {
                         <span className="text-primary-600 ml-2 text-sm">(Capitaine)</span>
                       )}
                     </p>
-                    {member.email && (
-                      <p className="text-sm text-gray-500">{member.email}</p>
+                    {(member as any).email && (
+                      <p className="text-sm text-gray-500">{(member as any).email}</p>
                     )}
                   </div>
                 </div>
@@ -366,7 +346,7 @@ const TeamManagementPage = () => {
                       <div className="divide-y">
                         {searchResults.map((user) => (
                           <button
-                            key={user.id}
+                            key={user.uid}
                             onClick={() => handleSelectUser(user)}
                             disabled={processingAction}
                             className="w-full p-3 hover:bg-gray-50 text-left transition-colors disabled:opacity-50"
@@ -375,7 +355,7 @@ const TeamManagementPage = () => {
                               <div>
                                 <p className="font-semibold text-gray-900">
                                   {user.pseudo}
-                                  {user.isVirtual && (
+                                  {(user as any).isVirtual && (
                                     <span className="ml-2 text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded">
                                       Virtuel
                                     </span>
@@ -499,7 +479,6 @@ const TeamManagementPage = () => {
                 setSearchQuery('');
                 setSearchResults([]);
                 setShowVirtualForm(false);
-                setAddMemberFormData({ memberId: '' });
                 setAddVirtualMemberFormData({ pseudo: '', level: 'Intermédiaire' as UserLevel, email: '' });
               }}
               className="btn-secondary w-full mt-4"

@@ -11,7 +11,7 @@ export type TournamentFormat = 'standard' | 'king';
 
 export type RegistrationMode = 'teams' | 'random';
 
-export type MixityType = 'Mixed' | 'Male Only' | 'Female Only';
+export type MixityType = 'Mixed' | 'Male Only' | 'Female Only' | 'mixed' | 'male' | 'female';
 
 export interface Tournament {
   id: string;
@@ -72,6 +72,13 @@ export interface Tournament {
   // Metadata
   createdAt: Date;
   updatedAt: Date;
+
+  // Additional fields that may be returned by API
+  registrationEndDateTime?: Date;
+  price?: number; // Alias for fee
+  minLevel?: string;
+  maxLevel?: string;
+  matchFormat?: string;
 }
 
 export interface CreateTournamentDto {
@@ -131,11 +138,13 @@ export interface TournamentDetails extends Tournament {
   teams: Team[];
   unassignedPlayers: UnassignedPlayer[];
   waitingListTeams: Team[];
+  waitingList?: Team[]; // Alias for waitingListTeams
   pools: Pool[];
   eliminationMatches: EliminationMatch[];
   finalRanking: FinalRanking[];
   status: TournamentStatus;
   guaranteedMatches: number;
+  registrationDeadline?: Date; // Alias for registrationEndDateTime
 }
 
 // Import types from other files (will be defined)

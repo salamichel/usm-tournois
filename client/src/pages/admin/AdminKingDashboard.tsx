@@ -237,7 +237,7 @@ const AdminKingDashboard = () => {
               </div>
             )}
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
-              {unassignedPlayers.map((player: any, index: number) => (
+              {unassignedPlayers.map((player: any) => (
                 <div key={player.id} className="bg-gray-50 p-2 rounded-lg border border-gray-200">
                   <p className="text-sm font-medium text-gray-900 truncate">{player.pseudo || 'Inconnu'}</p>
                   <p className="text-xs text-gray-500">{player.level || player.niveau || 'N/A'}</p>

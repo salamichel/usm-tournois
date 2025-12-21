@@ -6,7 +6,6 @@ import toast from 'react-hot-toast';
 import {
   UsersRound,
   Search,
-  Filter,
   Trophy,
   Users,
   Edit,

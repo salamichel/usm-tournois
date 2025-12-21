@@ -50,10 +50,10 @@ const DashboardPage = () => {
             <div>
               <p className="text-sm text-gray-500">Niveau</p>
               <p className="text-lg font-semibold">
-                {user.level === 'Beginner' && 'Débutant'}
-                {user.level === 'Intermediate' && 'Intermédiaire'}
-                {user.level === 'Advanced' && 'Avancé'}
-                {user.level === 'Expert' && 'Expert'}
+                {user.level === 'Débutant' && 'Débutant'}
+                {user.level === 'Intermédiaire' && 'Intermédiaire'}
+                {user.level === 'Confirmé' && 'Confirmé'}
+                {!['Débutant', 'Intermédiaire', 'Confirmé'].includes(user.level) && user.level}
               </p>
             </div>
           </div>

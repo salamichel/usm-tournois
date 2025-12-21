@@ -3,7 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import AdminLayout from '@components/AdminLayout';
 import adminService from '@services/admin.service';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Save, Users, Trash2, Plus, Crown, UserMinus, UserPlus, Award } from 'lucide-react';
+import { ArrowLeft, Save, Users, Crown, UserMinus, UserPlus, Award } from 'lucide-react';
 
 interface Member {
   userId: string;
@@ -109,7 +109,7 @@ const AdminTeamForm = () => {
     try {
       // Update team with member removed
       const updatedMembers = formData.members.filter(m => m.userId !== memberId);
-      const response = await adminService.updateTeam(tournamentId!, teamId!, {
+      await adminService.updateTeam(tournamentId!, teamId!, {
         members: updatedMembers
       });
 

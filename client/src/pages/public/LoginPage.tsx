@@ -116,8 +116,8 @@ const LoginPage = () => {
       analyticsService.trackPasswordResetRequest();
 
       // In development, show the reset link
-      if (response.resetLink) {
-        const url = new URL(response.resetLink);
+      if (response.data?.resetLink) {
+        const url = new URL(response.data.resetLink);
         const oobCode = url.searchParams.get('oobCode');
         if (oobCode) {
           const resetUrl = `${window.location.origin}/reset-password?token=${oobCode}`;

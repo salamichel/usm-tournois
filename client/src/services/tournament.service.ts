@@ -1,7 +1,6 @@
 import apiService from './api.service';
 import type {
   TournamentSummary,
-  TournamentDetails,
   CreateTournamentDto,
   UpdateTournamentDto,
 } from '@shared/types';

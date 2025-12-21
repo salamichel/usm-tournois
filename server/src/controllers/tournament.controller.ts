@@ -219,7 +219,7 @@ export const getTournamentById = async (req: Request, res: Response) => {
       .collection('finalRanking')
       .orderBy('rank')
       .get();
-    const finalRanking = finalRankingSnapshot.docs.map((doc) => ({
+    const finalRanking: any[] = finalRankingSnapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     }));
