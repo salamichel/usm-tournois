@@ -4,6 +4,7 @@ import { AppError } from '../middlewares/error.middleware';
 import type { Tournament, UnassignedPlayer, Team, TeamMember } from '@shared/types';
 import { convertTimestamps } from '../utils/firestore.utils';
 import { calculateTournamentStatus } from '../utils/tournament.status.utils';
+import { calculatePoolRanking } from '../services/match.service';
 
 /**
  * Get all active tournaments
@@ -191,11 +192,28 @@ export const getTournamentById = async (req: Request, res: Response) => {
       .get();
     const pools = await Promise.all(
       poolsSnapshot.docs.map(async (poolDoc) => {
+        const poolData = poolDoc.data();
         const matchesSnapshot = await poolDoc.ref.collection('matches').orderBy('matchNumber').get();
+        const matches = matchesSnapshot.docs.map((m) => ({ id: m.id, ...m.data() }));
+
+        // Calculate pool ranking
+        const teamsInPool = (poolData.teams || []).map((team: any) => ({
+          id: team.id,
+          name: team.name,
+        }));
+
+        const ranking = await calculatePoolRanking(
+          id,
+          poolDoc.id,
+          teamsInPool,
+          matches
+        );
+
         return {
           id: poolDoc.id,
-          ...poolDoc.data(),
-          matches: matchesSnapshot.docs.map((m) => ({ id: m.id, ...m.data() })),
+          ...poolData,
+          matches,
+          ranking,
         };
       })
     );

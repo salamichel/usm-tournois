@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { adminDb, adminAuth } from '../config/firebase.config';
 import { AppError } from '../middlewares/error.middleware';
 import { convertTimestamps } from '../utils/firestore.utils';
-import { calculateMatchOutcome, propagateEliminationMatchResults } from '../services/match.service';
+import { calculateMatchOutcome, propagateEliminationMatchResults, calculatePoolRanking } from '../services/match.service';
 import { generateEliminationBracket as generateEliminationBracketService, QualifiedTeam, EliminationTournamentConfig } from '../services/elimination.service';
 import { awardPointsToTeam, deleteTournamentPoints, updateGlobalRankings } from '../services/playerPoints.service';
 
@@ -480,10 +480,35 @@ export const getPools = async (req: Request, res: Response) => {
           return enrichedMatch;
         });
 
+        // Calculate pool ranking from matches
+        const teamsInPool = (poolData.teams || []).map((team: any) => ({
+          id: team.id,
+          name: team.name,
+        }));
+
+        const ranking = await calculatePoolRanking(
+          tournamentId,
+          poolDoc.id,
+          teamsInPool,
+          matches
+        );
+
+        // Enrich ranking with player info
+        const enrichedRanking = ranking.map((standing) => {
+          const teamData = teamsMap[standing.teamId] || teamsByName[standing.teamName];
+          return {
+            ...standing,
+            name: standing.teamName,
+            player1: teamData?.members?.[0] || null,
+            player2: teamData?.members?.[1] || null,
+          };
+        });
+
         return convertTimestamps({
           id: poolDoc.id,
           ...poolData,
           matches,
+          ranking: enrichedRanking,
         });
       })
     );
@@ -3208,6 +3233,128 @@ export const updateEliminationMatchScore = async (req: Request, res: Response) =
     console.error('Error updating elimination match score:', error);
     if (error instanceof AppError) throw error;
     throw new AppError('Error updating elimination match score', 500);
+  }
+};
+
+/**
+ * Update teams in an elimination match
+ * PUT /admin/tournaments/:tournamentId/elimination/:matchId/teams
+ */
+export const updateEliminationMatchTeams = async (req: Request, res: Response) => {
+  try {
+    const { tournamentId, matchId } = req.params;
+    const { team1, team2 } = req.body;
+
+    if (!team1 && !team2) {
+      throw new AppError('At least one team must be provided', 400);
+    }
+
+    // Get match
+    const matchRef = adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('eliminationMatches')
+      .doc(matchId);
+
+    const matchDoc = await matchRef.get();
+    if (!matchDoc.exists) {
+      throw new AppError('Elimination match not found', 404);
+    }
+
+    const matchData = matchDoc.data();
+    const batch = adminDb.batch();
+
+    // If match was completed, we need to reset it and unpropgate results
+    if (matchData?.status === 'completed') {
+      // Reset the match score
+      const setsToWin = matchData.setsToWin || 3;
+      const resetSets = Array.from({ length: setsToWin * 2 - 1 }, () => ({
+        score1: null,
+        score2: null,
+      }));
+
+      // Unpropgate: clear the winner from next match(es)
+      if (matchData.nextMatchId && matchData.nextMatchTeamSlot) {
+        const nextMatchRef = adminDb
+          .collection('events')
+          .doc(tournamentId)
+          .collection('eliminationMatches')
+          .doc(matchData.nextMatchId);
+
+        const clearObject: any = {};
+        clearObject[`${matchData.nextMatchTeamSlot}.id`] = null;
+        clearObject[`${matchData.nextMatchTeamSlot}.name`] = 'À déterminer';
+        batch.update(nextMatchRef, clearObject);
+      }
+
+      if (matchData.nextMatchWinnerId && matchData.nextMatchWinnerTeamSlot) {
+        const nextMatchRef = adminDb
+          .collection('events')
+          .doc(tournamentId)
+          .collection('eliminationMatches')
+          .doc(matchData.nextMatchWinnerId);
+
+        const clearObject: any = {};
+        clearObject[`${matchData.nextMatchWinnerTeamSlot}.id`] = null;
+        clearObject[`${matchData.nextMatchWinnerTeamSlot}.name`] = 'À déterminer';
+        batch.update(nextMatchRef, clearObject);
+      }
+
+      if (matchData.nextMatchLoserId && matchData.nextMatchLoserTeamSlot) {
+        const nextMatchRef = adminDb
+          .collection('events')
+          .doc(tournamentId)
+          .collection('eliminationMatches')
+          .doc(matchData.nextMatchLoserId);
+
+        const clearObject: any = {};
+        clearObject[`${matchData.nextMatchLoserTeamSlot}.id`] = null;
+        clearObject[`${matchData.nextMatchLoserTeamSlot}.name`] = 'À déterminer';
+        batch.update(nextMatchRef, clearObject);
+      }
+
+      // Reset match status
+      batch.update(matchRef, {
+        sets: resetSets,
+        setsWonTeam1: 0,
+        setsWonTeam2: 0,
+        status: 'scheduled',
+        winnerId: null,
+        loserId: null,
+        winnerName: null,
+        loserName: null,
+        updatedAt: new Date(),
+      });
+    }
+
+    // Update teams
+    const updateData: any = { updatedAt: new Date() };
+    if (team1) {
+      updateData.team1 = {
+        id: team1.id,
+        name: team1.name,
+      };
+    }
+    if (team2) {
+      updateData.team2 = {
+        id: team2.id,
+        name: team2.name,
+      };
+    }
+
+    batch.update(matchRef, updateData);
+    await batch.commit();
+
+    res.json({
+      success: true,
+      message: matchData?.status === 'completed'
+        ? 'Teams updated and match reset. Previous results have been cleared from the bracket.'
+        : 'Teams updated successfully',
+    });
+  } catch (error: any) {
+    console.error('Error updating elimination match teams:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error updating elimination match teams', 500);
   }
 };
 

@@ -156,6 +156,10 @@ class AdminService {
     return apiService.post(`/admin/tournaments/${tournamentId}/elimination/${matchId}/update-score`, { sets });
   }
 
+  async updateEliminationMatchTeams(tournamentId: string, matchId: string, team1?: { id: string; name: string }, team2?: { id: string; name: string }) {
+    return apiService.put(`/admin/tournaments/${tournamentId}/elimination/${matchId}/teams`, { team1, team2 });
+  }
+
   /**
    * Elimination Management
    */
