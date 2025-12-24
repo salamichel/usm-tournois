@@ -546,7 +546,7 @@ const AdminPoolsManagement = () => {
                           {/* Utiliser le ranking s'il existe, sinon utiliser pool.teams */}
                           {(pool.ranking && pool.ranking.length > 0 ? pool.ranking : pool.teams).map((team: any, idx: number) => (
                             <label
-                              key={`${pool.id}-${team.id}`}
+                              key={`${pool.id}-${team?.id || `idx-${idx}`}`}
                               className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 cursor-pointer"
                             >
                               <input
@@ -615,7 +615,8 @@ const AdminPoolsManagement = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {pools.map((pool, index) => {
                 // Create a unique key that includes pool ID and team IDs to force re-mount on team changes
-                const poolKey = `${pool.id}-${pool.teams?.map((t: any) => t.id).sort().join('-') || 'empty'}`;
+                const teamIds = pool.teams?.map((t: any) => t?.id).filter(Boolean).sort().join('-') || 'empty';
+                const poolKey = `${pool.id}-${teamIds}`;
                 return (
                   <PoolCard
                     key={poolKey}
@@ -1014,13 +1015,13 @@ const PoolCard = ({
         </h4>
         <form onSubmit={handleSubmit}>
           <div className="bg-white border border-gray-200 rounded-lg p-3 max-h-48 overflow-y-auto mb-3">
-            {teams.map(team => {
+            {teams.map((team, idx) => {
               const isInThisPool = pool.teams?.some((t: any) => t.id === team.id);
               const isInOtherPool = team.isAssigned && !isInThisPool;
 
               return (
                 <label
-                  key={`${pool.id}-${team.id}`}
+                  key={`${pool.id}-${team?.id || `idx-${idx}`}`}
                   className={`flex items-start gap-2 mb-3 cursor-pointer ${isInOtherPool ? 'opacity-50' : ''}`}
                 >
                   <input
