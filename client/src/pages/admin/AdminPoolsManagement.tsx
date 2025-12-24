@@ -544,20 +544,17 @@ const AdminPoolsManagement = () => {
                       {((pool.ranking && pool.ranking.length > 0) || (pool.teams && pool.teams.length > 0)) ? (
                         <div className="space-y-2">
                           {/* Utiliser le ranking s'il existe, sinon utiliser pool.teams */}
-                          {(pool.ranking && pool.ranking.length > 0 ? pool.ranking : pool.teams).map((team: any, idx: number) => {
-                            const hasValidId = team?.id != null;
-                            return (
-                              <label
-                                key={`${pool.id}-${team?.id || `idx-${idx}`}`}
-                                className={`flex items-center gap-3 p-2 rounded hover:bg-gray-50 ${hasValidId ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={hasValidId && qualifiedTeams.includes(team.id)}
-                                  onChange={() => hasValidId && handleToggleQualifiedTeam(team.id)}
-                                  disabled={!hasValidId}
-                                  className="h-4 w-4"
-                                />
+                          {(pool.ranking && pool.ranking.length > 0 ? pool.ranking : pool.teams).map((team: any, idx: number) => (
+                            <label
+                              key={`${pool.id}-${team.id}`}
+                              className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={qualifiedTeams.includes(team.id)}
+                                onChange={() => handleToggleQualifiedTeam(team.id)}
+                                className="h-4 w-4"
+                              />
                               <div className="flex-1">
                                 <div className="flex items-center gap-2">
                                   <span className="text-xs font-medium text-gray-500">#{idx + 1}</span>
@@ -583,8 +580,7 @@ const AdminPoolsManagement = () => {
                                 )}
                               </div>
                             </label>
-                            );
-                          })}
+                          ))}
                         </div>
                       ) : (
                         <p className="text-sm text-gray-500">Aucune équipe dans cette poule</p>
@@ -619,7 +615,7 @@ const AdminPoolsManagement = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {pools.map((pool, index) => {
                 // Create a unique key that includes pool ID and team IDs to force re-mount on team changes
-                const teamIds = pool.teams?.map((t: any) => t?.id).filter(Boolean).sort().join('-') || 'empty';
+                const teamIds = pool.teams?.map((t: any) => t.id).sort().join('-') || 'empty';
                 const poolKey = `${pool.id}-${teamIds}`;
                 return (
                   <PoolCard
@@ -1019,21 +1015,20 @@ const PoolCard = ({
         </h4>
         <form onSubmit={handleSubmit}>
           <div className="bg-white border border-gray-200 rounded-lg p-3 max-h-48 overflow-y-auto mb-3">
-            {teams.map((team, idx) => {
-              const hasValidId = team?.id != null;
+            {teams.map((team) => {
               const isInThisPool = pool.teams?.some((t: any) => t.id === team.id);
               const isInOtherPool = team.isAssigned && !isInThisPool;
 
               return (
                 <label
-                  key={`${pool.id}-${team?.id || `idx-${idx}`}`}
-                  className={`flex items-start gap-2 mb-3 ${!hasValidId || isInOtherPool ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                  key={`${pool.id}-${team.id}`}
+                  className={`flex items-start gap-2 mb-3 cursor-pointer ${isInOtherPool ? 'opacity-50' : ''}`}
                 >
                   <input
                     type="checkbox"
-                    checked={hasValidId && selectedTeams.includes(team.id)}
-                    onChange={() => hasValidId && handleToggleTeam(team.id)}
-                    disabled={!hasValidId || isInOtherPool}
+                    checked={selectedTeams.includes(team.id)}
+                    onChange={() => handleToggleTeam(team.id)}
+                    disabled={isInOtherPool}
                     className="h-4 w-4 mt-0.5"
                   />
                   <div className="flex-1">
