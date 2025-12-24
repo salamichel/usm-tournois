@@ -567,9 +567,9 @@ const AdminPoolsManagement = () => {
                                 </div>
                                 {(team.player1 || team.player2) && (
                                   <div className="text-xs text-gray-500 mt-0.5 ml-6">
-                                    {team.player1?.name || team.player1?.displayName || 'Joueur 1'}
+                                    {team.player1?.pseudo || team.player1?.name || 'Joueur 1'}
                                     {team.player2 && (
-                                      <> / {team.player2?.name || team.player2?.displayName || 'Joueur 2'}</>
+                                      <> / {team.player2?.pseudo || team.player2?.name || 'Joueur 2'}</>
                                     )}
                                   </div>
                                 )}
@@ -984,9 +984,9 @@ const PoolCard = ({
                       <div className="font-medium">{team.name}</div>
                       {(team.player1 || team.player2) && (
                         <div className="text-xs text-gray-500">
-                          {team.player1?.name || team.player1?.displayName || 'Joueur 1'}
+                          {team.player1?.pseudo || team.player1?.name || 'Joueur 1'}
                           {team.player2 && (
-                            <> / {team.player2?.name || team.player2?.displayName || 'Joueur 2'}</>
+                            <> / {team.player2?.pseudo || team.player2?.name || 'Joueur 2'}</>
                           )}
                         </div>
                       )}
@@ -1045,9 +1045,9 @@ const PoolCard = ({
                     </div>
                     {(team.player1 || team.player2) && (
                       <div className="text-xs text-gray-500 mt-0.5">
-                        {team.player1?.name || team.player1?.displayName || 'Joueur 1'}
+                        {team.player1?.pseudo || team.player1?.name || 'Joueur 1'}
                         {team.player2 && (
-                          <> / {team.player2?.name || team.player2?.displayName || 'Joueur 2'}</>
+                          <> / {team.player2?.pseudo || team.player2?.name || 'Joueur 2'}</>
                         )}
                       </div>
                     )}
