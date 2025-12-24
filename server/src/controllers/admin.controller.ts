@@ -498,6 +498,7 @@ export const getPools = async (req: Request, res: Response) => {
           const teamData = teamsMap[standing.teamId] || teamsByName[standing.teamName];
           return {
             ...standing,
+            id: standing.teamId, // Add id field for React key uniqueness
             name: standing.teamName,
             player1: teamData?.members?.[0] || null,
             player2: teamData?.members?.[1] || null,

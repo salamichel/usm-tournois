@@ -546,7 +546,7 @@ const AdminPoolsManagement = () => {
                           {/* Utiliser le ranking s'il existe, sinon utiliser pool.teams */}
                           {(pool.ranking && pool.ranking.length > 0 ? pool.ranking : pool.teams).map((team: any, idx: number) => (
                             <label
-                              key={team.id}
+                              key={`${pool.id}-${team.id}`}
                               className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 cursor-pointer"
                             >
                               <input
@@ -567,9 +567,9 @@ const AdminPoolsManagement = () => {
                                 </div>
                                 {(team.player1 || team.player2) && (
                                   <div className="text-xs text-gray-500 mt-0.5 ml-6">
-                                    {team.player1?.name || team.player1?.displayName || 'Joueur 1'}
+                                    {team.player1?.pseudo || team.player1?.name || 'Joueur 1'}
                                     {team.player2 && (
-                                      <> / {team.player2?.name || team.player2?.displayName || 'Joueur 2'}</>
+                                      <> / {team.player2?.pseudo || team.player2?.name || 'Joueur 2'}</>
                                     )}
                                   </div>
                                 )}
@@ -613,21 +613,26 @@ const AdminPoolsManagement = () => {
 
             {/* Liste des poules */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {pools.map((pool, index) => (
-                <PoolCard
-                  key={pool.id}
-                  pool={pool}
-                  teams={teams}
-                  tournamentId={tournamentId!}
-                  colorIndex={index}
-                  tournament={tournament}
-                  onGenerateMatches={handleGenerateMatches}
-                  onAssignTeams={handleAssignTeams}
-                  onUpdateName={handleUpdatePoolName}
-                  onDelete={handleDeletePool}
-                  onEditMatchScore={handleEditMatchScore}
-                />
-              ))}
+              {pools.map((pool, index) => {
+                // Create a unique key that includes pool ID and team IDs to force re-mount on team changes
+                const teamIds = pool.teams?.map((t: any) => t.id).sort().join('-') || 'empty';
+                const poolKey = `${pool.id}-${teamIds}`;
+                return (
+                  <PoolCard
+                    key={poolKey}
+                    pool={pool}
+                    teams={teams}
+                    tournamentId={tournamentId!}
+                    colorIndex={index}
+                    tournament={tournament}
+                    onGenerateMatches={handleGenerateMatches}
+                    onAssignTeams={handleAssignTeams}
+                    onUpdateName={handleUpdatePoolName}
+                    onDelete={handleDeletePool}
+                    onEditMatchScore={handleEditMatchScore}
+                  />
+                );
+              })}
             </div>
 
             {pools.length === 0 && (
@@ -984,9 +989,9 @@ const PoolCard = ({
                       <div className="font-medium">{team.name}</div>
                       {(team.player1 || team.player2) && (
                         <div className="text-xs text-gray-500">
-                          {team.player1?.name || team.player1?.displayName || 'Joueur 1'}
+                          {team.player1?.pseudo || team.player1?.name || 'Joueur 1'}
                           {team.player2 && (
-                            <> / {team.player2?.name || team.player2?.displayName || 'Joueur 2'}</>
+                            <> / {team.player2?.pseudo || team.player2?.name || 'Joueur 2'}</>
                           )}
                         </div>
                       )}
@@ -1015,13 +1020,13 @@ const PoolCard = ({
         </h4>
         <form onSubmit={handleSubmit}>
           <div className="bg-white border border-gray-200 rounded-lg p-3 max-h-48 overflow-y-auto mb-3">
-            {teams.map(team => {
+            {teams.map((team) => {
               const isInThisPool = pool.teams?.some((t: any) => t.id === team.id);
               const isInOtherPool = team.isAssigned && !isInThisPool;
 
               return (
                 <label
-                  key={team.id}
+                  key={`${pool.id}-${team.id}`}
                   className={`flex items-start gap-2 mb-3 cursor-pointer ${isInOtherPool ? 'opacity-50' : ''}`}
                 >
                   <input
@@ -1045,9 +1050,9 @@ const PoolCard = ({
                     </div>
                     {(team.player1 || team.player2) && (
                       <div className="text-xs text-gray-500 mt-0.5">
-                        {team.player1?.name || team.player1?.displayName || 'Joueur 1'}
+                        {team.player1?.pseudo || team.player1?.name || 'Joueur 1'}
                         {team.player2 && (
-                          <> / {team.player2?.name || team.player2?.displayName || 'Joueur 2'}</>
+                          <> / {team.player2?.pseudo || team.player2?.name || 'Joueur 2'}</>
                         )}
                       </div>
                     )}
