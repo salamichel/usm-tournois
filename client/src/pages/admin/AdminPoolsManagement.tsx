@@ -875,6 +875,11 @@ const PoolCard = ({
   const [editingName, setEditingName] = useState(false);
   const [newName, setNewName] = useState(pool.name);
 
+  // Sync selectedTeams with pool.teams when pool changes
+  useEffect(() => {
+    setSelectedTeams(pool.teams?.map((t: any) => t.id) || []);
+  }, [pool.teams]);
+
   const handleToggleTeam = (teamId: string) => {
     setSelectedTeams(prev =>
       prev.includes(teamId) ? prev.filter(id => id !== teamId) : [...prev, teamId]
