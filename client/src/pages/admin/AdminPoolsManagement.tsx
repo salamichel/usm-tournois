@@ -613,21 +613,25 @@ const AdminPoolsManagement = () => {
 
             {/* Liste des poules */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {pools.map((pool, index) => (
-                <PoolCard
-                  key={pool.id}
-                  pool={pool}
-                  teams={teams}
-                  tournamentId={tournamentId!}
-                  colorIndex={index}
-                  tournament={tournament}
-                  onGenerateMatches={handleGenerateMatches}
-                  onAssignTeams={handleAssignTeams}
-                  onUpdateName={handleUpdatePoolName}
-                  onDelete={handleDeletePool}
-                  onEditMatchScore={handleEditMatchScore}
-                />
-              ))}
+              {pools.map((pool, index) => {
+                // Create a unique key that includes pool ID and team IDs to force re-mount on team changes
+                const poolKey = `${pool.id}-${pool.teams?.map((t: any) => t.id).sort().join('-') || 'empty'}`;
+                return (
+                  <PoolCard
+                    key={poolKey}
+                    pool={pool}
+                    teams={teams}
+                    tournamentId={tournamentId!}
+                    colorIndex={index}
+                    tournament={tournament}
+                    onGenerateMatches={handleGenerateMatches}
+                    onAssignTeams={handleAssignTeams}
+                    onUpdateName={handleUpdatePoolName}
+                    onDelete={handleDeletePool}
+                    onEditMatchScore={handleEditMatchScore}
+                  />
+                );
+              })}
             </div>
 
             {pools.length === 0 && (
@@ -874,11 +878,6 @@ const PoolCard = ({
   );
   const [editingName, setEditingName] = useState(false);
   const [newName, setNewName] = useState(pool.name);
-
-  // Sync selectedTeams with pool.teams when pool changes
-  useEffect(() => {
-    setSelectedTeams(pool.teams?.map((t: any) => t.id) || []);
-  }, [pool.teams]);
 
   const handleToggleTeam = (teamId: string) => {
     setSelectedTeams(prev =>
