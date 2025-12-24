@@ -546,7 +546,7 @@ const AdminPoolsManagement = () => {
                           {/* Utiliser le ranking s'il existe, sinon utiliser pool.teams */}
                           {(pool.ranking && pool.ranking.length > 0 ? pool.ranking : pool.teams).map((team: any, idx: number) => (
                             <label
-                              key={team.id}
+                              key={`${pool.id}-${team.id}`}
                               className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 cursor-pointer"
                             >
                               <input
@@ -1020,7 +1020,7 @@ const PoolCard = ({
 
               return (
                 <label
-                  key={team.id}
+                  key={`${pool.id}-${team.id}`}
                   className={`flex items-start gap-2 mb-3 cursor-pointer ${isInOtherPool ? 'opacity-50' : ''}`}
                 >
                   <input
