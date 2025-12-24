@@ -973,7 +973,7 @@ const PoolCard = ({
               </thead>
               <tbody>
                 {pool.ranking.map((team: any, idx: number) => (
-                  <tr key={idx} className={`border-t border-gray-200 ${idx < (tournament?.teamsQualifiedPerPool || 2) ? 'bg-green-50' : ''}`}>
+                  <tr key={idx} className={`border-t border-gray-200 ${idx < (_tournament?.teamsQualifiedPerPool || 2) ? 'bg-green-50' : ''}`}>
                     <td className="py-2 px-2 text-center font-bold text-gray-500">{team.rank || idx + 1}</td>
                     <td className="py-2 px-3">
                       <div className="font-medium">{team.name}</div>
