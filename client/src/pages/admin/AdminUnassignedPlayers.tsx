@@ -3,8 +3,22 @@ import { useParams, Link } from 'react-router-dom';
 import AdminLayout from '@components/AdminLayout';
 import adminService from '@services/admin.service';
 import toast from 'react-hot-toast';
-import { ArrowLeft, UserMinus, Trash2, Shuffle, UserPlus, X, Search, MessageSquare, Eye } from 'lucide-react';
+import { ArrowLeft, UserMinus, Trash2, Shuffle, UserPlus, X, Search, MessageSquare, Eye, BarChart3 } from 'lucide-react';
 import type { QuestionResponse, TournamentQuestion } from '@shared/types';
+
+interface OptionStat {
+  id: string;
+  label: string;
+  count: number;
+  percentage: number;
+}
+
+interface QuestionStat {
+  questionId: string;
+  question: string;
+  totalResponses: number;
+  options: OptionStat[];
+}
 
 const AdminUnassignedPlayers = () => {
   const { tournamentId } = useParams();
@@ -24,6 +38,9 @@ const AdminUnassignedPlayers = () => {
   // Responses modal state
   const [showResponsesModal, setShowResponsesModal] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
+
+  // Statistics state
+  const [showStats, setShowStats] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -139,6 +156,46 @@ const AdminUnassignedPlayers = () => {
   // Check if tournament has signup questions
   const hasSignupQuestions = tournament?.signupQuestions && tournament.signupQuestions.length > 0;
 
+  // Compute aggregated statistics for questions
+  const computeStatistics = (): QuestionStat[] => {
+    if (!hasSignupQuestions || !players.length) return [];
+
+    return tournament.signupQuestions.map((question: TournamentQuestion) => {
+      const optionCounts: Record<string, number> = {};
+
+      // Initialize all options with 0
+      question.options.forEach((opt) => {
+        optionCounts[opt.id] = 0;
+      });
+
+      // Count responses
+      let totalResponses = 0;
+      players.forEach((player) => {
+        const response = player.questionResponses?.find(
+          (r: QuestionResponse) => r.questionId === question.id
+        );
+        if (response && optionCounts[response.selectedOptionId] !== undefined) {
+          optionCounts[response.selectedOptionId]++;
+          totalResponses++;
+        }
+      });
+
+      return {
+        questionId: question.id,
+        question: question.question,
+        totalResponses,
+        options: question.options.map((opt) => ({
+          id: opt.id,
+          label: opt.label,
+          count: optionCounts[opt.id],
+          percentage: totalResponses > 0 ? Math.round((optionCounts[opt.id] / totalResponses) * 100) : 0,
+        })),
+      };
+    });
+  };
+
+  const statistics = computeStatistics();
+
   const handleGenerateRandomTeams = async () => {
     if (!confirm(`Voulez-vous générer les équipes équilibrées avec ${players.length} joueur(s) ?\n\nCette action créera des équipes de ${tournament.playersPerTeam} joueurs équilibrées par niveau.`)) {
       return;
@@ -192,6 +249,15 @@ const AdminUnassignedPlayers = () => {
                 : 'Ces joueurs se sont inscrits au tournoi mais n\'ont pas encore rejoint ou créé d\'équipe.'}
             </p>
             <div className="flex items-center gap-2 flex-shrink-0">
+              {hasSignupQuestions && players.length > 0 && (
+                <button
+                  onClick={() => setShowStats(!showStats)}
+                  className={`btn-secondary flex items-center gap-2 ${showStats ? 'bg-blue-100 text-blue-700' : ''}`}
+                >
+                  <BarChart3 size={18} />
+                  {showStats ? 'Masquer stats' : 'Voir stats'}
+                </button>
+              )}
               <button
                 onClick={handleOpenAddModal}
                 className="btn-secondary flex items-center gap-2"
@@ -212,6 +278,46 @@ const AdminUnassignedPlayers = () => {
               )}
             </div>
           </div>
+
+          {/* Aggregated Statistics Section */}
+          {showStats && hasSignupQuestions && statistics.length > 0 && (
+            <div className="mb-6 border-t pt-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <BarChart3 size={20} />
+                Statistiques des réponses
+              </h3>
+              <div className="grid gap-6 md:grid-cols-2">
+                {statistics.map((stat, index) => (
+                  <div key={stat.questionId} className="bg-gray-50 rounded-lg p-4">
+                    <h4 className="font-medium text-gray-800 mb-3">
+                      {index + 1}. {stat.question}
+                    </h4>
+                    <p className="text-xs text-gray-500 mb-3">
+                      {stat.totalResponses} réponse(s) sur {players.length} joueur(s)
+                    </p>
+                    <div className="space-y-3">
+                      {stat.options.map((option) => (
+                        <div key={option.id}>
+                          <div className="flex justify-between text-sm mb-1">
+                            <span className="text-gray-700">{option.label}</span>
+                            <span className="font-medium text-gray-900">
+                              {option.count} ({option.percentage}%)
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                            <div
+                              className="h-3 rounded-full bg-blue-500 transition-all duration-300"
+                              style={{ width: `${option.percentage}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {players.length > 0 ? (
             <div className="overflow-x-auto">
