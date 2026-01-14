@@ -3,6 +3,7 @@ import type {
   TournamentSummary,
   CreateTournamentDto,
   UpdateTournamentDto,
+  QuestionResponse,
 } from '@shared/types';
 
 class TournamentService {
@@ -31,8 +32,8 @@ class TournamentService {
   /**
    * Register as unassigned player
    */
-  async registerPlayer(tournamentId: string) {
-    return apiService.post(`/tournaments/${tournamentId}/register-player`);
+  async registerPlayer(tournamentId: string, questionResponses?: QuestionResponse[]) {
+    return apiService.post(`/tournaments/${tournamentId}/register-player`, { questionResponses });
   }
 
   /**
@@ -59,8 +60,8 @@ class TournamentService {
   /**
    * Join existing team
    */
-  async joinTeam(tournamentId: string, teamId: string) {
-    return apiService.post(`/tournaments/${tournamentId}/join-team`, { teamId });
+  async joinTeam(tournamentId: string, teamId: string, questionResponses?: QuestionResponse[]) {
+    return apiService.post(`/tournaments/${tournamentId}/join-team`, { teamId, questionResponses });
   }
 
   /**
@@ -73,8 +74,8 @@ class TournamentService {
   /**
    * Create new team
    */
-  async createTeam(tournamentId: string, teamName: string) {
-    return apiService.post(`/tournaments/${tournamentId}/create-team`, { teamName });
+  async createTeam(tournamentId: string, teamName: string, questionResponses?: QuestionResponse[]) {
+    return apiService.post(`/tournaments/${tournamentId}/create-team`, { teamName, questionResponses });
   }
 
   /**

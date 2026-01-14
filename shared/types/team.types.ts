@@ -4,12 +4,14 @@
  */
 
 import type { UserLevel } from './user.types';
+import type { QuestionResponse } from './tournament.types';
 
 export interface TeamMember {
   userId: string;
   pseudo: string;
   level: UserLevel;
   isVirtual?: boolean; // For virtual/placeholder members
+  questionResponses?: QuestionResponse[];
 }
 
 export interface Team {
@@ -34,6 +36,7 @@ export interface CreateTeamDto {
   tournamentId: string;
   captainId: string;
   recruitmentOpen?: boolean;
+  questionResponses?: QuestionResponse[];
 }
 
 export interface UpdateTeamDto {
@@ -80,4 +83,5 @@ export interface JoinTeamDto {
   teamId: string;
   tournamentId: string;
   userId: string;
+  questionResponses?: QuestionResponse[];
 }

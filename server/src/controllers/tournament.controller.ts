@@ -1,10 +1,66 @@
 import { Request, Response } from 'express';
 import { adminDb } from '../config/firebase.config';
 import { AppError } from '../middlewares/error.middleware';
-import type { Tournament, UnassignedPlayer, Team, TeamMember } from '@shared/types';
+import type { Tournament, UnassignedPlayer, Team, TeamMember, TournamentQuestion, QuestionResponse } from '@shared/types';
 import { convertTimestamps } from '../utils/firestore.utils';
 import { calculateTournamentStatus } from '../utils/tournament.status.utils';
 import { calculatePoolRanking } from '../services/match.service';
+
+/**
+ * Validate question responses against tournament's required questions
+ */
+const validateQuestionResponses = (
+  signupQuestions: TournamentQuestion[] | undefined,
+  questionResponses: QuestionResponse[] | undefined
+): void => {
+  if (!signupQuestions || signupQuestions.length === 0) {
+    return; // No questions to validate
+  }
+
+  const requiredQuestions = signupQuestions.filter(q => q.required);
+
+  if (requiredQuestions.length === 0) {
+    return; // No required questions
+  }
+
+  if (!questionResponses || questionResponses.length === 0) {
+    throw new AppError('Des réponses aux questions sont requises pour l\'inscription', 400);
+  }
+
+  for (const question of requiredQuestions) {
+    const response = questionResponses.find(r => r.questionId === question.id);
+    if (!response || !response.selectedOptionId) {
+      throw new AppError(`La question "${question.question}" est obligatoire`, 400);
+    }
+
+    // Validate that the selected option exists
+    const optionExists = question.options.some(o => o.id === response.selectedOptionId);
+    if (!optionExists) {
+      throw new AppError(`Option invalide pour la question "${question.question}"`, 400);
+    }
+  }
+};
+
+/**
+ * Enrich question responses with option labels
+ */
+const enrichQuestionResponses = (
+  signupQuestions: TournamentQuestion[] | undefined,
+  questionResponses: QuestionResponse[] | undefined
+): QuestionResponse[] | undefined => {
+  if (!questionResponses || !signupQuestions) {
+    return questionResponses;
+  }
+
+  return questionResponses.map(response => {
+    const question = signupQuestions.find(q => q.id === response.questionId);
+    const option = question?.options.find(o => o.id === response.selectedOptionId);
+    return {
+      ...response,
+      selectedOptionLabel: option?.label || response.selectedOptionLabel,
+    };
+  });
+};
 
 /**
  * Get all active tournaments
@@ -303,6 +359,7 @@ export const getTournamentById = async (req: Request, res: Response) => {
  */
 export const registerPlayer = async (req: Request, res: Response) => {
   const { id: tournamentId } = req.params;
+  const { questionResponses } = req.body;
   const userId = (req as any).user?.uid;
 
   if (!userId) {
@@ -321,6 +378,9 @@ export const registerPlayer = async (req: Request, res: Response) => {
       throw new AppError('Tournament is not active', 400);
     }
 
+    // Validate question responses
+    validateQuestionResponses(tournament?.signupQuestions, questionResponses);
+
     // Get user data
     const userDoc = await adminDb.collection('users').doc(userId).get();
     if (!userDoc.exists) {
@@ -328,6 +388,9 @@ export const registerPlayer = async (req: Request, res: Response) => {
     }
 
     const userData = userDoc.data();
+
+    // Enrich responses with option labels
+    const enrichedResponses = enrichQuestionResponses(tournament?.signupQuestions, questionResponses);
 
     // Register as unassigned player
     await adminDb
@@ -340,6 +403,7 @@ export const registerPlayer = async (req: Request, res: Response) => {
         pseudo: userData?.pseudo || 'Unknown',
         level: userData?.level || 'N/A',
         registeredAt: new Date(),
+        questionResponses: enrichedResponses || [],
       });
 
     res.json({
@@ -541,7 +605,7 @@ export const leaveTournament = async (req: Request, res: Response) => {
  */
 export const joinTeam = async (req: Request, res: Response) => {
   const { id: tournamentId } = req.params;
-  const { teamId } = req.body;
+  const { teamId, questionResponses } = req.body;
   const userId = (req as any).user?.uid;
 
   if (!userId) {
@@ -556,6 +620,9 @@ export const joinTeam = async (req: Request, res: Response) => {
     }
 
     const tournament = tournamentDoc.data();
+
+    // Validate question responses
+    validateQuestionResponses(tournament?.signupQuestions, questionResponses);
 
     // Check team exists
     const teamDoc = await adminDb
@@ -592,6 +659,9 @@ export const joinTeam = async (req: Request, res: Response) => {
     const userData = userDoc.data();
     const batch = adminDb.batch();
 
+    // Enrich responses with option labels
+    const enrichedResponses = enrichQuestionResponses(tournament?.signupQuestions, questionResponses);
+
     // Add to team
     batch.update(teamDoc.ref, {
       members: [
@@ -600,6 +670,7 @@ export const joinTeam = async (req: Request, res: Response) => {
           userId: userId,
           pseudo: userData?.pseudo || 'Unknown',
           level: userData?.level || 'N/A',
+          questionResponses: enrichedResponses || [],
         },
       ],
     });
@@ -717,7 +788,7 @@ export const leaveTeam = async (req: Request, res: Response) => {
  */
 export const createTeam = async (req: Request, res: Response) => {
   const { id: tournamentId } = req.params;
-  const { teamName } = req.body;
+  const { teamName, questionResponses } = req.body;
   const userId = (req as any).user?.uid;
 
   if (!userId) {
@@ -742,6 +813,9 @@ export const createTeam = async (req: Request, res: Response) => {
       throw new AppError('Cannot create teams in this tournament. Teams will be generated randomly by the admin.', 403);
     }
 
+    // Validate question responses
+    validateQuestionResponses(tournamentData?.signupQuestions, questionResponses);
+
     // Get user data
     const userDoc = await adminDb.collection('users').doc(userId).get();
     if (!userDoc.exists) {
@@ -750,6 +824,9 @@ export const createTeam = async (req: Request, res: Response) => {
 
     const userData = userDoc.data();
     const batch = adminDb.batch();
+
+    // Enrich responses with option labels
+    const enrichedResponses = enrichQuestionResponses(tournamentData?.signupQuestions, questionResponses);
 
     // Create team
     const newTeamRef = adminDb
@@ -766,6 +843,7 @@ export const createTeam = async (req: Request, res: Response) => {
           userId: userId,
           pseudo: userData?.pseudo || 'Unknown',
           level: userData?.level || 'N/A',
+          questionResponses: enrichedResponses || [],
         },
       ],
       recruitmentOpen: true,

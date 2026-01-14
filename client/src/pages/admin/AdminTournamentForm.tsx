@@ -3,7 +3,8 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import AdminLayout from '@components/AdminLayout';
 import adminService from '@services/admin.service';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Save, Calendar, Users, MapPin, DollarSign, Settings } from 'lucide-react';
+import { ArrowLeft, Save, Calendar, Users, MapPin, DollarSign, Settings, Plus, Trash2, HelpCircle } from 'lucide-react';
+import type { TournamentQuestion } from '@shared/types';
 // KingConfigAssistant removed - to be added back when implemented
 // import KingConfigAssistant from '@components/KingConfigAssistant';
 // import { KingConfiguration } from '@utils/kingConfigSuggestions';
@@ -89,7 +90,85 @@ const AdminTournamentForm = () => {
   });
   const [coverImage, setCoverImage] = useState<File | null>(null);
   const [currentCoverImage, setCurrentCoverImage] = useState<string>('');
+  const [signupQuestions, setSignupQuestions] = useState<TournamentQuestion[]>([]);
   // const [kingConfig, setKingConfig] = useState<KingConfiguration | null>(null);
+
+  // Helper to generate unique IDs
+  const generateId = () => Math.random().toString(36).substring(2, 11);
+
+  // Add a new question
+  const addQuestion = () => {
+    const newQuestion: TournamentQuestion = {
+      id: generateId(),
+      question: '',
+      options: [
+        { id: generateId(), label: '' },
+        { id: generateId(), label: '' },
+      ],
+      required: true,
+    };
+    setSignupQuestions([...signupQuestions, newQuestion]);
+  };
+
+  // Remove a question
+  const removeQuestion = (questionId: string) => {
+    setSignupQuestions(signupQuestions.filter(q => q.id !== questionId));
+  };
+
+  // Update a question's text
+  const updateQuestionText = (questionId: string, text: string) => {
+    setSignupQuestions(signupQuestions.map(q =>
+      q.id === questionId ? { ...q, question: text } : q
+    ));
+  };
+
+  // Toggle question required status
+  const toggleQuestionRequired = (questionId: string) => {
+    setSignupQuestions(signupQuestions.map(q =>
+      q.id === questionId ? { ...q, required: !q.required } : q
+    ));
+  };
+
+  // Add option to a question
+  const addOption = (questionId: string) => {
+    setSignupQuestions(signupQuestions.map(q => {
+      if (q.id === questionId) {
+        return {
+          ...q,
+          options: [...q.options, { id: generateId(), label: '' }],
+        };
+      }
+      return q;
+    }));
+  };
+
+  // Remove option from a question
+  const removeOption = (questionId: string, optionId: string) => {
+    setSignupQuestions(signupQuestions.map(q => {
+      if (q.id === questionId && q.options.length > 2) {
+        return {
+          ...q,
+          options: q.options.filter(o => o.id !== optionId),
+        };
+      }
+      return q;
+    }));
+  };
+
+  // Update option label
+  const updateOptionLabel = (questionId: string, optionId: string, label: string) => {
+    setSignupQuestions(signupQuestions.map(q => {
+      if (q.id === questionId) {
+        return {
+          ...q,
+          options: q.options.map(o =>
+            o.id === optionId ? { ...o, label } : o
+          ),
+        };
+      }
+      return q;
+    }));
+  };
 
   useEffect(() => {
     if (isEditMode) {
@@ -147,6 +226,11 @@ const AdminTournamentForm = () => {
 
       if (tournament.coverImage) {
         setCurrentCoverImage(tournament.coverImage);
+      }
+
+      // Load signup questions
+      if (tournament.signupQuestions && Array.isArray(tournament.signupQuestions)) {
+        setSignupQuestions(tournament.signupQuestions);
       }
     } catch (error: any) {
       toast.error(error.message || 'Erreur lors du chargement du tournoi');
@@ -225,6 +309,9 @@ const AdminTournamentForm = () => {
       if (coverImage) {
         formDataToSend.append('coverImage', coverImage);
       }
+
+      // Append signup questions as JSON string
+      formDataToSend.append('signupQuestions', JSON.stringify(signupQuestions));
 
       if (isEditMode) {
         await adminService.updateTournament(id!, formDataToSend);
@@ -927,6 +1014,108 @@ const AdminTournamentForm = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
+            </div>
+          </div>
+
+          {/* Questions d'inscription */}
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <HelpCircle size={20} />
+              Questions d'inscription
+            </h2>
+
+            <p className="text-sm text-gray-600 mb-4">
+              Ajoutez des questions à choix multiple pour les participants lors de leur inscription.
+              Ces questions peuvent être obligatoires ou optionnelles.
+            </p>
+
+            <div className="space-y-6">
+              {signupQuestions.map((question, qIndex) => (
+                <div key={question.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                  <div className="flex items-start justify-between gap-4 mb-4">
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Question {qIndex + 1}
+                      </label>
+                      <input
+                        type="text"
+                        value={question.question}
+                        onChange={(e) => updateQuestionText(question.id, e.target.value)}
+                        placeholder="Ex: Quelle galette préfères-tu ?"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeQuestion(question.id)}
+                      className="text-red-500 hover:text-red-700 p-2"
+                      title="Supprimer cette question"
+                    >
+                      <Trash2 size={20} />
+                    </button>
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Options de réponse
+                    </label>
+                    <div className="space-y-2">
+                      {question.options.map((option, oIndex) => (
+                        <div key={option.id} className="flex items-center gap-2">
+                          <span className="text-gray-500 text-sm w-6">{oIndex + 1}.</span>
+                          <input
+                            type="text"
+                            value={option.label}
+                            onChange={(e) => updateOptionLabel(question.id, option.id, e.target.value)}
+                            placeholder={`Option ${oIndex + 1}`}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          {question.options.length > 2 && (
+                            <button
+                              type="button"
+                              onClick={() => removeOption(question.id, option.id)}
+                              className="text-red-400 hover:text-red-600 p-1"
+                              title="Supprimer cette option"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => addOption(question.id)}
+                      className="mt-2 text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                    >
+                      <Plus size={14} />
+                      Ajouter une option
+                    </button>
+                  </div>
+
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id={`required-${question.id}`}
+                      checked={question.required}
+                      onChange={() => toggleQuestionRequired(question.id)}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor={`required-${question.id}`} className="ml-2 block text-sm font-medium text-gray-700">
+                      Réponse obligatoire
+                    </label>
+                  </div>
+                </div>
+              ))}
+
+              <button
+                type="button"
+                onClick={addQuestion}
+                className="w-full py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-blue-500 hover:text-blue-600 flex items-center justify-center gap-2 transition-colors"
+              >
+                <Plus size={20} />
+                Ajouter une question
+              </button>
             </div>
           </div>
 

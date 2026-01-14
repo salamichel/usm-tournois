@@ -116,6 +116,7 @@ export const createTournament = async (req: Request, res: Response) => {
       minPlayers,
       maxPlayers,
       isClubInternal,
+      signupQuestions,
     } = req.body;
 
     // Validate required fields
@@ -125,6 +126,16 @@ export const createTournament = async (req: Request, res: Response) => {
 
     // Handle uploaded file (if any)
     const coverImagePath = (req as any).file ? `/uploads/${(req as any).file.filename}` : undefined;
+
+    // Parse signupQuestions if it's a string (from FormData)
+    let parsedSignupQuestions = signupQuestions;
+    if (typeof signupQuestions === 'string') {
+      try {
+        parsedSignupQuestions = JSON.parse(signupQuestions);
+      } catch (e) {
+        parsedSignupQuestions = [];
+      }
+    }
 
     const tournamentData: any = {
       name: name.trim(),
@@ -160,6 +171,7 @@ export const createTournament = async (req: Request, res: Response) => {
       minPlayers: minPlayers ? parseInt(minPlayers) : 0,
       maxPlayers: maxPlayers ? parseInt(maxPlayers) : 0,
       isClubInternal: isClubInternal === true || isClubInternal === 'true' || false,
+      signupQuestions: parsedSignupQuestions || [],
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -261,12 +273,23 @@ export const updateTournament = async (req: Request, res: Response) => {
       minPlayers,
       maxPlayers,
       isClubInternal,
+      signupQuestions,
     } = req.body;
 
     const tournamentDoc = await adminDb.collection('events').doc(id).get();
 
     if (!tournamentDoc.exists) {
       throw new AppError('Tournament not found', 404);
+    }
+
+    // Parse signupQuestions if it's a string (from FormData)
+    let parsedSignupQuestions = signupQuestions;
+    if (typeof signupQuestions === 'string') {
+      try {
+        parsedSignupQuestions = JSON.parse(signupQuestions);
+      } catch (e) {
+        // Keep as is if parse fails
+      }
     }
 
     const updateData: any = {
@@ -312,6 +335,7 @@ export const updateTournament = async (req: Request, res: Response) => {
     if (minPlayers !== undefined && minPlayers !== null) updateData.minPlayers = parseInt(minPlayers);
     if (maxPlayers !== undefined && maxPlayers !== null) updateData.maxPlayers = parseInt(maxPlayers);
     if (isClubInternal !== undefined && isClubInternal !== null) updateData.isClubInternal = isClubInternal === true || isClubInternal === 'true';
+    if (parsedSignupQuestions !== undefined) updateData.signupQuestions = parsedSignupQuestions;
 
     await adminDb.collection('events').doc(id).update(updateData);
 

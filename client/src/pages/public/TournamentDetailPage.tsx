@@ -3,11 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@contexts/AuthContext';
 import tournamentService from '@services/tournament.service';
 import matchService from '@services/match.service';
-import type { TournamentDetails, Team } from '@shared/types';
+import type { TournamentDetails, Team, QuestionResponse } from '@shared/types';
 import toast from 'react-hot-toast';
 import ReactMarkdown from 'react-markdown';
 import TournamentBracket from '@components/TournamentBracket';
 import MatchScoreModal from '@components/admin/MatchScoreModal';
+import SignupQuestionsModal from '@components/SignupQuestionsModal';
 import { analyticsService } from '@services/analytics.service';
 import {
   Calendar,
@@ -51,6 +52,11 @@ const TournamentDetailPage = () => {
   const [selectedMatch, setSelectedMatch] = useState<any>(null);
   const [matchContext, setMatchContext] = useState<{ type: 'pool' | 'elimination'; poolId?: string } | null>(null);
 
+  // State for signup questions modal
+  const [showQuestionsModal, setShowQuestionsModal] = useState(false);
+  const [pendingAction, setPendingAction] = useState<'registerPlayer' | 'createTeam' | 'joinTeam' | null>(null);
+  const [pendingTeamId, setPendingTeamId] = useState<string | null>(null);
+
   const fetchTournament = useCallback(async () => {
     if (!id) return;
     try {
@@ -88,15 +94,34 @@ const TournamentDetailPage = () => {
     }
   }, [id, fetchTournament]);
 
+  // Check if tournament has required signup questions
+  const hasSignupQuestions = () => {
+    return tournament?.signupQuestions && tournament.signupQuestions.length > 0;
+  };
+
   const handleRegisterAsPlayer = async () => {
     if (!id || !isAuthenticated) {
       navigate('/login');
       return;
     }
 
+    // Check if there are signup questions to answer
+    if (hasSignupQuestions()) {
+      setPendingAction('registerPlayer');
+      setShowQuestionsModal(true);
+      return;
+    }
+
+    // No questions, proceed directly
+    await executeRegisterPlayer([]);
+  };
+
+  const executeRegisterPlayer = async (questionResponses: QuestionResponse[]) => {
+    if (!id) return;
+
     try {
       setProcessingAction(true);
-      const response = await tournamentService.registerPlayer(id);
+      const response = await tournamentService.registerPlayer(id, questionResponses);
       if (response.success) {
         analyticsService.trackTournamentRegisterPlayer(id);
         toast.success('Inscription réussie !');
@@ -109,6 +134,8 @@ const TournamentDetailPage = () => {
       );
     } finally {
       setProcessingAction(false);
+      setShowQuestionsModal(false);
+      setPendingAction(null);
     }
   };
 
@@ -137,13 +164,27 @@ const TournamentDetailPage = () => {
     e.preventDefault();
     if (!id || !newTeamName.trim()) return;
 
+    // Check if there are signup questions to answer
+    if (hasSignupQuestions()) {
+      setPendingAction('createTeam');
+      setShowCreateTeamModal(false);
+      setShowQuestionsModal(true);
+      return;
+    }
+
+    // No questions, proceed directly
+    await executeCreateTeam([]);
+  };
+
+  const executeCreateTeam = async (questionResponses: QuestionResponse[]) => {
+    if (!id || !newTeamName.trim()) return;
+
     try {
       setProcessingAction(true);
-      const response = await tournamentService.createTeam(id, newTeamName);
+      const response = await tournamentService.createTeam(id, newTeamName, questionResponses);
       if (response.success) {
         analyticsService.trackTeamCreate(id, newTeamName);
         toast.success('Équipe créée avec succès !');
-        setShowCreateTeamModal(false);
         setNewTeamName('');
         fetchTournament();
       }
@@ -154,6 +195,8 @@ const TournamentDetailPage = () => {
       );
     } finally {
       setProcessingAction(false);
+      setShowQuestionsModal(false);
+      setPendingAction(null);
     }
   };
 
@@ -163,9 +206,24 @@ const TournamentDetailPage = () => {
       return;
     }
 
+    // Check if there are signup questions to answer
+    if (hasSignupQuestions()) {
+      setPendingAction('joinTeam');
+      setPendingTeamId(teamId);
+      setShowQuestionsModal(true);
+      return;
+    }
+
+    // No questions, proceed directly
+    await executeJoinTeam(teamId, []);
+  };
+
+  const executeJoinTeam = async (teamId: string, questionResponses: QuestionResponse[]) => {
+    if (!id) return;
+
     try {
       setProcessingAction(true);
-      const response = await tournamentService.joinTeam(id, teamId);
+      const response = await tournamentService.joinTeam(id, teamId, questionResponses);
       if (response.success) {
         analyticsService.trackTeamJoin(id, teamId);
         toast.success('Vous avez rejoint l\'équipe !');
@@ -178,7 +236,34 @@ const TournamentDetailPage = () => {
       );
     } finally {
       setProcessingAction(false);
+      setShowQuestionsModal(false);
+      setPendingAction(null);
+      setPendingTeamId(null);
     }
+  };
+
+  // Handle question responses submission
+  const handleQuestionsSubmit = async (responses: QuestionResponse[]) => {
+    switch (pendingAction) {
+      case 'registerPlayer':
+        await executeRegisterPlayer(responses);
+        break;
+      case 'createTeam':
+        await executeCreateTeam(responses);
+        break;
+      case 'joinTeam':
+        if (pendingTeamId) {
+          await executeJoinTeam(pendingTeamId, responses);
+        }
+        break;
+    }
+  };
+
+  // Handle questions modal close
+  const handleQuestionsModalClose = () => {
+    setShowQuestionsModal(false);
+    setPendingAction(null);
+    setPendingTeamId(null);
   };
 
   const handleJoinWaitingList = async () => {
@@ -1679,6 +1764,18 @@ const TournamentDetailPage = () => {
               ? tournament?.pointsPerSetPool || 21
               : tournament?.pointsPerSetElimination || 21
           }
+        />
+      )}
+
+      {/* Signup Questions Modal */}
+      {tournament?.signupQuestions && tournament.signupQuestions.length > 0 && (
+        <SignupQuestionsModal
+          isOpen={showQuestionsModal}
+          onClose={handleQuestionsModalClose}
+          onSubmit={handleQuestionsSubmit}
+          questions={tournament.signupQuestions}
+          isLoading={processingAction}
+          title="Questions d'inscription"
         />
       )}
     </div>
