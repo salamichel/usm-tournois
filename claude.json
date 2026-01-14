@@ -1,0 +1,57 @@
+{
+  "name": "USM Tournois",
+  "description": "Application moderne de gestion de tournois de volleyball",
+  "type": "fullstack",
+  "framework": {
+    "frontend": "React",
+    "backend": "Express",
+    "language": "TypeScript"
+  },
+  "structure": {
+    "client": {
+      "path": "client",
+      "type": "react",
+      "buildTool": "vite"
+    },
+    "server": {
+      "path": "server",
+      "type": "express",
+      "language": "typescript"
+    },
+    "shared": {
+      "path": "shared",
+      "type": "types"
+    }
+  },
+  "scripts": {
+    "dev": {
+      "client": "cd client && npm run dev",
+      "server": "cd server && npm run dev",
+      "docker": "docker-compose up -d"
+    },
+    "build": {
+      "client": "cd client && npm run build",
+      "server": "cd server && npm run build"
+    },
+    "lint": {
+      "client": "cd client && npm run lint",
+      "server": "cd server && npm run lint"
+    },
+    "test": {
+      "client": "cd client && npm test",
+      "server": "cd server && npm test"
+    }
+  },
+  "database": "Firebase Firestore",
+  "environment": {
+    "frontend_url": "http://localhost:5173",
+    "backend_url": "http://localhost:3000",
+    "requires": ["Node.js >= 18.x", "Firebase Project"]
+  },
+  "documentation": [
+    "README.md",
+    "KING_CONFIG_PROTOTYPE.md",
+    "KING_FLEXIBLE_ARCHITECTURE.md",
+    "docs/FLEXIBLE_KING_MODE_DEPLOYMENT.md"
+  ]
+}
