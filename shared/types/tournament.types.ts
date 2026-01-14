@@ -13,6 +13,32 @@ export type RegistrationMode = 'teams' | 'random';
 
 export type MixityType = 'Mixed' | 'Male Only' | 'Female Only' | 'mixed' | 'male' | 'female';
 
+// Signup questions types
+export interface TournamentQuestionOption {
+  id: string;
+  label: string;
+}
+
+export interface TournamentQuestion {
+  id: string;
+  question: string;
+  options: TournamentQuestionOption[];
+  required: boolean;
+}
+
+export interface QuestionResponse {
+  questionId: string;
+  selectedOptionId: string;
+  selectedOptionLabel?: string;
+}
+
+export interface ParticipantResponses {
+  userId: string;
+  pseudo: string;
+  responses: QuestionResponse[];
+  respondedAt: Date;
+}
+
 export interface Tournament {
   id: string;
   name: string;
@@ -79,6 +105,9 @@ export interface Tournament {
   minLevel?: string;
   maxLevel?: string;
   matchFormat?: string;
+
+  // Signup questions for registration
+  signupQuestions?: TournamentQuestion[];
 }
 
 export interface CreateTournamentDto {
@@ -110,6 +139,7 @@ export interface CreateTournamentDto {
   waitingListSize: number;
   coverImage?: string;
   isClubInternal?: boolean;
+  signupQuestions?: TournamentQuestion[];
 }
 
 export interface UpdateTournamentDto extends Partial<CreateTournamentDto> {

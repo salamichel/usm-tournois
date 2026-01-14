@@ -3,7 +3,8 @@ import { useParams, Link } from 'react-router-dom';
 import AdminLayout from '@components/AdminLayout';
 import adminService from '@services/admin.service';
 import toast from 'react-hot-toast';
-import { ArrowLeft, UserMinus, Trash2, Shuffle, UserPlus, X, Search } from 'lucide-react';
+import { ArrowLeft, UserMinus, Trash2, Shuffle, UserPlus, X, Search, MessageSquare, Eye } from 'lucide-react';
+import type { QuestionResponse, TournamentQuestion } from '@shared/types';
 
 const AdminUnassignedPlayers = () => {
   const { tournamentId } = useParams();
@@ -19,6 +20,10 @@ const AdminUnassignedPlayers = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [addingPlayer, setAddingPlayer] = useState(false);
+
+  // Responses modal state
+  const [showResponsesModal, setShowResponsesModal] = useState(false);
+  const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
 
   useEffect(() => {
     loadData();
@@ -115,6 +120,25 @@ const AdminUnassignedPlayers = () => {
     }
   };
 
+  const handleViewResponses = (player: any) => {
+    setSelectedPlayer(player);
+    setShowResponsesModal(true);
+  };
+
+  const handleCloseResponsesModal = () => {
+    setShowResponsesModal(false);
+    setSelectedPlayer(null);
+  };
+
+  // Helper to get question label by ID
+  const getQuestionLabel = (questionId: string): string => {
+    const question = tournament?.signupQuestions?.find((q: TournamentQuestion) => q.id === questionId);
+    return question?.question || 'Question inconnue';
+  };
+
+  // Check if tournament has signup questions
+  const hasSignupQuestions = tournament?.signupQuestions && tournament.signupQuestions.length > 0;
+
   const handleGenerateRandomTeams = async () => {
     if (!confirm(`Voulez-vous générer les équipes équilibrées avec ${players.length} joueur(s) ?\n\nCette action créera des équipes de ${tournament.playersPerTeam} joueurs équilibrées par niveau.`)) {
       return;
@@ -206,6 +230,11 @@ const AdminUnassignedPlayers = () => {
                     <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Niveau
                     </th>
+                    {hasSignupQuestions && (
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Réponses
+                      </th>
+                    )}
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actions
                     </th>
@@ -233,6 +262,22 @@ const AdminUnassignedPlayers = () => {
                           {player.level || 'N/A'}
                         </span>
                       </td>
+                      {hasSignupQuestions && (
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          {player.questionResponses && player.questionResponses.length > 0 ? (
+                            <button
+                              onClick={() => handleViewResponses(player)}
+                              className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
+                              title="Voir les réponses"
+                            >
+                              <Eye size={14} />
+                              {player.questionResponses.length} réponse(s)
+                            </button>
+                          ) : (
+                            <span className="text-gray-400 text-xs">Aucune</span>
+                          )}
+                        </td>
+                      )}
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <button
                           onClick={() => handleRemovePlayer(player.id)}
@@ -332,6 +377,56 @@ const AdminUnassignedPlayers = () => {
                   {searchTerm ? 'Aucun utilisateur trouvé' : 'Aucun utilisateur disponible'}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal pour voir les réponses aux questions */}
+      {showResponsesModal && selectedPlayer && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="text-xl font-semibold flex items-center gap-2">
+                <MessageSquare size={20} />
+                Réponses de {selectedPlayer.pseudo}
+              </h2>
+              <button
+                onClick={handleCloseResponsesModal}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4">
+              {selectedPlayer.questionResponses && selectedPlayer.questionResponses.length > 0 ? (
+                <div className="space-y-4">
+                  {selectedPlayer.questionResponses.map((response: QuestionResponse, index: number) => (
+                    <div key={response.questionId} className="border-b border-gray-100 pb-4 last:border-0 last:pb-0">
+                      <p className="text-sm font-medium text-gray-700 mb-1">
+                        {index + 1}. {getQuestionLabel(response.questionId)}
+                      </p>
+                      <p className="text-base text-gray-900 bg-blue-50 px-3 py-2 rounded-md">
+                        {response.selectedOptionLabel || 'Réponse non disponible'}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  Ce joueur n'a pas répondu aux questions
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t bg-gray-50">
+              <button
+                onClick={handleCloseResponsesModal}
+                className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+              >
+                Fermer
+              </button>
             </div>
           </div>
         </div>
