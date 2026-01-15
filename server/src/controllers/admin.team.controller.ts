@@ -5,7 +5,8 @@
 import { Request, Response } from 'express';
 import { adminDb } from '../config/firebase.config';
 import { AppError } from '../middlewares/error.middleware';
-import { convertTimestamps, calculateTeamGlobalRanking } from './admin.helpers';
+import { convertTimestamps } from '../utils/firestore.utils';
+import { calculateTeamGlobalRanking } from './admin.helpers';
 
 export const getTeams = async (req: Request, res: Response) => {
   try {
