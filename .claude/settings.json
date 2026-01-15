@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'CHANGED_FILES=$(git diff --name-only HEAD~5 2>/dev/null || echo \"\"); if echo \"$CHANGED_FILES\" | grep -qE \"(package\\.json|tsconfig|shared/types|server/src/routes|client/src/services)\"; then echo \"[Hook] Des fichiers de configuration ou de structure ont été modifiés. Pensez à mettre à jour claude.md si nécessaire.\"; fi'"
+          }
+        ]
+      }
+    ]
+  }
+}
