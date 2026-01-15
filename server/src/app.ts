@@ -25,6 +25,9 @@ import seasonRoutes from './routes/season.routes';
 import { errorHandler } from './middlewares/error.middleware';
 import { requestLogger } from './middlewares/logger.middleware';
 
+// Services
+import { initializeEmailService } from './services/email.service';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -127,6 +130,9 @@ app.use((_req: Request, res: Response) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on http://0.0.0.0:${PORT}`);
   console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
+
+  // Initialize email service
+  initializeEmailService();
 });
 
 export default app;
