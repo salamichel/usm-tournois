@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { getAuth } from 'firebase-admin/auth';
 import { adminAuth, adminDb } from '../config/firebase.config';
 import { AppError } from '../middlewares/error.middleware';
+import { sendPasswordResetEmail } from '../services/email.service';
 import type {
   CreateUserDto,
   LoginCredentials,
@@ -400,14 +401,17 @@ export const requestPasswordReset = async (req: Request, res: Response) => {
       url: process.env.CLIENT_URL || 'http://localhost:5173',
     });
 
-    // In production, send email here using a service like SendGrid, Mailgun, etc.
-    // For now, we'll return the link (in production, remove this and only send via email)
+    // Send password reset email via Brevo
+    const emailSent = await sendPasswordResetEmail(email, resetLink);
+
+    if (!emailSent) {
+      console.error('Failed to send password reset email');
+      // Don't throw error to avoid revealing if email exists
+    }
 
     res.json({
       success: true,
       message: 'Un email de réinitialisation a été envoyé.',
-      // TODO: Remove this in production - only for development
-      data: { resetLink },
     });
   } catch (error: any) {
     console.error('Request password reset error:', error);
