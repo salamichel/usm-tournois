@@ -41,7 +41,7 @@ services:
       - .env
     environment:
       - NODE_ENV=development
-      - CLIENT_URL=http://localhost:5173
+      - CLIENT_URL=https://usm-tournois.moka-web.net
     command: npm run dev
     networks:
       - usm-network
