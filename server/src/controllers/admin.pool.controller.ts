@@ -3,7 +3,8 @@
 import { Request, Response } from 'express';
 import { adminDb } from '../config/firebase.config';
 import { AppError } from '../middlewares/error.middleware';
-import { convertTimestamps, calculateMatchOutcome, calculatePoolRanking } from '../services/match.service';
+import { convertTimestamps } from '../utils/firestore.utils';
+import { calculateMatchOutcome, calculatePoolRanking } from '../services/match.service';
 
 export const getPools = async (req: Request, res: Response) => {
   try {
