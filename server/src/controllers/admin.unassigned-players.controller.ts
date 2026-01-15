@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { adminDb } from '../config/firebase.config';
 import { AppError } from '../middlewares/error.middleware';
+import { handleControllerError, ErrorHandlers } from '../utils/error.utils';
 import { convertTimestamps } from '../utils/firestore.utils';
 import { handleControllerError, ErrorHandlers } from '../utils/error.utils';
 
@@ -14,7 +15,7 @@ export const getUnassignedPlayers = async (req: Request, res: Response) => {
 
     // Validate parameters
     if (!tournamentId || typeof tournamentId !== 'string' || tournamentId.trim() === '') {
-      throw new AppError('Tournament ID is required', 400);
+      ErrorHandlers.validation('Tournament ID is required');
     }
 
     const unassignedPlayersSnapshot = await adminDb
@@ -47,8 +48,7 @@ export const getUnassignedPlayers = async (req: Request, res: Response) => {
       data: { players },
     });
   } catch (error) {
-    console.error('Error getting unassigned players:', error);
-    throw new AppError('Error retrieving unassigned players', 500);
+    handleControllerError(error, 'getting unassigned players');
   }
 };
 
@@ -58,10 +58,10 @@ export const removeUnassignedPlayer = async (req: Request, res: Response) => {
 
     // Validate parameters
     if (!tournamentId || typeof tournamentId !== 'string' || tournamentId.trim() === '') {
-      throw new AppError('Tournament ID is required', 400);
+      ErrorHandlers.validation('Tournament ID is required');
     }
     if (!userId || typeof userId !== 'string' || userId.trim() === '') {
-      throw new AppError('User ID is required', 400);
+      ErrorHandlers.validation('User ID is required');
     }
 
     const playerRef = adminDb
@@ -72,7 +72,7 @@ export const removeUnassignedPlayer = async (req: Request, res: Response) => {
 
     const playerDoc = await playerRef.get();
     if (!playerDoc.exists) {
-      throw new AppError('Unassigned player not found', 404);
+      ErrorHandlers.notFound('Unassigned player', userId);
     }
 
     await playerRef.delete();
@@ -81,10 +81,8 @@ export const removeUnassignedPlayer = async (req: Request, res: Response) => {
       success: true,
       message: 'Unassigned player removed successfully',
     });
-  } catch (error: any) {
-    console.error('Error removing unassigned player:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error removing unassigned player', 500);
+  } catch (error) {
+    handleControllerError(error, 'removing unassigned player');
   }
 };
 
@@ -95,22 +93,22 @@ export const addUnassignedPlayer = async (req: Request, res: Response) => {
 
     // Validate parameters
     if (!tournamentId || typeof tournamentId !== 'string' || tournamentId.trim() === '') {
-      throw new AppError('Tournament ID is required', 400);
+      ErrorHandlers.validation('Tournament ID is required');
     }
     if (!userId || typeof userId !== 'string' || userId.trim() === '') {
-      throw new AppError('User ID is required', 400);
+      ErrorHandlers.validation('User ID is required');
     }
 
     // Check if tournament exists
     const tournamentDoc = await adminDb.collection('events').doc(tournamentId).get();
     if (!tournamentDoc.exists) {
-      throw new AppError('Tournament not found', 404);
+      ErrorHandlers.notFound('Tournament', tournamentId);
     }
 
     // Get user data
     const userDoc = await adminDb.collection('users').doc(userId).get();
     if (!userDoc.exists) {
-      throw new AppError('User not found', 404);
+      ErrorHandlers.notFound('User', userId);
     }
     const userData = userDoc.data();
 
@@ -123,7 +121,7 @@ export const addUnassignedPlayer = async (req: Request, res: Response) => {
       .get();
 
     if (existingPlayerDoc.exists) {
-      throw new AppError('Ce joueur est déjà dans la liste des joueurs non assignés', 400);
+      ErrorHandlers.validation('Ce joueur est déjà dans la liste des joueurs non assignés');
     }
 
     // Check if player is already in a team
@@ -137,7 +135,7 @@ export const addUnassignedPlayer = async (req: Request, res: Response) => {
       const teamData = teamDoc.data();
       const members = teamData.members || [];
       if (members.some((m: any) => m.userId === userId)) {
-        throw new AppError('Ce joueur est déjà membre d\'une équipe dans ce tournoi', 400);
+        ErrorHandlers.validation('Ce joueur est déjà membre d\'une équipe dans ce tournoi');
       }
     }
 
@@ -160,10 +158,8 @@ export const addUnassignedPlayer = async (req: Request, res: Response) => {
       success: true,
       message: 'Joueur ajouté avec succès',
     });
-  } catch (error: any) {
-    console.error('Error adding unassigned player:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error adding unassigned player', 500);
+  } catch (error) {
+    handleControllerError(error, 'adding unassigned player');
   }
 };
 

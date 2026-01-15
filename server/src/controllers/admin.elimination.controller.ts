@@ -5,6 +5,7 @@
 import { Request, Response } from 'express';
 import { adminDb } from '../config/firebase.config';
 import { AppError } from '../middlewares/error.middleware';
+import { handleControllerError, ErrorHandlers } from '../utils/error.utils';
 import { convertTimestamps } from '../utils/firestore.utils';
 import { calculateMatchOutcome, propagateEliminationMatchResults } from '../services/match.service';
 import { generateEliminationBracket as generateEliminationBracketService, QualifiedTeam, EliminationTournamentConfig } from '../services/elimination.service';
@@ -88,8 +89,7 @@ export const getEliminationMatches = async (req: Request, res: Response) => {
       data: { matches, finalRanking },
     });
   } catch (error) {
-    console.error('Error getting elimination matches:', error);
-    throw new AppError('Error retrieving elimination matches', 500);
+    handleControllerError(error, 'retrieving elimination matches', 'Error retrieving elimination matches', 500);
   }
 };
 
@@ -101,13 +101,13 @@ export const generateEliminationBracket = async (req: Request, res: Response) =>
     // Get tournament configuration
     const tournamentDoc = await adminDb.collection('events').doc(tournamentId).get();
     if (!tournamentDoc.exists) {
-      throw new AppError('Tournament not found', 404);
+      ErrorHandlers.notFound('Tournament', tournamentId);
     }
 
     const tournament = tournamentDoc.data();
 
     if (!tournament?.eliminationPhaseEnabled) {
-      throw new AppError('Elimination phase is not enabled for this tournament', 400);
+      ErrorHandlers.validation('Elimination phase is not enabled for this tournament');
     }
 
     // Get all pools and their rankings
@@ -269,7 +269,7 @@ export const generateEliminationBracket = async (req: Request, res: Response) =>
     }
 
     if (qualifiedTeams.length < 2) {
-      throw new AppError('At least 2 qualified teams are required to generate elimination bracket', 400);
+      ErrorHandlers.validation('At least 2 qualified teams are required to generate elimination bracket');
     }
 
     // Sort all qualified teams by their stats
@@ -349,7 +349,7 @@ export const generateEliminationBracket = async (req: Request, res: Response) =>
     const generatedMatches = generateEliminationBracketService(qualifiedTeams, tournamentConfig);
 
     if (generatedMatches.length === 0) {
-      throw new AppError('No matches could be generated. Please check your tournament configuration.', 400);
+      ErrorHandlers.validation('No matches could be generated. Please check your tournament configuration.');
     }
 
     // Save matches to Firestore
@@ -401,9 +401,7 @@ export const generateEliminationBracket = async (req: Request, res: Response) =>
       message: `Elimination bracket generated successfully with ${generatedMatches.length} matches for ${qualifiedTeams.length} teams`,
     });
   } catch (error: any) {
-    console.error('Error generating elimination bracket:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error generating elimination bracket', 500);
+    handleControllerError(error, 'generating elimination bracket', 'Error generating elimination bracket', 500);
   }
 };
 
@@ -413,13 +411,13 @@ export const freezeRanking = async (req: Request, res: Response) => {
     const { finalRanking } = req.body;
 
     if (!finalRanking || !Array.isArray(finalRanking)) {
-      throw new AppError('Invalid final ranking data', 400);
+      ErrorHandlers.validation('Invalid final ranking data');
     }
 
     // Get tournament data for name and date
     const tournamentDoc = await adminDb.collection('events').doc(tournamentId).get();
     if (!tournamentDoc.exists) {
-      throw new AppError('Tournament not found', 404);
+      ErrorHandlers.notFound('Tournament', tournamentId);
     }
     const tournament = tournamentDoc.data();
     const tournamentName = tournament?.name || 'Tournoi';
@@ -519,9 +517,7 @@ export const freezeRanking = async (req: Request, res: Response) => {
       message: `Final ranking frozen successfully. ${newAffectedPlayerIds.length} joueurs ont reçu leurs points.`,
     });
   } catch (error: any) {
-    console.error('Error freezing ranking:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error freezing ranking', 500);
+    handleControllerError(error, 'freezing ranking', 'Error freezing ranking', 500);
   }
 };
 
@@ -542,7 +538,7 @@ export const freezeEliminationRanking = async (req: Request, res: Response) => {
     }));
 
     if (matches.length === 0) {
-      throw new AppError('No elimination matches found', 400);
+      ErrorHandlers.validation('No elimination matches found');
     }
 
     // Calculate team statistics from all elimination matches
@@ -634,7 +630,7 @@ export const freezeEliminationRanking = async (req: Request, res: Response) => {
     const thirdPlaceMatch = matches.find((m: any) => m.round === 'Match 3ème place');
 
     if (!finale || finale.status !== 'completed') {
-      throw new AppError('La finale doit être terminée pour figer le classement', 400);
+      ErrorHandlers.validation('La finale doit être terminée pour figer le classement');
     }
 
     // Build ranking from elimination results
@@ -725,7 +721,7 @@ export const freezeEliminationRanking = async (req: Request, res: Response) => {
     });
 
     if (ranking.length === 0) {
-      throw new AppError('Unable to calculate ranking from elimination matches', 400);
+      ErrorHandlers.validation('Unable to calculate ranking from elimination matches');
     }
 
     // Save to Firestore
@@ -852,9 +848,7 @@ export const freezeEliminationRanking = async (req: Request, res: Response) => {
       });
     }
   } catch (error: any) {
-    console.error('Error freezing elimination ranking:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error freezing elimination ranking', 500);
+    handleControllerError(error, 'freezing elimination ranking', 'Error freezing elimination ranking', 500);
   }
 };
 
@@ -868,13 +862,13 @@ export const updateEliminationMatchScore = async (req: Request, res: Response) =
     const { sets } = req.body;
 
     if (!sets || !Array.isArray(sets)) {
-      throw new AppError('Invalid sets data', 400);
+      ErrorHandlers.validation('Invalid sets data');
     }
 
     // Get tournament
     const tournamentDoc = await adminDb.collection('events').doc(tournamentId).get();
     if (!tournamentDoc.exists) {
-      throw new AppError('Tournament not found', 404);
+      ErrorHandlers.notFound('Tournament', tournamentId);
     }
     const tournament = tournamentDoc.data();
 
@@ -887,7 +881,7 @@ export const updateEliminationMatchScore = async (req: Request, res: Response) =
 
     const matchDoc = await matchRef.get();
     if (!matchDoc.exists) {
-      throw new AppError('Elimination match not found', 404);
+      ErrorHandlers.notFound('Elimination match', matchId);
     }
 
     const matchData = matchDoc.data();
@@ -957,9 +951,7 @@ export const updateEliminationMatchScore = async (req: Request, res: Response) =
       message: 'Elimination match score updated and results propagated successfully',
     });
   } catch (error: any) {
-    console.error('Error updating elimination match score:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error updating elimination match score', 500);
+    handleControllerError(error, 'updating elimination match score', 'Error updating elimination match score', 500);
   }
 };
 
@@ -973,7 +965,7 @@ export const updateEliminationMatchTeams = async (req: Request, res: Response) =
     const { team1, team2 } = req.body;
 
     if (!team1 && !team2) {
-      throw new AppError('At least one team must be provided', 400);
+      ErrorHandlers.validation('At least one team must be provided');
     }
 
     // Get match
@@ -985,7 +977,7 @@ export const updateEliminationMatchTeams = async (req: Request, res: Response) =
 
     const matchDoc = await matchRef.get();
     if (!matchDoc.exists) {
-      throw new AppError('Elimination match not found', 404);
+      ErrorHandlers.notFound('Elimination match', matchId);
     }
 
     const matchData = matchDoc.data();
@@ -1079,8 +1071,6 @@ export const updateEliminationMatchTeams = async (req: Request, res: Response) =
         : 'Teams updated successfully',
     });
   } catch (error: any) {
-    console.error('Error updating elimination match teams:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error updating elimination match teams', 500);
+    handleControllerError(error, 'updating elimination match teams', 'Error updating elimination match teams', 500);
   }
 };

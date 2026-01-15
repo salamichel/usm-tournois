@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { adminDb } from '../config/firebase.config';
 import { AppError } from '../middlewares/error.middleware';
+import { handleControllerError, ErrorHandlers } from '../utils/error.utils';
 import { convertTimestamps } from '../utils/firestore.utils';
 
 /**
@@ -66,7 +67,6 @@ export const getDashboard = async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error('Error getting dashboard data:', error);
-    throw new AppError('Error retrieving dashboard data', 500);
+    handleControllerError(error, 'getting dashboard data');
   }
 };

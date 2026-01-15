@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { adminDb, adminAuth } from '../config/firebase.config';
 import { AppError } from '../middlewares/error.middleware';
+import { handleControllerError, ErrorHandlers } from '../utils/error.utils';
 import { convertTimestamps } from '../utils/firestore.utils';
 
 /**
@@ -43,8 +44,7 @@ export const getAllUsers = async (req: Request, res: Response) => {
       data: { users },
     });
   } catch (error) {
-    console.error('Error getting all users:', error);
-    throw new AppError('Error retrieving users', 500);
+    handleControllerError(error, 'getting all users', 'Error retrieving users');
   }
 };
 
@@ -53,15 +53,15 @@ export const createUser = async (req: Request, res: Response) => {
     const { email, pseudo, level, role, clubId, password } = req.body;
 
     if (!email) {
-      throw new AppError('Email is required', 400);
+      ErrorHandlers.validation('Email is required');
     }
 
     if (!pseudo) {
-      throw new AppError('Pseudo is required', 400);
+      ErrorHandlers.validation('Pseudo is required');
     }
 
     if (!password || password.length < 6) {
-      throw new AppError('Password must be at least 6 characters', 400);
+      ErrorHandlers.validation('Password must be at least 6 characters');
     }
 
     // Create Firebase Auth account
@@ -93,16 +93,14 @@ export const createUser = async (req: Request, res: Response) => {
       data: { id: userId },
     });
   } catch (error: any) {
-    console.error('Error creating user:', error);
-    if (error instanceof AppError) throw error;
     // Handle Firebase Auth specific errors
     if (error.code === 'auth/email-already-exists') {
-      throw new AppError('Un compte avec cet email existe déjà', 400);
+      ErrorHandlers.validation('Un compte avec cet email existe déjà');
     }
     if (error.code === 'auth/invalid-email') {
-      throw new AppError('Email invalide', 400);
+      ErrorHandlers.validation('Email invalide');
     }
-    throw new AppError('Error creating user', 500);
+    handleControllerError(error, 'creating user', 'Error creating user');
   }
 };
 
@@ -113,7 +111,7 @@ export const getUserById = async (req: Request, res: Response) => {
     const userDoc = await adminDb.collection('users').doc(id).get();
 
     if (!userDoc.exists) {
-      throw new AppError('User not found', 404);
+      ErrorHandlers.notFound('User', id);
     }
 
     const user = convertTimestamps({
@@ -125,10 +123,8 @@ export const getUserById = async (req: Request, res: Response) => {
       success: true,
       data: { user },
     });
-  } catch (error: any) {
-    console.error('Error getting user by ID:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error retrieving user', 500);
+  } catch (error) {
+    handleControllerError(error, 'getting user by ID', 'Error retrieving user');
   }
 };
 
@@ -139,7 +135,7 @@ export const updateUser = async (req: Request, res: Response) => {
 
     const userDoc = await adminDb.collection('users').doc(id).get();
     if (!userDoc.exists) {
-      throw new AppError('User not found', 404);
+      ErrorHandlers.notFound('User', id);
     }
 
     const updateData: any = {
@@ -158,10 +154,8 @@ export const updateUser = async (req: Request, res: Response) => {
       success: true,
       message: 'User updated successfully',
     });
-  } catch (error: any) {
-    console.error('Error updating user:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error updating user', 500);
+  } catch (error) {
+    handleControllerError(error, 'updating user', 'Error updating user');
   }
 };
 
@@ -170,11 +164,11 @@ export const bulkUpdateUsers = async (req: Request, res: Response) => {
     const { userIds, clubId } = req.body;
 
     if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
-      throw new AppError('User IDs array is required', 400);
+      ErrorHandlers.validation('User IDs array is required');
     }
 
     if (clubId === undefined) {
-      throw new AppError('Club ID is required (use null to remove club)', 400);
+      ErrorHandlers.validation('Club ID is required (use null to remove club)');
     }
 
     const updateData: any = {
@@ -203,10 +197,8 @@ export const bulkUpdateUsers = async (req: Request, res: Response) => {
       message: `${updatedCount} user(s) updated successfully`,
       data: { updatedCount },
     });
-  } catch (error: any) {
-    console.error('Error bulk updating users:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error updating users', 500);
+  } catch (error) {
+    handleControllerError(error, 'bulk updating users', 'Error updating users');
   }
 };
 
@@ -217,14 +209,14 @@ export const deleteUser = async (req: Request, res: Response) => {
     // Check if user exists
     const userDoc = await adminDb.collection('users').doc(id).get();
     if (!userDoc.exists) {
-      throw new AppError('User not found', 404);
+      ErrorHandlers.notFound('User', id);
     }
 
     const userData = userDoc.data();
 
     // Prevent deleting admin users
     if (userData?.role === 'admin') {
-      throw new AppError('Cannot delete admin users', 403);
+      ErrorHandlers.forbidden('Cannot delete admin users');
     }
 
     // Delete user
@@ -234,9 +226,7 @@ export const deleteUser = async (req: Request, res: Response) => {
       success: true,
       message: 'User deleted successfully',
     });
-  } catch (error: any) {
-    console.error('Error deleting user:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error deleting user', 500);
+  } catch (error) {
+    handleControllerError(error, 'deleting user', 'Error deleting user');
   }
 };

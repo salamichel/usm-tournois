@@ -5,6 +5,7 @@
 import { Request, Response } from 'express';
 import { adminDb } from '../config/firebase.config';
 import { AppError } from '../middlewares/error.middleware';
+import { handleControllerError, ErrorHandlers } from '../utils/error.utils';
 import { convertTimestamps } from '../utils/firestore.utils';
 import { calculateTeamGlobalRanking } from './admin.helpers';
 
@@ -87,8 +88,7 @@ export const getTeams = async (req: Request, res: Response) => {
       data: { teams },
     });
   } catch (error) {
-    console.error('Error getting teams:', error);
-    throw new AppError('Error retrieving teams', 500);
+    handleControllerError(error, 'getting teams');
   }
 };
 
@@ -98,7 +98,7 @@ export const createTeam = async (req: Request, res: Response) => {
     const { name, captainId, members, recruitmentOpen, weight } = req.body;
 
     if (!name) {
-      throw new AppError('Team name is required', 400);
+      ErrorHandlers.validation('Team name is required');
     }
 
     const teamData: any = {
@@ -117,7 +117,7 @@ export const createTeam = async (req: Request, res: Response) => {
       // If captain is provided, verify they exist and add to members if not already
       const captainDoc = await adminDb.collection('users').doc(captainId).get();
       if (!captainDoc.exists) {
-        throw new AppError('Captain user not found', 404);
+        ErrorHandlers.notFound('Captain user', captainId);
       }
 
       const captainData = captainDoc.data();
@@ -149,10 +149,8 @@ export const createTeam = async (req: Request, res: Response) => {
         globalRanking: teamData.globalRanking
       },
     });
-  } catch (error: any) {
-    console.error('Error creating team:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error creating team', 500);
+  } catch (error) {
+    handleControllerError(error, 'creating team');
   }
 };
 
@@ -169,7 +167,7 @@ export const updateTeam = async (req: Request, res: Response) => {
 
     const teamDoc = await teamRef.get();
     if (!teamDoc.exists) {
-      throw new AppError('Team not found', 404);
+      ErrorHandlers.notFound('Team', teamId);
     }
 
     const updateData: any = {
@@ -209,10 +207,8 @@ export const updateTeam = async (req: Request, res: Response) => {
         globalRanking: updateData.globalRanking
       }
     });
-  } catch (error: any) {
-    console.error('Error updating team:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error updating team', 500);
+  } catch (error) {
+    handleControllerError(error, 'updating team');
   }
 };
 
@@ -228,7 +224,7 @@ export const deleteTeam = async (req: Request, res: Response) => {
 
     const teamDoc = await teamRef.get();
     if (!teamDoc.exists) {
-      throw new AppError('Team not found', 404);
+      ErrorHandlers.notFound('Team', teamId);
     }
 
     await teamRef.delete();
@@ -237,10 +233,8 @@ export const deleteTeam = async (req: Request, res: Response) => {
       success: true,
       message: 'Team deleted successfully',
     });
-  } catch (error: any) {
-    console.error('Error deleting team:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error deleting team', 500);
+  } catch (error) {
+    handleControllerError(error, 'deleting team');
   }
 };
 
@@ -259,7 +253,7 @@ export const recalculateTeamsRanking = async (req: Request, res: Response) => {
       .get();
 
     if (teamsSnapshot.empty) {
-      throw new AppError('No teams found for this tournament', 404);
+      ErrorHandlers.notFound('No teams', 'for this tournament');
     }
 
     const batch = adminDb.batch();
@@ -291,10 +285,8 @@ export const recalculateTeamsRanking = async (req: Request, res: Response) => {
         teamsUpdated: updatedCount,
       },
     });
-  } catch (error: any) {
-    console.error('Error recalculating teams ranking:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error recalculating teams ranking', 500);
+  } catch (error) {
+    handleControllerError(error, 'recalculating teams ranking');
   }
 };
 
@@ -308,14 +300,14 @@ export const generateRandomTeams = async (req: Request, res: Response) => {
     // Get tournament
     const tournamentDoc = await adminDb.collection('events').doc(tournamentId).get();
     if (!tournamentDoc.exists) {
-      throw new AppError('Tournament not found', 404);
+      ErrorHandlers.notFound('Tournament', tournamentId);
     }
 
     const tournament = tournamentDoc.data();
 
     // Check if tournament is in random mode
     if (tournament?.registrationMode !== 'random') {
-      throw new AppError('This tournament is not in random registration mode', 400);
+      ErrorHandlers.validation('This tournament is not in random registration mode');
     }
 
     const playersPerTeam = tournament.playersPerTeam || 4;
@@ -328,7 +320,7 @@ export const generateRandomTeams = async (req: Request, res: Response) => {
       .get();
 
     if (unassignedPlayersSnapshot.empty) {
-      throw new AppError('No players registered for this tournament', 400);
+      ErrorHandlers.validation('No players registered for this tournament');
     }
 
     const players: any[] = unassignedPlayersSnapshot.docs.map(doc => ({
@@ -338,7 +330,7 @@ export const generateRandomTeams = async (req: Request, res: Response) => {
 
     // Check if we have enough players
     if (players.length < playersPerTeam) {
-      throw new AppError(`Not enough players. Need at least ${playersPerTeam} players to create teams.`, 400);
+      ErrorHandlers.validation(`Not enough players. Need at least ${playersPerTeam} players to create teams.`);
     }
 
     // Define level ranking (higher = better)
@@ -368,7 +360,7 @@ export const generateRandomTeams = async (req: Request, res: Response) => {
     const numTeams = Math.floor(sortedPlayers.length / playersPerTeam);
 
     if (numTeams === 0) {
-      throw new AppError(`Not enough players to create a complete team. Need at least ${playersPerTeam} players.`, 400);
+      ErrorHandlers.validation(`Not enough players to create a complete team. Need at least ${playersPerTeam} players.`);
     }
 
     // Distribute players using snake draft algorithm for balanced teams
@@ -449,9 +441,7 @@ export const generateRandomTeams = async (req: Request, res: Response) => {
         remainingPlayers: remainingPlayers,
       },
     });
-  } catch (error: any) {
-    console.error('Error generating random teams:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error generating random teams', 500);
+  } catch (error) {
+    handleControllerError(error, 'generating random teams');
   }
 };

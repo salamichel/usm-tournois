@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { adminDb } from '../config/firebase.config';
 import { AppError } from '../middlewares/error.middleware';
 import { convertTimestamps } from '../utils/firestore.utils';
+import { handleControllerError, ErrorHandlers } from '../utils/error.utils';
 
 /**
  * Tournament Management Controller
@@ -43,8 +44,7 @@ export const getAllTournaments = async (req: Request, res: Response) => {
       data: { tournaments },
     });
   } catch (error) {
-    console.error('Error getting all tournaments:', error);
-    throw new AppError('Error retrieving tournaments', 500);
+    handleControllerError(error, 'getting all tournaments', 'Error retrieving tournaments');
   }
 };
 
@@ -89,7 +89,7 @@ export const createTournament = async (req: Request, res: Response) => {
 
     // Validate required fields
     if (!name || name.trim() === '') {
-      throw new AppError('Tournament name is required', 400);
+      ErrorHandlers.validation('Tournament name is required');
     }
 
     // Handle uploaded file (if any)
@@ -156,10 +156,8 @@ export const createTournament = async (req: Request, res: Response) => {
       message: 'Tournament created successfully',
       data: { id: tournamentRef.id },
     });
-  } catch (error: any) {
-    console.error('Error creating tournament:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error creating tournament', 500);
+  } catch (error) {
+    handleControllerError(error, 'creating tournament', 'Error creating tournament');
   }
 };
 
@@ -170,7 +168,7 @@ export const getTournamentById = async (req: Request, res: Response) => {
     const tournamentDoc = await adminDb.collection('events').doc(id).get();
 
     if (!tournamentDoc.exists) {
-      throw new AppError('Tournament not found', 404);
+      ErrorHandlers.notFound('Tournament', id);
     }
 
     // Get unassigned players
@@ -197,10 +195,8 @@ export const getTournamentById = async (req: Request, res: Response) => {
       success: true,
       data: { tournament, unassignedPlayers },
     });
-  } catch (error: any) {
-    console.error('Error getting tournament by ID:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error retrieving tournament', 500);
+  } catch (error) {
+    handleControllerError(error, 'getting tournament by ID', 'Error retrieving tournament');
   }
 };
 
@@ -247,7 +243,7 @@ export const updateTournament = async (req: Request, res: Response) => {
     const tournamentDoc = await adminDb.collection('events').doc(id).get();
 
     if (!tournamentDoc.exists) {
-      throw new AppError('Tournament not found', 404);
+      ErrorHandlers.notFound('Tournament', id);
     }
 
     // Parse signupQuestions if it's a string (from FormData)
@@ -311,10 +307,8 @@ export const updateTournament = async (req: Request, res: Response) => {
       success: true,
       message: 'Tournament updated successfully',
     });
-  } catch (error: any) {
-    console.error('Error updating tournament:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error updating tournament', 500);
+  } catch (error) {
+    handleControllerError(error, 'updating tournament', 'Error updating tournament');
   }
 };
 
@@ -367,8 +361,7 @@ export const deleteTournament = async (req: Request, res: Response) => {
       message: 'Tournament deleted successfully',
     });
   } catch (error) {
-    console.error('Error deleting tournament:', error);
-    throw new AppError('Error deleting tournament', 500);
+    handleControllerError(error, 'deleting tournament', 'Error deleting tournament');
   }
 };
 
@@ -378,7 +371,7 @@ export const cloneTournament = async (req: Request, res: Response) => {
 
     const eventDoc = await adminDb.collection('events').doc(id).get();
     if (!eventDoc.exists) {
-      throw new AppError('Tournament not found', 404);
+      ErrorHandlers.notFound('Tournament', id);
     }
 
     const eventData = eventDoc.data();
@@ -399,7 +392,6 @@ export const cloneTournament = async (req: Request, res: Response) => {
       data: { id: newEventRef.id },
     });
   } catch (error) {
-    console.error('Error cloning tournament:', error);
-    throw new AppError('Error cloning tournament', 500);
+    handleControllerError(error, 'cloning tournament', 'Error cloning tournament');
   }
 };

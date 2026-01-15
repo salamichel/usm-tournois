@@ -3,6 +3,7 @@
 import { Request, Response } from 'express';
 import { adminDb } from '../config/firebase.config';
 import { AppError } from '../middlewares/error.middleware';
+import { handleControllerError, ErrorHandlers } from '../utils/error.utils';
 import { convertTimestamps } from '../utils/firestore.utils';
 import { calculateMatchOutcome, calculatePoolRanking } from '../services/match.service';
 
@@ -113,8 +114,7 @@ export const getPools = async (req: Request, res: Response) => {
       data: { pools },
     });
   } catch (error) {
-    console.error('Error getting pools:', error);
-    throw new AppError('Error retrieving pools', 500);
+    handleControllerError(error, 'getting pools', 'Error retrieving pools');
   }
 };
 
@@ -124,7 +124,7 @@ export const createPool = async (req: Request, res: Response) => {
     const { name } = req.body;
 
     if (!name) {
-      throw new AppError('Pool name is required', 400);
+      ErrorHandlers.validation('Pool name is required');
     }
 
     const poolData = {
@@ -145,10 +145,8 @@ export const createPool = async (req: Request, res: Response) => {
       message: 'Pool created successfully',
       data: { id: poolRef.id },
     });
-  } catch (error: any) {
-    console.error('Error creating pool:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error creating pool', 500);
+  } catch (error) {
+    handleControllerError(error, 'creating pool', 'Error creating pool');
   }
 };
 
@@ -158,20 +156,20 @@ export const assignTeamsToPool = async (req: Request, res: Response) => {
     const { teamIds } = req.body;
 
     if (!Array.isArray(teamIds)) {
-      throw new AppError('teamIds must be an array', 400);
+      ErrorHandlers.validation('teamIds must be an array');
     }
 
     // Get tournament to check maxTeamsPerPool
     const tournamentDoc = await adminDb.collection('events').doc(tournamentId).get();
     if (!tournamentDoc.exists) {
-      throw new AppError('Tournament not found', 404);
+      ErrorHandlers.notFound('Tournament', tournamentId);
     }
 
     const tournament = tournamentDoc.data();
     const maxTeamsPerPool = tournament?.maxTeamsPerPool || 4;
 
     if (teamIds.length > maxTeamsPerPool) {
-      throw new AppError(`Cannot assign more than ${maxTeamsPerPool} teams to a pool`, 400);
+      ErrorHandlers.validation(`Cannot assign more than ${maxTeamsPerPool} teams to a pool`);
     }
 
     // Get pool
@@ -183,7 +181,7 @@ export const assignTeamsToPool = async (req: Request, res: Response) => {
 
     const poolDoc = await poolRef.get();
     if (!poolDoc.exists) {
-      throw new AppError('Pool not found', 404);
+      ErrorHandlers.notFound('Pool', poolId);
     }
 
     // Get team details
@@ -213,10 +211,8 @@ export const assignTeamsToPool = async (req: Request, res: Response) => {
       success: true,
       message: 'Teams assigned to pool successfully',
     });
-  } catch (error: any) {
-    console.error('Error assigning teams to pool:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error assigning teams to pool', 500);
+  } catch (error) {
+    handleControllerError(error, 'assigning teams to pool', 'Error assigning teams to pool');
   }
 };
 
@@ -247,7 +243,7 @@ export const distributeTeamsToPoolsAutomatically = async (req: Request, res: Res
     const teamsToDistribute = clearExisting ? allTeams : allTeams.filter((team) => !team.poolId);
 
     if (teamsToDistribute.length === 0) {
-      throw new AppError('No unassigned teams to distribute', 400);
+      ErrorHandlers.validation('No unassigned teams to distribute');
     }
 
     const sortedTeams = teamsToDistribute.sort((a, b) => {
@@ -263,7 +259,7 @@ export const distributeTeamsToPoolsAutomatically = async (req: Request, res: Res
       .get();
 
     if (poolsSnapshot.empty) {
-      throw new AppError('No pools found. Please create pools first.', 400);
+      ErrorHandlers.validation('No pools found. Please create pools first.');
     }
 
     const pools = poolsSnapshot.docs.map((doc) => ({
@@ -345,10 +341,8 @@ export const distributeTeamsToPoolsAutomatically = async (req: Request, res: Res
         poolsCount: pools.length,
       },
     });
-  } catch (error: any) {
-    console.error('Error distributing teams to pools:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error distributing teams to pools', 500);
+  } catch (error) {
+    handleControllerError(error, 'distributing teams to pools', 'Error distributing teams to pools');
   }
 };
 
@@ -358,7 +352,7 @@ export const generatePoolMatches = async (req: Request, res: Response) => {
 
     const tournamentDoc = await adminDb.collection('events').doc(tournamentId).get();
     if (!tournamentDoc.exists) {
-      throw new AppError('Tournament not found', 404);
+      ErrorHandlers.notFound('Tournament', tournamentId);
     }
 
     const tournament = tournamentDoc.data();
@@ -375,14 +369,14 @@ export const generatePoolMatches = async (req: Request, res: Response) => {
 
     const poolDoc = await poolRef.get();
     if (!poolDoc.exists) {
-      throw new AppError('Pool not found', 404);
+      ErrorHandlers.notFound('Pool', poolId);
     }
 
     const poolData = poolDoc.data();
     const teams = poolData?.teams || [];
 
     if (teams.length < 2) {
-      throw new AppError('At least 2 teams are required to generate matches', 400);
+      ErrorHandlers.validation('At least 2 teams are required to generate matches');
     }
 
     const batch = adminDb.batch();
@@ -471,10 +465,8 @@ export const generatePoolMatches = async (req: Request, res: Response) => {
       success: true,
       message: 'Pool matches generated successfully',
     });
-  } catch (error: any) {
-    console.error('Error generating pool matches:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error generating pool matches', 500);
+  } catch (error) {
+    handleControllerError(error, 'generating pool matches', 'Error generating pool matches');
   }
 };
 
@@ -484,12 +476,12 @@ export const updatePoolMatchScore = async (req: Request, res: Response) => {
     const { sets } = req.body;
 
     if (!sets || !Array.isArray(sets)) {
-      throw new AppError('Invalid sets data', 400);
+      ErrorHandlers.validation('Invalid sets data');
     }
 
     const tournamentDoc = await adminDb.collection('events').doc(tournamentId).get();
     if (!tournamentDoc.exists) {
-      throw new AppError('Tournament not found', 404);
+      ErrorHandlers.notFound('Tournament', tournamentId);
     }
     const tournament = tournamentDoc.data();
 
@@ -503,7 +495,7 @@ export const updatePoolMatchScore = async (req: Request, res: Response) => {
 
     const matchDoc = await matchRef.get();
     if (!matchDoc.exists) {
-      throw new AppError('Match not found', 404);
+      ErrorHandlers.notFound('Match', matchId);
     }
 
     const matchData = matchDoc.data();
@@ -553,10 +545,8 @@ export const updatePoolMatchScore = async (req: Request, res: Response) => {
       success: true,
       message: 'Match score updated successfully',
     });
-  } catch (error: any) {
-    console.error('Error updating pool match score:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error updating pool match score', 500);
+  } catch (error) {
+    handleControllerError(error, 'updating pool match score', 'Error updating pool match score');
   }
 };
 
@@ -566,7 +556,7 @@ export const updatePoolName = async (req: Request, res: Response) => {
     const { name } = req.body;
 
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
-      throw new AppError('Pool name is required', 400);
+      ErrorHandlers.validation('Pool name is required');
     }
 
     const poolRef = adminDb
@@ -577,7 +567,7 @@ export const updatePoolName = async (req: Request, res: Response) => {
 
     const poolDoc = await poolRef.get();
     if (!poolDoc.exists) {
-      throw new AppError('Pool not found', 404);
+      ErrorHandlers.notFound('Pool', poolId);
     }
 
     await poolRef.update({
@@ -589,10 +579,8 @@ export const updatePoolName = async (req: Request, res: Response) => {
       success: true,
       message: 'Pool name updated successfully',
     });
-  } catch (error: any) {
-    console.error('Error updating pool name:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error updating pool name', 500);
+  } catch (error) {
+    handleControllerError(error, 'updating pool name', 'Error updating pool name');
   }
 };
 
@@ -608,7 +596,7 @@ export const deletePool = async (req: Request, res: Response) => {
 
     const poolDoc = await poolRef.get();
     if (!poolDoc.exists) {
-      throw new AppError('Pool not found', 404);
+      ErrorHandlers.notFound('Pool', poolId);
     }
 
     const batch = adminDb.batch();
@@ -626,10 +614,8 @@ export const deletePool = async (req: Request, res: Response) => {
       success: true,
       message: 'Pool and all its matches deleted successfully',
     });
-  } catch (error: any) {
-    console.error('Error deleting pool:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error deleting pool', 500);
+  } catch (error) {
+    handleControllerError(error, 'deleting pool', 'Error deleting pool');
   }
 };
 
@@ -639,7 +625,7 @@ export const generateRoundSchedule = async (req: Request, res: Response) => {
 
     const tournamentDoc = await adminDb.collection('events').doc(tournamentId).get();
     if (!tournamentDoc.exists) {
-      throw new AppError('Tournament not found', 404);
+      ErrorHandlers.notFound('Tournament', tournamentId);
     }
 
     const tournament = tournamentDoc.data();
@@ -652,7 +638,7 @@ export const generateRoundSchedule = async (req: Request, res: Response) => {
       .get();
 
     if (poolsSnapshot.empty) {
-      throw new AppError('No pools found for this tournament', 404);
+      ErrorHandlers.notFound('Pools for this tournament');
     }
 
     interface PoolMatchData {
@@ -683,7 +669,7 @@ export const generateRoundSchedule = async (req: Request, res: Response) => {
     }
 
     if (poolMatches.size === 0) {
-      throw new AppError('No matches found in any pool', 404);
+      ErrorHandlers.notFound('Matches in pools');
     }
 
     const poolIds = Array.from(poolMatches.keys());
@@ -790,10 +776,8 @@ export const generateRoundSchedule = async (req: Request, res: Response) => {
         rounds,
       },
     });
-  } catch (error: any) {
-    console.error('Error generating round schedule:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error generating round schedule', 500);
+  } catch (error) {
+    handleControllerError(error, 'generating round schedule', 'Error generating round schedule');
   }
 };
 
@@ -803,7 +787,7 @@ export const getRoundSchedule = async (req: Request, res: Response) => {
 
     const tournamentDoc = await adminDb.collection('events').doc(tournamentId).get();
     if (!tournamentDoc.exists) {
-      throw new AppError('Tournament not found', 404);
+      ErrorHandlers.notFound('Tournament', tournamentId);
     }
 
     const tournament = tournamentDoc.data();
@@ -862,10 +846,8 @@ export const getRoundSchedule = async (req: Request, res: Response) => {
         rounds,
       },
     });
-  } catch (error: any) {
-    console.error('Error getting round schedule:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error getting round schedule', 500);
+  } catch (error) {
+    handleControllerError(error, 'getting round schedule', 'Error getting round schedule');
   }
 };
 
@@ -875,7 +857,7 @@ export const updateMatchSchedule = async (req: Request, res: Response) => {
     const { roundNumber, fieldNumber } = req.body;
 
     if (roundNumber === undefined || fieldNumber === undefined) {
-      throw new AppError('roundNumber and fieldNumber are required', 400);
+      ErrorHandlers.validation('roundNumber and fieldNumber are required');
     }
 
     const matchRef = adminDb
@@ -888,7 +870,7 @@ export const updateMatchSchedule = async (req: Request, res: Response) => {
 
     const matchDoc = await matchRef.get();
     if (!matchDoc.exists) {
-      throw new AppError('Match not found', 404);
+      ErrorHandlers.notFound('Match', matchId);
     }
 
     await matchRef.update({
@@ -901,10 +883,8 @@ export const updateMatchSchedule = async (req: Request, res: Response) => {
       success: true,
       message: 'Match schedule updated successfully',
     });
-  } catch (error: any) {
-    console.error('Error updating match schedule:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error updating match schedule', 500);
+  } catch (error) {
+    handleControllerError(error, 'updating match schedule', 'Error updating match schedule');
   }
 };
 
@@ -914,7 +894,7 @@ export const bulkUpdateMatchSchedules = async (req: Request, res: Response) => {
     const { updates } = req.body;
 
     if (!Array.isArray(updates) || updates.length === 0) {
-      throw new AppError('updates array is required', 400);
+      ErrorHandlers.validation('updates array is required');
     }
 
     const batch = adminDb.batch();
@@ -923,7 +903,7 @@ export const bulkUpdateMatchSchedules = async (req: Request, res: Response) => {
       const { poolId, matchId, roundNumber, fieldNumber } = update;
 
       if (!poolId || !matchId || roundNumber === undefined || fieldNumber === undefined) {
-        throw new AppError('Each update must include poolId, matchId, roundNumber, and fieldNumber', 400);
+        ErrorHandlers.validation('Each update must include poolId, matchId, roundNumber, and fieldNumber');
       }
 
       const matchRef = adminDb
@@ -947,10 +927,8 @@ export const bulkUpdateMatchSchedules = async (req: Request, res: Response) => {
       success: true,
       message: `${updates.length} match schedules updated successfully`,
     });
-  } catch (error: any) {
-    console.error('Error bulk updating match schedules:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error bulk updating match schedules', 500);
+  } catch (error) {
+    handleControllerError(error, 'bulk updating match schedules', 'Error bulk updating match schedules');
   }
 };
 
@@ -989,9 +967,7 @@ export const clearRoundSchedule = async (req: Request, res: Response) => {
       success: true,
       message: `Round schedule cleared for ${matchCount} matches`,
     });
-  } catch (error: any) {
-    console.error('Error clearing round schedule:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error clearing round schedule', 500);
+  } catch (error) {
+    handleControllerError(error, 'clearing round schedule', 'Error clearing round schedule');
   }
 };

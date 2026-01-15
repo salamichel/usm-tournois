@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { adminDb, adminAuth } from '../config/firebase.config';
 import { AppError } from '../middlewares/error.middleware';
+import { handleControllerError, ErrorHandlers } from '../utils/error.utils';
 import { convertTimestamps } from '../utils/firestore.utils';
 import { updateGlobalRankings } from '../services/playerPoints.service';
 
@@ -62,8 +63,7 @@ export const getAllVirtualUsers = async (req: Request, res: Response) => {
       data: { virtualUsers },
     });
   } catch (error) {
-    console.error('Error getting virtual users:', error);
-    throw new AppError('Error retrieving virtual users', 500);
+    handleControllerError(error, 'getting virtual users');
   }
 };
 
@@ -74,7 +74,7 @@ export const linkVirtualToRealUser = async (req: Request, res: Response) => {
   const { virtualUserId, realUserId } = req.body;
 
   if (!virtualUserId || !realUserId) {
-    throw new AppError('Virtual user ID and real user ID are required', 400);
+    ErrorHandlers.validation('Virtual user ID and real user ID are required');
   }
 
   try {
@@ -82,7 +82,7 @@ export const linkVirtualToRealUser = async (req: Request, res: Response) => {
     const virtualUserDoc = await adminDb.collection('users').doc(virtualUserId).get();
 
     if (!virtualUserDoc.exists) {
-      throw new AppError('Virtual user not found', 404);
+      ErrorHandlers.notFound('Virtual user', virtualUserId);
     }
 
     const virtualUserData = virtualUserDoc.data();
@@ -92,14 +92,14 @@ export const linkVirtualToRealUser = async (req: Request, res: Response) => {
     const isVirtualByFlag = virtualUserData?.isVirtual;
 
     if (!isVirtualByEmail && !isVirtualByFlag) {
-      throw new AppError('This is not a virtual account', 400);
+      ErrorHandlers.validation('This is not a virtual account');
     }
 
     // Verify real user exists and is not virtual
     const realUserDoc = await adminDb.collection('users').doc(realUserId).get();
 
     if (!realUserDoc.exists) {
-      throw new AppError('Real user not found', 404);
+      ErrorHandlers.notFound('Real user', realUserId);
     }
 
     const realUserData = realUserDoc.data();
@@ -109,7 +109,7 @@ export const linkVirtualToRealUser = async (req: Request, res: Response) => {
     const targetIsVirtualByFlag = realUserData?.isVirtual;
 
     if (targetIsVirtualByEmail || targetIsVirtualByFlag) {
-      throw new AppError('Target user is also a virtual account', 400);
+      ErrorHandlers.validation('Target user is also a virtual account');
     }
 
     // Start batch operations
@@ -253,9 +253,7 @@ export const linkVirtualToRealUser = async (req: Request, res: Response) => {
       message: `Virtual account successfully linked to real account. ${pointsTransferred} tournament points transferred.`,
     });
   } catch (error) {
-    console.error('Error linking virtual to real user:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error linking virtual account', 500);
+    handleControllerError(error, 'linking virtual to real user');
   }
 };
 
@@ -266,7 +264,7 @@ export const deleteVirtualUser = async (req: Request, res: Response) => {
   const { userId } = req.params;
 
   if (!userId) {
-    throw new AppError('User ID is required', 400);
+    ErrorHandlers.validation('User ID is required');
   }
 
   try {
@@ -274,7 +272,7 @@ export const deleteVirtualUser = async (req: Request, res: Response) => {
     const userDoc = await adminDb.collection('users').doc(userId).get();
 
     if (!userDoc.exists) {
-      throw new AppError('User not found', 404);
+      ErrorHandlers.notFound('User', userId);
     }
 
     const userData = userDoc.data();
@@ -284,7 +282,7 @@ export const deleteVirtualUser = async (req: Request, res: Response) => {
     const isVirtualByFlag = userData?.isVirtual;
 
     if (!isVirtualByEmail && !isVirtualByFlag) {
-      throw new AppError('This is not a virtual account', 400);
+      ErrorHandlers.validation('This is not a virtual account');
     }
 
     const batch = adminDb.batch();
@@ -373,8 +371,6 @@ export const deleteVirtualUser = async (req: Request, res: Response) => {
       message: 'Virtual account deleted successfully',
     });
   } catch (error) {
-    console.error('Error deleting virtual user:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error deleting virtual account', 500);
+    handleControllerError(error, 'deleting virtual user');
   }
 };
