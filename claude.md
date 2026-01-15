@@ -76,9 +76,30 @@ npm run reset-tournament -- <id>  # Réinitialiser un tournoi
 ```
 
 ### Docker
+
 ```bash
-docker-compose up -d              # Démarrer les services
-docker-compose logs -f            # Voir les logs
+# Gestion des services
+docker compose up -d              # Démarrer les services
+docker compose down               # Arrêter les services
+docker compose logs -f            # Voir les logs
+docker compose logs -f server     # Logs server uniquement
+docker compose logs -f client     # Logs client uniquement
+
+# Client
+docker compose run --rm client npm run build        # Build production
+docker compose run --rm client npm run lint         # ESLint
+docker compose run --rm client npm run type-check   # Vérification TypeScript
+
+# Server
+docker compose run --rm server npm run build        # Compilation TypeScript
+docker compose run --rm server npm run lint         # ESLint
+
+# Scripts de test (via Docker)
+docker compose run --rm server npm run scenario -- --simulate    # Scénario complet
+docker compose run --rm server npm run dummy-players -- <id> 10  # Ajouter joueurs test
+docker compose run --rm server npm run test-tournament           # Créer tournoi test
+docker compose run --rm server npm run clean-test -- --all       # Nettoyer données test
+docker compose run --rm server npm run reset-tournament -- <id>  # Réinitialiser tournoi
 ```
 
 ## Conventions de Code
