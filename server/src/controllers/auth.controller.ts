@@ -1,5 +1,4 @@
 import { Request, Response } from 'express';
-import { getAuth } from 'firebase-admin/auth';
 import { adminAuth, adminDb } from '../config/firebase.config';
 import { AppError } from '../middlewares/error.middleware';
 import { sendPasswordResetEmail } from '../services/email.service';
@@ -12,6 +11,62 @@ import type {
   UserSession,
   User
 } from '@shared/types';
+
+/**
+ * Firebase REST API response types
+ */
+interface FirebaseAuthResponse {
+  localId: string;
+  email: string;
+  idToken: string;
+  refreshToken: string;
+}
+
+interface FirebaseAuthError {
+  error?: {
+    message?: string;
+  };
+}
+
+/**
+ * Verify user credentials using Firebase REST API
+ * Firebase Admin SDK cannot verify passwords directly, so we use the REST API
+ */
+async function verifyPassword(email: string, password: string): Promise<{ uid: string; email: string }> {
+  const apiKey = process.env.FIREBASE_API_KEY;
+
+  if (!apiKey) {
+    throw new Error('FIREBASE_API_KEY is not configured');
+  }
+
+  const response = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email,
+        password,
+        returnSecureToken: true,
+      }),
+    }
+  );
+
+  const data = await response.json() as FirebaseAuthResponse & FirebaseAuthError;
+
+  if (!response.ok) {
+    // Map Firebase error codes to our error messages
+    const errorCode = data.error?.message || 'UNKNOWN_ERROR';
+    throw { code: `auth/${errorCode.toLowerCase().replace(/_/g, '-')}`, message: errorCode };
+  }
+
+  return {
+    uid: data.localId,
+    email: data.email,
+  };
+}
 
 /**
  * @desc    User signup
@@ -116,11 +171,11 @@ export const login = async (req: Request, res: Response) => {
   }
 
   try {
-    // Verify user exists
-    const userRecord = await adminAuth.getUserByEmail(email);
+    // Verify user credentials using Firebase REST API (actually validates password)
+    const verifiedUser = await verifyPassword(email, password);
 
     // Get user data from Firestore
-    const userDoc = await adminDb.collection('users').doc(userRecord.uid).get();
+    const userDoc = await adminDb.collection('users').doc(verifiedUser.uid).get();
 
     if (!userDoc.exists) {
       throw new AppError('Données utilisateur introuvables.', 404);
@@ -130,7 +185,7 @@ export const login = async (req: Request, res: Response) => {
 
     // Create session
     const sessionUser: UserSession = {
-      uid: userRecord.uid,
+      uid: verifiedUser.uid,
       email: userData.email,
       pseudo: userData.pseudo,
       level: userData.level,
@@ -148,10 +203,16 @@ export const login = async (req: Request, res: Response) => {
     console.error('Login error:', error);
 
     let message = 'Email ou mot de passe incorrect.';
-    if (error.code === 'auth/user-not-found') {
+    if (error.code === 'auth/user-not-found' || error.code === 'auth/email-not-found') {
       message = 'Aucun compte associé à cet email.';
     } else if (error.code === 'auth/invalid-email') {
       message = 'Format d\'email invalide.';
+    } else if (error.code === 'auth/invalid-password' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-login-credentials') {
+      message = 'Email ou mot de passe incorrect.';
+    } else if (error.code === 'auth/too-many-requests') {
+      message = 'Trop de tentatives de connexion. Veuillez réessayer plus tard.';
+    } else if (error.code === 'auth/user-disabled') {
+      message = 'Ce compte a été désactivé.';
     }
 
     throw new AppError(message, 401);
@@ -206,11 +267,18 @@ export const changePassword = async (req: Request, res: Response) => {
     throw new AppError('Non authentifié.', 401);
   }
 
+  if (!currentPassword) {
+    throw new AppError('Le mot de passe actuel est requis.', 400);
+  }
+
   if (!newPassword || newPassword.length < 6) {
     throw new AppError('Le nouveau mot de passe doit contenir au moins 6 caractères.', 400);
   }
 
   try {
+    // Verify current password before allowing change
+    await verifyPassword(req.user.email, currentPassword);
+
     // Update password in Firebase Auth
     await adminAuth.updateUser(req.user.uid, {
       password: newPassword,
@@ -222,6 +290,11 @@ export const changePassword = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error('Change password error:', error);
+
+    if (error.code === 'auth/invalid-password' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-login-credentials') {
+      throw new AppError('Le mot de passe actuel est incorrect.', 400);
+    }
+
     throw new AppError('Erreur lors de la modification du mot de passe.', 500);
   }
 };
