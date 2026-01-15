@@ -143,6 +143,23 @@ docker-compose up -d
 # Backend API: http://localhost:3000
 ```
 
+#### Mise à jour des dépendances
+
+Lorsque de nouvelles dépendances npm sont ajoutées (dans `package.json`), les conteneurs Docker doivent être reconstruits :
+
+```bash
+# Reconstruire un service spécifique
+docker-compose build --no-cache server
+docker-compose up -d
+
+# Ou reconstruire tous les services
+docker-compose up --build
+
+# Si des problèmes persistent, nettoyer complètement
+docker-compose down
+docker-compose up --build
+```
+
 ### 5. Installation manuelle
 
 #### Client
@@ -342,6 +359,37 @@ fix: Corriger le bug d'authentification
 refactor: Restructurer les services API
 docs: Mettre à jour le README
 ```
+
+## 🔧 Dépannage
+
+### Erreur "Cannot find package" ou "ERR_MODULE_NOT_FOUND"
+
+Si vous rencontrez une erreur du type :
+```
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@getbrevo/brevo' imported from /app/src/services/email.service.ts
+```
+
+**Cause** : Les dépendances npm ne sont pas installées dans le conteneur Docker.
+
+**Solution** : Reconstruisez les conteneurs Docker :
+```bash
+# Arrêter les conteneurs
+docker-compose down
+
+# Reconstruire et redémarrer
+docker-compose up --build
+```
+
+### Les modifications de code ne sont pas prises en compte
+
+**Solution** : Vérifiez que les volumes Docker sont correctement montés et que le mode watch est actif.
+
+### Problèmes de connexion Firebase
+
+**Solution** : Vérifiez que :
+- Le fichier `serviceAccountKey.json` est présent à la racine
+- Les variables d'environnement dans `.env` sont correctes
+- Firestore est activé dans la console Firebase
 
 ## 📞 Support
 
