@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@contexts/AuthContext';
 import tournamentService from '@services/tournament.service';
@@ -56,6 +56,9 @@ const TournamentDetailPage = () => {
   const [showQuestionsModal, setShowQuestionsModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<'registerPlayer' | 'createTeam' | 'joinTeam' | null>(null);
   const [pendingTeamId, setPendingTeamId] = useState<string | null>(null);
+
+  // Ref for tabs section
+  const tabsRef = useRef<HTMLDivElement>(null);
 
   const fetchTournament = useCallback(async () => {
     if (!id) return;
@@ -312,6 +315,16 @@ const TournamentDetailPage = () => {
       if (id) analyticsService.trackTournamentShare(id, 'clipboard');
       toast.success('Lien copié !');
     });
+  };
+
+  const scrollToTab = (tab: TabType) => {
+    setActiveTab(tab);
+    // Small delay to ensure state is updated before scrolling
+    setTimeout(() => {
+      if (tabsRef.current) {
+        tabsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 0);
   };
 
   // Check if user is captain of a team in a match
@@ -794,14 +807,20 @@ const TournamentDetailPage = () => {
                     : 'À confirmer'}
                 </p>
               </div>
-              <div className="card text-center">
+              <div
+                onClick={() => scrollToTab('teams')}
+                className="card text-center cursor-pointer hover:shadow-lg hover:border-primary-400 transition-all"
+              >
                 <Users className="text-primary-600 mx-auto mb-2" size={24} />
                 <p className="text-sm text-gray-500">Équipes complètes</p>
                 <p className="font-semibold">
                   {completeTeams} / {tournament.maxTeams}
                 </p>
               </div>
-              <div className="card text-center">
+              <div
+                onClick={() => scrollToTab('players')}
+                className="card text-center cursor-pointer hover:shadow-lg hover:border-primary-400 transition-all"
+              >
                 <Trophy className="text-primary-600 mx-auto mb-2" size={24} />
                 <p className="text-sm text-gray-500">Joueurs</p>
                 <p className="font-semibold">
@@ -985,7 +1004,7 @@ const TournamentDetailPage = () => {
             )}
 
             {/* Tabs Navigation */}
-            <div className="flex gap-2 border-b border-gray-200">
+            <div ref={tabsRef} className="flex gap-2 border-b border-gray-200">
               <button
                 onClick={() => {
                   analyticsService.trackTabSwitch('teams', 'Tournament Detail');
