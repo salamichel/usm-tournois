@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@contexts/AuthContext';
 import type { LoginCredentials, CreateUserDto, UserLevel } from '@shared/types';
 import { AlertCircle, UserPlus, Mail } from 'lucide-react';
@@ -11,6 +11,13 @@ const LoginPage = () => {
   const [isSignup, setIsSignup] = useState(false);
   const { login, signup, claimVirtualAccount } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Get redirect URL from query parameters
+  const getRedirectUrl = () => {
+    const params = new URLSearchParams(location.search);
+    return params.get('returnTo') || '/mon-compte';
+  };
   const [showVirtualAccountModal, setShowVirtualAccountModal] = useState(false);
   const [virtualAccountData, setVirtualAccountData] = useState<{
     virtualUserId: string;
@@ -39,7 +46,7 @@ const LoginPage = () => {
     try {
       await login(loginData);
       analyticsService.trackLogin('email');
-      navigate('/mon-compte');
+      navigate(getRedirectUrl());
     } catch (error) {
       // Error handled by AuthContext
     }
@@ -64,7 +71,7 @@ const LoginPage = () => {
 
       // Normal signup success
       analyticsService.trackSignup(false);
-      navigate('/mon-compte');
+      navigate(getRedirectUrl());
     } catch (error) {
       // Error handled by AuthContext
     }
@@ -86,7 +93,7 @@ const LoginPage = () => {
       analyticsService.trackVirtualAccountClaim();
       analyticsService.trackSignup(true);
       setShowVirtualAccountModal(false);
-      navigate('/mon-compte');
+      navigate(getRedirectUrl());
     } catch (error) {
       // Error handled by AuthContext
     } finally {

@@ -101,7 +101,7 @@ const TournamentDetailPage = () => {
 
   const handleRegisterAsPlayer = async () => {
     if (!id || !isAuthenticated) {
-      navigate('/login');
+      navigate(`/login?returnTo=/tournament/${id}`);
       return;
     }
 
@@ -202,7 +202,7 @@ const TournamentDetailPage = () => {
 
   const handleJoinTeam = async (teamId: string) => {
     if (!id || !isAuthenticated) {
-      navigate('/login');
+      navigate(`/login?returnTo=/tournament/${id}`);
       return;
     }
 
@@ -268,7 +268,7 @@ const TournamentDetailPage = () => {
 
   const handleJoinWaitingList = async () => {
     if (!id || !isAuthenticated) {
-      navigate('/login');
+      navigate(`/login?returnTo=/tournament/${id}`);
       return;
     }
 
@@ -854,6 +854,40 @@ const TournamentDetailPage = () => {
               </div>
             </div>
 
+            {/* Quick Registration Section - Visible after stats */}
+            {!isRegistered && areRegistrationsOpen() && isAuthenticated && (
+              <div className="card bg-gradient-to-r from-primary-50 to-primary-100 border-2 border-primary-300 rounded-lg shadow-md">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xl font-bold text-primary-900 mb-2">Prêt à s'inscrire ?</h3>
+                    <p className="text-primary-700">
+                      {completeTeams} / {tournament.maxTeams} équipes complètes
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={handleRegisterAsPlayer}
+                      disabled={processingAction}
+                      className="btn-primary text-sm"
+                    >
+                      <UserPlus size={18} className="mr-1.5" />
+                      S'inscrire
+                    </button>
+                    {tournament?.registrationMode !== 'random' && tournament?.tournamentFormat !== 'king' && (
+                      <button
+                        onClick={() => setShowCreateTeamModal(true)}
+                        disabled={processingAction}
+                        className="btn-secondary text-sm"
+                      >
+                        <Trophy size={18} className="mr-1.5" />
+                        Créer équipe
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Description */}
             {tournament.description && (
               <div className="card">
@@ -871,7 +905,7 @@ const TournamentDetailPage = () => {
                   Vous devez être connecté pour vous inscrire à ce tournoi
                 </p>
                 <button
-                  onClick={() => navigate('/login')}
+                  onClick={() => navigate(`/login?returnTo=/tournament/${id}`)}
                   className="btn-primary w-full"
                 >
                   Se connecter
