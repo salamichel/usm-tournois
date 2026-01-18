@@ -101,7 +101,7 @@ const TournamentDetailPage = () => {
 
   const handleRegisterAsPlayer = async () => {
     if (!id || !isAuthenticated) {
-      navigate('/login');
+      navigate(`/login?returnTo=/tournament/${id}`);
       return;
     }
 
@@ -202,7 +202,7 @@ const TournamentDetailPage = () => {
 
   const handleJoinTeam = async (teamId: string) => {
     if (!id || !isAuthenticated) {
-      navigate('/login');
+      navigate(`/login?returnTo=/tournament/${id}`);
       return;
     }
 
@@ -268,7 +268,7 @@ const TournamentDetailPage = () => {
 
   const handleJoinWaitingList = async () => {
     if (!id || !isAuthenticated) {
-      navigate('/login');
+      navigate(`/login?returnTo=/tournament/${id}`);
       return;
     }
 
@@ -905,7 +905,7 @@ const TournamentDetailPage = () => {
                   Vous devez être connecté pour vous inscrire à ce tournoi
                 </p>
                 <button
-                  onClick={() => navigate('/login')}
+                  onClick={() => navigate(`/login?returnTo=/tournament/${id}`)}
                   className="btn-primary w-full"
                 >
                   Se connecter
