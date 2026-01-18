@@ -101,7 +101,7 @@ const TournamentDetailPage = () => {
 
   const handleRegisterAsPlayer = async () => {
     if (!id || !isAuthenticated) {
-      navigate(`/login?returnTo=/tournament/${id}`);
+      navigate(`/login?returnTo=/tournoi/${id}`);
       return;
     }
 
