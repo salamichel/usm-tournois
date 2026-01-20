@@ -32,9 +32,17 @@ const DashboardPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <div className="card">
           <div className="flex items-center gap-4">
-            <div className="bg-primary-100 p-3 rounded-full">
-              <User className="text-primary-600" size={24} />
-            </div>
+            {user.avatar ? (
+              <img
+                src={user.avatar}
+                alt={user.pseudo}
+                className="w-12 h-12 rounded-full object-cover border-2 border-primary-200"
+              />
+            ) : (
+              <div className="bg-primary-100 p-3 rounded-full">
+                <User className="text-primary-600" size={24} />
+              </div>
+            )}
             <div>
               <p className="text-sm text-gray-500">Pseudo</p>
               <p className="text-lg font-semibold">{user.pseudo}</p>

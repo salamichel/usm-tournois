@@ -2,6 +2,12 @@ import { Request, Response } from 'express';
 import { adminDb } from '../config/firebase.config';
 import { AppError } from '../middlewares/error.middleware';
 import { convertTimestamps } from '../utils/firestore.utils';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export const getUserDashboard = async (req: Request, res: Response) => {
   try {
@@ -199,5 +205,51 @@ export const searchUsers = async (req: Request, res: Response) => {
     console.error('Error searching users:', error);
     if (error instanceof AppError) throw error;
     throw new AppError('Error searching users', 500);
+  }
+};
+
+export const uploadUserAvatar = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.uid;
+
+    if (!userId) {
+      throw new AppError('User not authenticated', 401);
+    }
+
+    if (!(req as any).file) {
+      throw new AppError('No avatar file uploaded', 400);
+    }
+
+    const userDoc = await adminDb.collection('users').doc(userId).get();
+    if (!userDoc.exists) {
+      throw new AppError('User not found', 404);
+    }
+
+    const oldData = userDoc.data();
+
+    // Delete old avatar file if it exists
+    if (oldData?.avatar) {
+      const oldAvatarPath = path.join(__dirname, '../../public', oldData.avatar);
+      if (fs.existsSync(oldAvatarPath)) {
+        fs.unlinkSync(oldAvatarPath);
+      }
+    }
+
+    const avatarPath = `/uploads/${(req as any).file.filename}`;
+
+    await adminDb.collection('users').doc(userId).update({
+      avatar: avatarPath,
+      updatedAt: new Date(),
+    });
+
+    res.json({
+      success: true,
+      message: 'Avatar uploaded successfully',
+      data: { avatarUrl: avatarPath },
+    });
+  } catch (error: any) {
+    console.error('Error uploading avatar:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error uploading avatar', 500);
   }
 };

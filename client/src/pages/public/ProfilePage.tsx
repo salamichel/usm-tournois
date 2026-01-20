@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@contexts/AuthContext';
 import userService from '@services/user.service';
 import clubService from '@services/club.service';
 import type { UserLevel } from '@shared/types';
 import type { Club } from '@shared/types/club.types';
 import toast from 'react-hot-toast';
-import { User, Mail, Award, Building2 } from 'lucide-react';
+import { User, Mail, Award, Building2, Camera } from 'lucide-react';
 import { analyticsService } from '@services/analytics.service';
 
 const ProfilePage = () => {
@@ -14,6 +14,8 @@ const ProfilePage = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [clubs, setClubs] = useState<Club[]>([]);
   const [loadingClubs, setLoadingClubs] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     pseudo: user?.pseudo || '',
     level: (user?.level || 'Intermédiaire') as UserLevel,
@@ -78,6 +80,47 @@ const ProfilePage = () => {
     setIsEditing(false);
   };
 
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Veuillez sélectionner une image valide');
+      return;
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('La taille de l\'image ne doit pas dépasser 5MB');
+      return;
+    }
+
+    try {
+      setIsUploadingAvatar(true);
+      const response = await userService.uploadAvatar(file);
+      if (response.success) {
+        toast.success('Photo de profil mise à jour avec succès !');
+        await refreshUser();
+      }
+    } catch (error: any) {
+      toast.error(
+        error.response?.data?.error?.message ||
+          'Erreur lors de l\'upload de la photo de profil'
+      );
+    } finally {
+      setIsUploadingAvatar(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
@@ -92,8 +135,31 @@ const ProfilePage = () => {
           <div>
             <div className="space-y-6">
               <div className="flex items-center gap-4 pb-6 border-b">
-                <div className="bg-primary-100 p-4 rounded-full">
-                  <User className="text-primary-600" size={32} />
+                <div className="relative group">
+                  {user.avatar ? (
+                    <img
+                      src={user.avatar}
+                      alt={user.pseudo}
+                      className="w-20 h-20 rounded-full object-cover border-2 border-primary-200"
+                    />
+                  ) : (
+                    <div className="bg-primary-100 p-4 rounded-full w-20 h-20 flex items-center justify-center">
+                      <User className="text-primary-600" size={32} />
+                    </div>
+                  )}
+                  <button
+                    onClick={handleAvatarClick}
+                    disabled={isUploadingAvatar}
+                    className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 rounded-full flex items-center justify-center transition-all duration-200"
+                    title="Changer la photo de profil"
+                  >
+                    <Camera className="text-white opacity-0 group-hover:opacity-100 transition-opacity" size={24} />
+                  </button>
+                  {isUploadingAvatar && (
+                    <div className="absolute inset-0 bg-black bg-opacity-40 rounded-full flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white"></div>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">
@@ -102,6 +168,13 @@ const ProfilePage = () => {
                   <p className="text-gray-500">{user.email}</p>
                 </div>
               </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarChange}
+                className="hidden"
+              />
 
               <div>
                 <div className="flex items-center gap-3 mb-2">

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { asyncHandler } from '../middlewares/error.middleware';
 import { isAuthenticated } from '../middlewares/auth.middleware';
+import { uploadAvatar } from '../middlewares/upload.middleware';
 import * as userController from '../controllers/user.controller';
 
 const router = Router();
@@ -25,6 +26,13 @@ router.get('/me/profile', isAuthenticated, asyncHandler(userController.getUserPr
  * @access  Private
  */
 router.put('/me/profile', isAuthenticated, asyncHandler(userController.updateUserProfile));
+
+/**
+ * @route   POST /api/users/me/avatar
+ * @desc    Upload user avatar/profile photo
+ * @access  Private
+ */
+router.post('/me/avatar', isAuthenticated, uploadAvatar, asyncHandler(userController.uploadUserAvatar));
 
 /**
  * @route   GET /api/users/search

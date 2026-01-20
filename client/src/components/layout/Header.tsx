@@ -53,7 +53,15 @@ const Header = () => {
 
                 <div className="relative group">
                   <button className="flex items-center gap-2 text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium">
-                    <User size={18} />
+                    {user?.avatar ? (
+                      <img
+                        src={user.avatar}
+                        alt={user.pseudo}
+                        className="w-8 h-8 rounded-full object-cover border border-primary-200"
+                      />
+                    ) : (
+                      <User size={18} />
+                    )}
                     {user?.pseudo}
                   </button>
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 hidden group-hover:block">

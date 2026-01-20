@@ -47,3 +47,6 @@ export const uploadCoverImage = upload.single('coverImage');
 
 // Middleware for single file upload (club logo)
 export const uploadClubLogo = upload.single('logo');
+
+// Middleware for single file upload (avatar/profile photo)
+export const uploadAvatar = upload.single('avatar');

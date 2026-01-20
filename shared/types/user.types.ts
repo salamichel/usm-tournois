@@ -42,6 +42,7 @@ export interface UserSession {
   pseudo: string;
   level: UserLevel;
   role: UserRole;
+  avatar?: string;
   clubId?: string;
 }
 

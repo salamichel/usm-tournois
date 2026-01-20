@@ -133,6 +133,8 @@ export const signup = async (req: Request, res: Response) => {
       pseudo,
       level,
       role: 'player',
+      avatar: undefined,
+      clubId: undefined,
     };
 
     req.session.user = sessionUser as any;
@@ -190,6 +192,8 @@ export const login = async (req: Request, res: Response) => {
       pseudo: userData.pseudo,
       level: userData.level,
       role: userData.role,
+      avatar: userData.avatar,
+      clubId: userData.clubId,
     };
 
     req.session.user = sessionUser as any;
@@ -424,6 +428,8 @@ export const claimVirtualAccount = async (req: Request, res: Response) => {
       pseudo,
       level,
       role: 'player',
+      avatar: undefined,
+      clubId: undefined,
     };
 
     req.session.user = sessionUser as any;

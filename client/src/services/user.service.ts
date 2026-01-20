@@ -24,6 +24,15 @@ class UserService {
       params: { query, excludeVirtual: excludeVirtual ? 'true' : 'false' },
     });
   }
+
+  /**
+   * Upload user avatar/profile photo
+   */
+  async uploadAvatar(file: File) {
+    const formData = new FormData();
+    formData.append('avatar', file);
+    return apiService.upload<{ avatarUrl: string }>('/users/me/avatar', formData);
+  }
 }
 
 export default new UserService();
