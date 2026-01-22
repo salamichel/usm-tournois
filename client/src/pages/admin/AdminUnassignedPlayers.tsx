@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import AdminLayout from '@components/AdminLayout';
 import adminService from '@services/admin.service';
 import toast from 'react-hot-toast';
-import { ArrowLeft, UserMinus, Trash2, Shuffle, UserPlus, X, Search, MessageSquare, Eye, BarChart3 } from 'lucide-react';
+import { ArrowLeft, UserMinus, Trash2, Shuffle, UserPlus, X, Search, MessageSquare, Eye, BarChart3, Edit } from 'lucide-react';
 import type { QuestionResponse, TournamentQuestion } from '@shared/types';
 
 interface OptionStat {
@@ -41,6 +41,12 @@ const AdminUnassignedPlayers = () => {
 
   // Statistics state
   const [showStats, setShowStats] = useState(false);
+
+  // Edit modal state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingPlayer, setEditingPlayer] = useState<any>(null);
+  const [editForm, setEditForm] = useState({ pseudo: '', level: '', sexe: '' });
+  const [updatingPlayer, setUpdatingPlayer] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -145,6 +151,47 @@ const AdminUnassignedPlayers = () => {
   const handleCloseResponsesModal = () => {
     setShowResponsesModal(false);
     setSelectedPlayer(null);
+  };
+
+  const handleOpenEditModal = (player: any) => {
+    setEditingPlayer(player);
+    setEditForm({
+      pseudo: player.pseudo || '',
+      level: player.level || '',
+      sexe: player.sexe || 'homme',
+    });
+    setShowEditModal(true);
+  };
+
+  const handleCloseEditModal = () => {
+    setShowEditModal(false);
+    setEditingPlayer(null);
+    setEditForm({ pseudo: '', level: '', sexe: '' });
+  };
+
+  const handleUpdatePlayer = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!editForm.pseudo.trim()) {
+      toast.error('Le pseudo est requis');
+      return;
+    }
+
+    try {
+      setUpdatingPlayer(true);
+      await adminService.updateUnassignedPlayer(tournamentId!, editingPlayer.id, {
+        pseudo: editForm.pseudo.trim(),
+        level: editForm.level,
+        sexe: editForm.sexe,
+      });
+      toast.success('Joueur mis à jour avec succès');
+      handleCloseEditModal();
+      loadData();
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur lors de la mise à jour du joueur');
+    } finally {
+      setUpdatingPlayer(false);
+    }
   };
 
   // Helper to get question label by ID
@@ -385,13 +432,22 @@ const AdminUnassignedPlayers = () => {
                         </td>
                       )}
                       <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <button
-                          onClick={() => handleRemovePlayer(player.id)}
-                          className="text-red-600 hover:text-red-900"
-                          title="Retirer"
-                        >
-                          <Trash2 size={18} />
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleOpenEditModal(player)}
+                            className="text-blue-600 hover:text-blue-900"
+                            title="Éditer"
+                          >
+                            <Edit size={18} />
+                          </button>
+                          <button
+                            onClick={() => handleRemovePlayer(player.id)}
+                            className="text-red-600 hover:text-red-900"
+                            title="Retirer"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -534,6 +590,95 @@ const AdminUnassignedPlayers = () => {
                 Fermer
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal d'édition de joueur */}
+      {showEditModal && editingPlayer && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <form onSubmit={handleUpdatePlayer}>
+              <div className="flex items-center justify-between p-4 border-b">
+                <h2 className="text-xl font-semibold flex items-center gap-2">
+                  <Edit size={20} />
+                  Éditer le joueur
+                </h2>
+                <button
+                  type="button"
+                  onClick={handleCloseEditModal}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="p-4 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Pseudo *
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.pseudo}
+                    onChange={(e) => setEditForm({ ...editForm, pseudo: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                    autoFocus
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Niveau *
+                  </label>
+                  <select
+                    value={editForm.level}
+                    onChange={(e) => setEditForm({ ...editForm, level: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  >
+                    <option value="">Sélectionner un niveau</option>
+                    <option value="Débutant">Débutant</option>
+                    <option value="Intermédiaire">Intermédiaire</option>
+                    <option value="Confirmé">Confirmé</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Sexe *
+                  </label>
+                  <select
+                    value={editForm.sexe}
+                    onChange={(e) => setEditForm({ ...editForm, sexe: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  >
+                    <option value="homme">Homme</option>
+                    <option value="femme">Femme</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="p-4 border-t bg-gray-50 flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={handleCloseEditModal}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                  disabled={updatingPlayer}
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={updatingPlayer}
+                >
+                  {updatingPlayer ? 'Mise à jour...' : 'Enregistrer'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

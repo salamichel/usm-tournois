@@ -256,6 +256,10 @@ class AdminService {
     return apiService.post(`/admin/tournaments/${tournamentId}/unassigned-players`, { userId });
   }
 
+  async updateUnassignedPlayer(tournamentId: string, userId: string, data: { pseudo?: string; level?: string; sexe?: string }) {
+    return apiService.put(`/admin/tournaments/${tournamentId}/unassigned-players/${userId}`, data);
+  }
+
   async removeUnassignedPlayer(tournamentId: string, userId: string) {
     return apiService.delete(`/admin/tournaments/${tournamentId}/unassigned-players/${userId}`);
   }
