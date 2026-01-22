@@ -2387,7 +2387,7 @@ export const removeUnassignedPlayer = async (req: Request, res: Response) => {
 export const addUnassignedPlayer = async (req: Request, res: Response) => {
   try {
     const { tournamentId } = req.params;
-    const { userId } = req.body;
+    const { userId, questionResponses } = req.body;
 
     // Validate parameters
     if (!tournamentId || typeof tournamentId !== 'string' || tournamentId.trim() === '') {
@@ -2437,20 +2437,28 @@ export const addUnassignedPlayer = async (req: Request, res: Response) => {
       }
     }
 
+    // Prepare player data
+    const playerData: any = {
+      userId: userId,
+      pseudo: userData?.pseudo || 'Inconnu',
+      email: userData?.email || '',
+      level: userData?.level || 'N/A',
+      sexe: userData?.sexe || 'homme',
+      registeredAt: new Date(),
+    };
+
+    // Add question responses if provided
+    if (questionResponses && Array.isArray(questionResponses) && questionResponses.length > 0) {
+      playerData.questionResponses = questionResponses;
+    }
+
     // Add player to unassigned list
     await adminDb
       .collection('events')
       .doc(tournamentId)
       .collection('unassignedPlayers')
       .doc(userId)
-      .set({
-        userId: userId,
-        pseudo: userData?.pseudo || 'Inconnu',
-        email: userData?.email || '',
-        level: userData?.level || 'N/A',
-        sexe: userData?.sexe || 'homme',
-        registeredAt: new Date(),
-      });
+      .set(playerData);
 
     res.json({
       success: true,
@@ -2466,7 +2474,7 @@ export const addUnassignedPlayer = async (req: Request, res: Response) => {
 export const updateUnassignedPlayer = async (req: Request, res: Response) => {
   try {
     const { tournamentId, userId } = req.params;
-    const { pseudo, level, sexe } = req.body;
+    const { pseudo, level, sexe, questionResponses } = req.body;
 
     // Validate parameters
     if (!tournamentId || typeof tournamentId !== 'string' || tournamentId.trim() === '') {
@@ -2510,6 +2518,13 @@ export const updateUnassignedPlayer = async (req: Request, res: Response) => {
         throw new AppError('Invalid sexe value', 400);
       }
       updateData.sexe = sexe;
+    }
+    if (questionResponses !== undefined) {
+      if (Array.isArray(questionResponses)) {
+        updateData.questionResponses = questionResponses;
+      } else {
+        throw new AppError('questionResponses must be an array', 400);
+      }
     }
 
     // Check if there's anything to update
