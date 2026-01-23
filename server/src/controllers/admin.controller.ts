@@ -2387,7 +2387,7 @@ export const removeUnassignedPlayer = async (req: Request, res: Response) => {
 export const addUnassignedPlayer = async (req: Request, res: Response) => {
   try {
     const { tournamentId } = req.params;
-    const { userId } = req.body;
+    const { userId, questionResponses } = req.body;
 
     // Validate parameters
     if (!tournamentId || typeof tournamentId !== 'string' || tournamentId.trim() === '') {
@@ -2437,20 +2437,28 @@ export const addUnassignedPlayer = async (req: Request, res: Response) => {
       }
     }
 
+    // Prepare player data
+    const playerData: any = {
+      userId: userId,
+      pseudo: userData?.pseudo || 'Inconnu',
+      email: userData?.email || '',
+      level: userData?.level || 'N/A',
+      sexe: userData?.sexe || 'homme',
+      registeredAt: new Date(),
+    };
+
+    // Add question responses if provided
+    if (questionResponses && Array.isArray(questionResponses) && questionResponses.length > 0) {
+      playerData.questionResponses = questionResponses;
+    }
+
     // Add player to unassigned list
     await adminDb
       .collection('events')
       .doc(tournamentId)
       .collection('unassignedPlayers')
       .doc(userId)
-      .set({
-        userId: userId,
-        pseudo: userData?.pseudo || 'Inconnu',
-        email: userData?.email || '',
-        level: userData?.level || 'N/A',
-        sexe: userData?.sexe || 'homme',
-        registeredAt: new Date(),
-      });
+      .set(playerData);
 
     res.json({
       success: true,
@@ -2460,6 +2468,82 @@ export const addUnassignedPlayer = async (req: Request, res: Response) => {
     console.error('Error adding unassigned player:', error);
     if (error instanceof AppError) throw error;
     throw new AppError('Error adding unassigned player', 500);
+  }
+};
+
+export const updateUnassignedPlayer = async (req: Request, res: Response) => {
+  try {
+    const { tournamentId, userId } = req.params;
+    const { pseudo, level, sexe, questionResponses } = req.body;
+
+    // Validate parameters
+    if (!tournamentId || typeof tournamentId !== 'string' || tournamentId.trim() === '') {
+      throw new AppError('Tournament ID is required', 400);
+    }
+    if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+      throw new AppError('User ID is required', 400);
+    }
+
+    // Check if tournament exists
+    const tournamentDoc = await adminDb.collection('events').doc(tournamentId).get();
+    if (!tournamentDoc.exists) {
+      throw new AppError('Tournament not found', 404);
+    }
+
+    // Check if player exists in unassigned list
+    const playerRef = adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('unassignedPlayers')
+      .doc(userId);
+
+    const playerDoc = await playerRef.get();
+    if (!playerDoc.exists) {
+      throw new AppError('Player not found in unassigned list', 404);
+    }
+
+    // Prepare update data
+    const updateData: any = {};
+    if (pseudo !== undefined && typeof pseudo === 'string' && pseudo.trim() !== '') {
+      updateData.pseudo = pseudo.trim();
+    }
+    if (level !== undefined && typeof level === 'string') {
+      if (!['Débutant', 'Intermédiaire', 'Confirmé'].includes(level)) {
+        throw new AppError('Invalid level value', 400);
+      }
+      updateData.level = level;
+    }
+    if (sexe !== undefined && typeof sexe === 'string') {
+      if (!['homme', 'femme'].includes(sexe)) {
+        throw new AppError('Invalid sexe value', 400);
+      }
+      updateData.sexe = sexe;
+    }
+    if (questionResponses !== undefined) {
+      if (Array.isArray(questionResponses)) {
+        updateData.questionResponses = questionResponses;
+      } else {
+        throw new AppError('questionResponses must be an array', 400);
+      }
+    }
+
+    // Check if there's anything to update
+    if (Object.keys(updateData).length === 0) {
+      throw new AppError('No valid fields to update', 400);
+    }
+
+    // Update the player
+    await playerRef.update(updateData);
+
+    res.json({
+      success: true,
+      message: 'Joueur mis à jour avec succès',
+      data: { ...playerDoc.data(), ...updateData },
+    });
+  } catch (error: any) {
+    console.error('Error updating unassigned player:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error updating unassigned player', 500);
   }
 };
 

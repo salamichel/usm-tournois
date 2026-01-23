@@ -252,8 +252,12 @@ class AdminService {
     return apiService.get<{ players: any[] }>(`/admin/tournaments/${tournamentId}/unassigned-players`);
   }
 
-  async addUnassignedPlayer(tournamentId: string, userId: string) {
-    return apiService.post(`/admin/tournaments/${tournamentId}/unassigned-players`, { userId });
+  async addUnassignedPlayer(tournamentId: string, userId: string, questionResponses?: any[]) {
+    return apiService.post(`/admin/tournaments/${tournamentId}/unassigned-players`, { userId, questionResponses });
+  }
+
+  async updateUnassignedPlayer(tournamentId: string, userId: string, data: { pseudo?: string; level?: string; sexe?: string; questionResponses?: any[] }) {
+    return apiService.put(`/admin/tournaments/${tournamentId}/unassigned-players/${userId}`, data);
   }
 
   async removeUnassignedPlayer(tournamentId: string, userId: string) {

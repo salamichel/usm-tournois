@@ -3,7 +3,8 @@ import { useParams, Link } from 'react-router-dom';
 import AdminLayout from '@components/AdminLayout';
 import adminService from '@services/admin.service';
 import toast from 'react-hot-toast';
-import { ArrowLeft, UserMinus, Trash2, Shuffle, UserPlus, X, Search, MessageSquare, Eye, BarChart3 } from 'lucide-react';
+import { ArrowLeft, UserMinus, Trash2, Shuffle, UserPlus, X, Search, MessageSquare, Eye, BarChart3, Edit } from 'lucide-react';
+import SignupQuestionsModal from '../../components/SignupQuestionsModal';
 import type { QuestionResponse, TournamentQuestion } from '@shared/types';
 
 interface OptionStat {
@@ -41,6 +42,19 @@ const AdminUnassignedPlayers = () => {
 
   // Statistics state
   const [showStats, setShowStats] = useState(false);
+
+  // Edit modal state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingPlayer, setEditingPlayer] = useState<any>(null);
+  const [editForm, setEditForm] = useState({ pseudo: '', level: '', sexe: '' });
+  const [updatingPlayer, setUpdatingPlayer] = useState(false);
+
+  // Signup questions state for adding player
+  const [showSignupQuestionsModal, setShowSignupQuestionsModal] = useState(false);
+  const [selectedUserToAdd, setSelectedUserToAdd] = useState<any>(null);
+
+  // Edit question responses state
+  const [editQuestionResponses, setEditQuestionResponses] = useState<Record<string, string>>({});
 
   useEffect(() => {
     loadData();
@@ -111,18 +125,43 @@ const AdminUnassignedPlayers = () => {
     setFilteredUsers([]);
   };
 
-  const handleAddPlayer = async (userId: string) => {
+  const handleAddPlayer = async (userId: string, user: any) => {
+    // Check if tournament has signup questions
+    if (tournament?.signupQuestions && tournament.signupQuestions.length > 0) {
+      // Store the user and open signup questions modal
+      setSelectedUserToAdd(user);
+      setShowSignupQuestionsModal(true);
+    } else {
+      // No questions, add player directly
+      await executeAddPlayer(userId, []);
+    }
+  };
+
+  const executeAddPlayer = async (userId: string, questionResponses: QuestionResponse[]) => {
     try {
       setAddingPlayer(true);
-      await adminService.addUnassignedPlayer(tournamentId!, userId);
+      await adminService.addUnassignedPlayer(tournamentId!, userId, questionResponses);
       toast.success('Joueur ajouté avec succès');
       handleCloseAddModal();
+      setShowSignupQuestionsModal(false);
+      setSelectedUserToAdd(null);
       loadData();
     } catch (error: any) {
       toast.error(error.message || 'Erreur lors de l\'ajout du joueur');
     } finally {
       setAddingPlayer(false);
     }
+  };
+
+  const handleSignupQuestionsSubmit = (questionResponses: QuestionResponse[]) => {
+    if (selectedUserToAdd) {
+      executeAddPlayer(selectedUserToAdd.id, questionResponses);
+    }
+  };
+
+  const handleSignupQuestionsClose = () => {
+    setShowSignupQuestionsModal(false);
+    setSelectedUserToAdd(null);
   };
 
   const handleRemovePlayer = async (userId: string) => {
@@ -145,6 +184,74 @@ const AdminUnassignedPlayers = () => {
   const handleCloseResponsesModal = () => {
     setShowResponsesModal(false);
     setSelectedPlayer(null);
+  };
+
+  const handleOpenEditModal = (player: any) => {
+    setEditingPlayer(player);
+    setEditForm({
+      pseudo: player.pseudo || '',
+      level: player.level || '',
+      sexe: player.sexe || 'homme',
+    });
+
+    // Initialize question responses from player data
+    const responsesMap: Record<string, string> = {};
+    if (player.questionResponses && Array.isArray(player.questionResponses)) {
+      player.questionResponses.forEach((response: QuestionResponse) => {
+        responsesMap[response.questionId] = response.selectedOptionId;
+      });
+    }
+    setEditQuestionResponses(responsesMap);
+
+    setShowEditModal(true);
+  };
+
+  const handleCloseEditModal = () => {
+    setShowEditModal(false);
+    setEditingPlayer(null);
+    setEditForm({ pseudo: '', level: '', sexe: '' });
+    setEditQuestionResponses({});
+  };
+
+  const handleUpdatePlayer = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!editForm.pseudo.trim()) {
+      toast.error('Le pseudo est requis');
+      return;
+    }
+
+    // Build question responses array
+    const questionResponses: QuestionResponse[] = [];
+    if (tournament?.signupQuestions) {
+      tournament.signupQuestions.forEach((question: TournamentQuestion) => {
+        if (editQuestionResponses[question.id]) {
+          const selectedOption = question.options.find(opt => opt.id === editQuestionResponses[question.id]);
+          questionResponses.push({
+            questionId: question.id,
+            selectedOptionId: editQuestionResponses[question.id],
+            selectedOptionLabel: selectedOption?.label,
+          });
+        }
+      });
+    }
+
+    try {
+      setUpdatingPlayer(true);
+      await adminService.updateUnassignedPlayer(tournamentId!, editingPlayer.id, {
+        pseudo: editForm.pseudo.trim(),
+        level: editForm.level,
+        sexe: editForm.sexe,
+        questionResponses: questionResponses.length > 0 ? questionResponses : undefined,
+      });
+      toast.success('Joueur mis à jour avec succès');
+      handleCloseEditModal();
+      loadData();
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur lors de la mise à jour du joueur');
+    } finally {
+      setUpdatingPlayer(false);
+    }
   };
 
   // Helper to get question label by ID
@@ -385,13 +492,22 @@ const AdminUnassignedPlayers = () => {
                         </td>
                       )}
                       <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <button
-                          onClick={() => handleRemovePlayer(player.id)}
-                          className="text-red-600 hover:text-red-900"
-                          title="Retirer"
-                        >
-                          <Trash2 size={18} />
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleOpenEditModal(player)}
+                            className="text-blue-600 hover:text-blue-900"
+                            title="Éditer"
+                          >
+                            <Edit size={18} />
+                          </button>
+                          <button
+                            onClick={() => handleRemovePlayer(player.id)}
+                            className="text-red-600 hover:text-red-900"
+                            title="Retirer"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -468,7 +584,7 @@ const AdminUnassignedPlayers = () => {
                         </div>
                       </div>
                       <button
-                        onClick={() => handleAddPlayer(user.id)}
+                        onClick={() => handleAddPlayer(user.id, user)}
                         disabled={addingPlayer}
                         className="ml-4 px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                       >
@@ -536,6 +652,153 @@ const AdminUnassignedPlayers = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal d'édition de joueur */}
+      {showEditModal && editingPlayer && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <form onSubmit={handleUpdatePlayer} className="flex flex-col h-full">
+              <div className="flex items-center justify-between p-4 border-b">
+                <h2 className="text-xl font-semibold flex items-center gap-2">
+                  <Edit size={20} />
+                  Éditer le joueur
+                </h2>
+                <button
+                  type="button"
+                  onClick={handleCloseEditModal}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="p-4 space-y-4 overflow-y-auto flex-1">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Pseudo *
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.pseudo}
+                    onChange={(e) => setEditForm({ ...editForm, pseudo: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                    autoFocus
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Niveau *
+                  </label>
+                  <select
+                    value={editForm.level}
+                    onChange={(e) => setEditForm({ ...editForm, level: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  >
+                    <option value="">Sélectionner un niveau</option>
+                    <option value="Débutant">Débutant</option>
+                    <option value="Intermédiaire">Intermédiaire</option>
+                    <option value="Confirmé">Confirmé</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Sexe *
+                  </label>
+                  <select
+                    value={editForm.sexe}
+                    onChange={(e) => setEditForm({ ...editForm, sexe: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  >
+                    <option value="homme">Homme</option>
+                    <option value="femme">Femme</option>
+                  </select>
+                </div>
+
+                {/* Signup questions */}
+                {tournament?.signupQuestions && tournament.signupQuestions.length > 0 && (
+                  <div className="pt-4 border-t">
+                    <h3 className="text-sm font-medium text-gray-900 mb-3">
+                      Questions d'inscription
+                    </h3>
+                    <div className="space-y-4">
+                      {tournament.signupQuestions.map((question: TournamentQuestion, index: number) => (
+                        <div key={question.id}>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            {index + 1}. {question.question}
+                            {question.required && <span className="text-red-500 ml-1">*</span>}
+                          </label>
+                          <div className="space-y-2">
+                            {question.options.map((option) => (
+                              <label
+                                key={option.id}
+                                className={`flex items-center p-2 border rounded-lg cursor-pointer transition-colors ${
+                                  editQuestionResponses[question.id] === option.id
+                                    ? 'border-blue-500 bg-blue-50'
+                                    : 'border-gray-200 hover:border-gray-300'
+                                }`}
+                              >
+                                <input
+                                  type="radio"
+                                  name={`edit_${question.id}`}
+                                  value={option.id}
+                                  checked={editQuestionResponses[question.id] === option.id}
+                                  onChange={() => {
+                                    setEditQuestionResponses({
+                                      ...editQuestionResponses,
+                                      [question.id]: option.id,
+                                    });
+                                  }}
+                                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                                />
+                                <span className="ml-3 text-sm text-gray-700">{option.label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-4 border-t bg-gray-50 flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={handleCloseEditModal}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                  disabled={updatingPlayer}
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={updatingPlayer}
+                >
+                  {updatingPlayer ? 'Mise à jour...' : 'Enregistrer'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Signup Questions Modal for adding player */}
+      {tournament?.signupQuestions && tournament.signupQuestions.length > 0 && (
+        <SignupQuestionsModal
+          isOpen={showSignupQuestionsModal}
+          onClose={handleSignupQuestionsClose}
+          onSubmit={handleSignupQuestionsSubmit}
+          questions={tournament.signupQuestions}
+          isLoading={addingPlayer}
+          title="Questions d'inscription pour le joueur"
+        />
       )}
     </AdminLayout>
   );
