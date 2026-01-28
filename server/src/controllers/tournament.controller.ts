@@ -104,6 +104,14 @@ export const getAllTournaments = async (req: Request, res: Response) => {
           .get();
         const unassignedPlayersCount = unassignedPlayersSnapshot.size;
 
+        // Count waiting list size
+        const waitingListSnapshot = await adminDb
+          .collection('events')
+          .doc(doc.id)
+          .collection('waitingListPlayers')
+          .get();
+        const waitingListCurrentSize = waitingListSnapshot.size;
+
         // Check if there are any matches (pools or elimination)
         let hasMatches = false;
         const poolsSnapshot = await adminDb
@@ -154,7 +162,8 @@ export const getAllTournaments = async (req: Request, res: Response) => {
           teamsSnapshot.size,
           hasMatches,
           isRankingFrozen,
-          unassignedPlayersCount
+          unassignedPlayersCount,
+          waitingListCurrentSize
         );
 
         const result: any = {
@@ -339,7 +348,8 @@ export const getTournamentById = async (req: Request, res: Response) => {
       teams.length,
       hasMatches,
       isRankingFrozen,
-      unassignedPlayers.length
+      unassignedPlayers.length,
+      waitingList.length
     );
 
     res.json({

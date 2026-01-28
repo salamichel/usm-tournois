@@ -497,8 +497,12 @@ const TournamentDetailPage = () => {
 
     // If full by complete teams, all team slots taken, or all player slots taken, check if waiting list is available
     if (fullByComplete || fullByTotal || fullByPlayerCount) {
+      const waitingListMaxSize = tournament.waitingListSize || 0;
+      const waitingListCurrentSize = tournament.waitingList?.length || 0;
+      const waitingListHasSpace = waitingListCurrentSize < waitingListMaxSize;
       const showWaitingList = tournament.waitingListEnabled &&
-                              (tournament.waitingListSize || 0) > 0;
+                              waitingListMaxSize > 0 &&
+                              waitingListHasSpace;
       return { showRegister: false, showWaitingList };
     }
 
@@ -543,10 +547,18 @@ const TournamentDetailPage = () => {
       };
     }
 
-    // Check if tournament is completely full (no waiting list available)
+    // Check if tournament is completely full (no waiting list available or waiting list is full)
     if ((isFullByCompleteTeams() || isFullByTotalTeams() || isFullByPlayers()) && !registrationButtons.showWaitingList) {
+      // Check if waiting list is enabled but full
+      const waitingListMaxSize = tournament.waitingListSize || 0;
+      const waitingListCurrentSize = tournament.waitingList?.length || 0;
+      const waitingListEnabled = tournament.waitingListEnabled && waitingListMaxSize > 0;
+      const waitingListFull = waitingListEnabled && waitingListCurrentSize >= waitingListMaxSize;
+
       return {
-        message: 'Le tournoi est complet.',
+        message: waitingListFull
+          ? 'Le tournoi est complet et la liste d\'attente est pleine.'
+          : 'Le tournoi est complet.',
         type: 'warning'
       };
     }

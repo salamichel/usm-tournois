@@ -30,7 +30,8 @@ export const calculateTournamentStatus = (
   totalTeamsCount: number,
   hasMatches: boolean = false,
   isRankingFrozen: boolean = false,
-  unassignedPlayersCount: number = 0
+  unassignedPlayersCount: number = 0,
+  waitingListCurrentSize: number = 0
 ): TournamentStatusResult => {
   const now = new Date();
   const tournamentDate = toDate(tournament.date) || new Date(8640000000000000);
@@ -81,10 +82,15 @@ export const calculateTournamentStatus = (
     // Si pas de dates définies, on considère comme ouvert
     // Le tournoi est complet si toutes les équipes complètes sont atteintes OU si toutes les places d'équipes sont prises OU si tous les joueurs sont inscrits
     if (isFullByCompleteTeams || isFullByTotalTeams || isFullByPlayers) {
-      // Liste d'attente disponible si activée et avec de la place
-      if (tournament.waitingListEnabled && tournament.waitingListSize > 0) {
+      // Liste d'attente disponible si activée, avec une taille > 0, et pas pleine
+      const waitingListMaxSize = tournament.waitingListSize || 0;
+      const waitingListHasSpace = waitingListCurrentSize < waitingListMaxSize;
+      if (tournament.waitingListEnabled && waitingListMaxSize > 0 && waitingListHasSpace) {
         status = "Liste d'attente";
         message = 'Tournoi complet, liste d\'attente disponible.';
+      } else if (tournament.waitingListEnabled && waitingListMaxSize > 0 && !waitingListHasSpace) {
+        status = 'Complet';
+        message = 'Le tournoi est complet et la liste d\'attente est pleine.';
       } else {
         status = 'Complet';
         message = 'Le tournoi est complet.';
@@ -96,9 +102,15 @@ export const calculateTournamentStatus = (
   } else {
     // Inscriptions fermées : vérifier si le tournoi est vraiment complet
     if (isFullByCompleteTeams || isFullByTotalTeams || isFullByPlayers) {
-      if (tournament.waitingListEnabled && tournament.waitingListSize > 0) {
+      // Liste d'attente disponible si activée, avec une taille > 0, et pas pleine
+      const waitingListMaxSize = tournament.waitingListSize || 0;
+      const waitingListHasSpace = waitingListCurrentSize < waitingListMaxSize;
+      if (tournament.waitingListEnabled && waitingListMaxSize > 0 && waitingListHasSpace) {
         status = "Liste d'attente";
         message = 'Tournoi complet, liste d\'attente disponible.';
+      } else if (tournament.waitingListEnabled && waitingListMaxSize > 0 && !waitingListHasSpace) {
+        status = 'Complet';
+        message = 'Le tournoi est complet et la liste d\'attente est pleine.';
       } else {
         status = 'Complet';
         message = 'Le tournoi est complet.';
