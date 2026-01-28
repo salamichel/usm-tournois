@@ -484,8 +484,8 @@ const TournamentDetailPage = () => {
       return { showRegister: false, showWaitingList: false };
     }
 
-    // If full by complete teams, check if waiting list is available
-    if (fullByComplete) {
+    // If full by complete teams or all team slots taken, check if waiting list is available
+    if (fullByComplete || fullByTotal) {
       const showWaitingList = tournament.waitingListEnabled &&
                               (tournament.waitingListSize || 0) > 0 &&
                               !fullByTotal;
@@ -534,7 +534,7 @@ const TournamentDetailPage = () => {
     }
 
     // Check if tournament is completely full (no waiting list available)
-    if (isFullByCompleteTeams() && !registrationButtons.showWaitingList) {
+    if ((isFullByCompleteTeams() || isFullByTotalTeams()) && !registrationButtons.showWaitingList) {
       return {
         message: 'Le tournoi est complet.',
         type: 'warning'
@@ -918,7 +918,7 @@ const TournamentDetailPage = () => {
             )}
 
             {/* Login Prompt for Non-Authenticated Users */}
-            {!isAuthenticated && areRegistrationsOpen() && !isFullByCompleteTeams() && (
+            {!isAuthenticated && areRegistrationsOpen() && !isFullByCompleteTeams() && !isFullByTotalTeams() && (
               <div className="card bg-gray-50 border-2 border-gray-300">
                 <p className="text-gray-700 mb-4 text-center">
                   Vous devez être connecté pour vous inscrire à ce tournoi
