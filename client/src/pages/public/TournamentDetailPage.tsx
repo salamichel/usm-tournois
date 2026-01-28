@@ -498,9 +498,7 @@ const TournamentDetailPage = () => {
     // If full by complete teams, all team slots taken, or all player slots taken, check if waiting list is available
     if (fullByComplete || fullByTotal || fullByPlayerCount) {
       const showWaitingList = tournament.waitingListEnabled &&
-                              (tournament.waitingListSize || 0) > 0 &&
-                              !fullByTotal &&
-                              !fullByPlayerCount;
+                              (tournament.waitingListSize || 0) > 0;
       return { showRegister: false, showWaitingList };
     }
 
