@@ -71,7 +71,8 @@ export const calculateTournamentStatus = (
     message = `Inscriptions à partir du ${startDate}`;
   } else if (registrationsAreOpen || !hasRegistrationDates) {
     // Si pas de dates définies, on considère comme ouvert
-    if (isFullByCompleteTeams) {
+    // Le tournoi est complet si toutes les équipes complètes sont atteintes OU si toutes les places d'équipes sont prises
+    if (isFullByCompleteTeams || isFullByTotalTeams) {
       if (tournament.waitingListEnabled && tournament.waitingListSize > 0 && !isFullByTotalTeams) {
         status = "Liste d'attente";
         message = 'Tournoi complet, liste d\'attente disponible.';
@@ -85,7 +86,7 @@ export const calculateTournamentStatus = (
     }
   } else {
     // Inscriptions fermées : vérifier si le tournoi est vraiment complet
-    if (isFullByCompleteTeams) {
+    if (isFullByCompleteTeams || isFullByTotalTeams) {
       if (tournament.waitingListEnabled && tournament.waitingListSize > 0 && !isFullByTotalTeams) {
         status = "Liste d'attente";
         message = 'Tournoi complet, liste d\'attente disponible.';
