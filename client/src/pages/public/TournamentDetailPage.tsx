@@ -453,6 +453,16 @@ const TournamentDetailPage = () => {
     return (tournament.teams?.length || 0) >= tournament.maxTeams;
   };
 
+  // Calculate if tournament is full based on total players (for random/individual registration mode)
+  const isFullByPlayers = (): boolean => {
+    if (!tournament) return false;
+    const maxTotalPlayers = tournament.maxTeams * (tournament.playersPerTeam || 2);
+    const totalPlayersInTeams = (tournament.teams?.length || 0) * (tournament.playersPerTeam || 2);
+    const unassignedPlayersCount = tournament.unassignedPlayers?.length || 0;
+    const currentTotalPlayers = totalPlayersInTeams + unassignedPlayersCount;
+    return currentTotalPlayers >= maxTotalPlayers;
+  };
+
   // Check if registrations are open based on date windows
   const areRegistrationsOpen = (): boolean => {
     if (!tournament) return false;
@@ -473,6 +483,7 @@ const TournamentDetailPage = () => {
     const registrationsOpen = areRegistrationsOpen();
     const fullByComplete = isFullByCompleteTeams();
     const fullByTotal = isFullByTotalTeams();
+    const fullByPlayerCount = isFullByPlayers();
 
     // If user is already registered or on waiting list, don't show registration buttons
     if (isUserRegistered()) {
@@ -484,11 +495,12 @@ const TournamentDetailPage = () => {
       return { showRegister: false, showWaitingList: false };
     }
 
-    // If full by complete teams or all team slots taken, check if waiting list is available
-    if (fullByComplete || fullByTotal) {
+    // If full by complete teams, all team slots taken, or all player slots taken, check if waiting list is available
+    if (fullByComplete || fullByTotal || fullByPlayerCount) {
       const showWaitingList = tournament.waitingListEnabled &&
                               (tournament.waitingListSize || 0) > 0 &&
-                              !fullByTotal;
+                              !fullByTotal &&
+                              !fullByPlayerCount;
       return { showRegister: false, showWaitingList };
     }
 
@@ -534,7 +546,7 @@ const TournamentDetailPage = () => {
     }
 
     // Check if tournament is completely full (no waiting list available)
-    if ((isFullByCompleteTeams() || isFullByTotalTeams()) && !registrationButtons.showWaitingList) {
+    if ((isFullByCompleteTeams() || isFullByTotalTeams() || isFullByPlayers()) && !registrationButtons.showWaitingList) {
       return {
         message: 'Le tournoi est complet.',
         type: 'warning'
@@ -918,7 +930,7 @@ const TournamentDetailPage = () => {
             )}
 
             {/* Login Prompt for Non-Authenticated Users */}
-            {!isAuthenticated && areRegistrationsOpen() && !isFullByCompleteTeams() && !isFullByTotalTeams() && (
+            {!isAuthenticated && areRegistrationsOpen() && !isFullByCompleteTeams() && !isFullByTotalTeams() && !isFullByPlayers() && (
               <div className="card bg-gray-50 border-2 border-gray-300">
                 <p className="text-gray-700 mb-4 text-center">
                   Vous devez être connecté pour vous inscrire à ce tournoi

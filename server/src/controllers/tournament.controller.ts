@@ -96,6 +96,14 @@ export const getAllTournaments = async (req: Request, res: Response) => {
           }
         }
 
+        // Count unassigned players (for random/individual registration mode)
+        const unassignedPlayersSnapshot = await adminDb
+          .collection('events')
+          .doc(doc.id)
+          .collection('unassignedPlayers')
+          .get();
+        const unassignedPlayersCount = unassignedPlayersSnapshot.size;
+
         // Check if there are any matches (pools or elimination)
         let hasMatches = false;
         const poolsSnapshot = await adminDb
@@ -145,7 +153,8 @@ export const getAllTournaments = async (req: Request, res: Response) => {
           completeTeamsCount,
           teamsSnapshot.size,
           hasMatches,
-          isRankingFrozen
+          isRankingFrozen,
+          unassignedPlayersCount
         );
 
         const result: any = {
@@ -153,6 +162,7 @@ export const getAllTournaments = async (req: Request, res: Response) => {
           ...tournamentData,
           registeredTeamsCount: teamsSnapshot.size,
           completeTeamsCount: completeTeamsCount,
+          unassignedPlayersCount: unassignedPlayersCount,
           status: statusInfo.status,
         };
 
@@ -328,7 +338,8 @@ export const getTournamentById = async (req: Request, res: Response) => {
       completeTeamsCount,
       teams.length,
       hasMatches,
-      isRankingFrozen
+      isRankingFrozen,
+      unassignedPlayers.length
     );
 
     res.json({
