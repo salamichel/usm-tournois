@@ -19,11 +19,12 @@ Les statuts sont calculés dans `server/src/utils/tournament.status.utils.ts` et
 ### 4. Liste d'attente
 - Tournoi complet (voir définition ci-dessous)
 - ET liste d'attente activée (`waitingListEnabled = true`)
-- ET taille de liste d'attente > 0 (`waitingListSize > 0`)
+- ET taille maximale de liste d'attente > 0 (`waitingListSize > 0`)
+- ET liste d'attente pas pleine (`waitingListCurrentSize < waitingListSize`)
 
 ### 5. Complet
 - Tournoi complet
-- MAIS liste d'attente non disponible
+- ET (liste d'attente non activée OU liste d'attente pleine)
 
 ### 6. Ouvert
 - Inscriptions ouvertes (ou pas de dates définies)
@@ -76,8 +77,12 @@ Les inscriptions sont ouvertes si :
 │                         OUI ↓                               │
 ├─────────────────────────────────────────────────────────────┤
 │      Liste d'attente activée ET taille > 0 ?                │
-│                         OUI → Liste d'attente               │
 │                         NON → Complet                       │
+│                         OUI ↓                               │
+├─────────────────────────────────────────────────────────────┤
+│      Liste d'attente pleine ?                               │
+│                         OUI → Complet                       │
+│                         NON → Liste d'attente               │
 └─────────────────────────────────────────────────────────────┘
 ```
 
