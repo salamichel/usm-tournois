@@ -478,15 +478,15 @@ const TournamentDetailPage = () => {
 
   // Determine what buttons to show based on tournament state
   const getRegistrationButtons = () => {
-    if (!tournament || !user) return { showRegister: false, showWaitingList: false };
+    if (!tournament) return { showRegister: false, showWaitingList: false };
 
     const registrationsOpen = areRegistrationsOpen();
     const fullByComplete = isFullByCompleteTeams();
     const fullByTotal = isFullByTotalTeams();
     const fullByPlayerCount = isFullByPlayers();
 
-    // If user is already registered or on waiting list, don't show registration buttons
-    if (isUserRegistered()) {
+    // If user is logged in and already registered or on waiting list, don't show registration buttons
+    if (user && isUserRegistered()) {
       return { showRegister: false, showWaitingList: false };
     }
 
@@ -506,7 +506,7 @@ const TournamentDetailPage = () => {
       return { showRegister: false, showWaitingList };
     }
 
-    // Otherwise, show registration buttons
+    // Otherwise, show registration buttons (user will be prompted to login if not authenticated)
     return { showRegister: true, showWaitingList: false };
   };
 
@@ -547,20 +547,28 @@ const TournamentDetailPage = () => {
       };
     }
 
-    // Check if tournament is completely full (no waiting list available or waiting list is full)
-    if ((isFullByCompleteTeams() || isFullByTotalTeams() || isFullByPlayers()) && !registrationButtons.showWaitingList) {
-      // Check if waiting list is enabled but full
+    // Check if tournament is completely full
+    if (isFullByCompleteTeams() || isFullByTotalTeams() || isFullByPlayers()) {
+      // Check if waiting list is available (independent of user login status)
       const waitingListMaxSize = tournament.waitingListSize || 0;
       const waitingListCurrentSize = tournament.waitingList?.length || 0;
       const waitingListEnabled = tournament.waitingListEnabled && waitingListMaxSize > 0;
-      const waitingListFull = waitingListEnabled && waitingListCurrentSize >= waitingListMaxSize;
+      const waitingListHasSpace = waitingListCurrentSize < waitingListMaxSize;
 
-      return {
-        message: waitingListFull
-          ? 'Le tournoi est complet et la liste d\'attente est pleine.'
-          : 'Le tournoi est complet.',
-        type: 'warning'
-      };
+      if (waitingListEnabled && waitingListHasSpace) {
+        // Waiting list available - don't show "complet" message, let the button section handle it
+        return null;
+      } else if (waitingListEnabled && !waitingListHasSpace) {
+        return {
+          message: 'Le tournoi est complet et la liste d\'attente est pleine.',
+          type: 'warning'
+        };
+      } else {
+        return {
+          message: 'Le tournoi est complet.',
+          type: 'warning'
+        };
+      }
     }
 
     return null;
