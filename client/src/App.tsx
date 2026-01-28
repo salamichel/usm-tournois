@@ -37,6 +37,7 @@ import AdminTeamSearch from '@pages/admin/AdminTeamSearch';
 import AdminUsersList from '@pages/admin/AdminUsersList';
 import AdminUserForm from '@pages/admin/AdminUserForm';
 import AdminUnassignedPlayers from '@pages/admin/AdminUnassignedPlayers';
+import AdminUnsubscribe from '@pages/admin/AdminUnsubscribe';
 import AdminVirtualUsers from '@pages/admin/AdminVirtualUsers';
 import AdminClubsList from '@pages/admin/AdminClubsList';
 import AdminClubForm from '@pages/admin/AdminClubForm';
@@ -252,6 +253,14 @@ function App() {
               element={
                 <AdminRoute>
                   <AdminUnassignedPlayers />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/tournaments/:tournamentId/unsubscribe"
+              element={
+                <AdminRoute>
+                  <AdminUnsubscribe />
                 </AdminRoute>
               }
             />

@@ -3961,3 +3961,306 @@ export const clearRoundSchedule = async (req: Request, res: Response) => {
     throw new AppError('Error clearing round schedule', 500);
   }
 };
+
+/**
+ * Get all registered players for a tournament (teams + unassigned)
+ * GET /admin/tournaments/:tournamentId/all-players
+ */
+export const getAllRegisteredPlayers = async (req: Request, res: Response) => {
+  try {
+    const { tournamentId } = req.params;
+
+    if (!tournamentId || typeof tournamentId !== 'string' || tournamentId.trim() === '') {
+      throw new AppError('Tournament ID is required', 400);
+    }
+
+    // Check if tournament exists
+    const tournamentDoc = await adminDb.collection('events').doc(tournamentId).get();
+    if (!tournamentDoc.exists) {
+      throw new AppError('Tournament not found', 404);
+    }
+
+    // Get all global rankings to enrich players with points
+    const rankingsSnapshot = await adminDb.collection('globalPlayerRanking').get();
+    const rankingsMap = new Map<string, number>();
+    rankingsSnapshot.docs.forEach((doc) => {
+      const data = doc.data();
+      rankingsMap.set(doc.id, data.totalPoints || 0);
+    });
+
+    // Get unassigned players
+    const unassignedPlayersSnapshot = await adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('unassignedPlayers')
+      .get();
+
+    const unassignedPlayers = unassignedPlayersSnapshot.docs.map((doc) => {
+      const data = doc.data();
+      const playerId = data.userId || doc.id;
+      return convertTimestamps({
+        id: doc.id,
+        odocId: doc.id,
+        ...data,
+        totalPoints: rankingsMap.get(playerId) || 0,
+        source: 'unassigned' as const,
+        teamId: null,
+        teamName: null,
+      });
+    });
+
+    // Get teams and their members
+    const teamsSnapshot = await adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('teams')
+      .get();
+
+    const teamPlayers: any[] = [];
+    teamsSnapshot.docs.forEach((teamDoc) => {
+      const teamData = teamDoc.data();
+      const members = teamData.members || [];
+      members.forEach((member: any) => {
+        teamPlayers.push({
+          id: member.userId,
+          odocId: member.userId,
+          userId: member.userId,
+          pseudo: member.pseudo || 'Inconnu',
+          email: member.email || '',
+          level: member.level || 'N/A',
+          sexe: member.sexe || 'homme',
+          isVirtual: member.isVirtual || false,
+          totalPoints: rankingsMap.get(member.userId) || 0,
+          source: 'team' as const,
+          teamId: teamDoc.id,
+          teamName: teamData.name || 'Équipe sans nom',
+          isCaptain: member.userId === teamData.captainId,
+        });
+      });
+    });
+
+    // Combine all players
+    const allPlayers = [...unassignedPlayers, ...teamPlayers];
+
+    res.json({
+      success: true,
+      data: {
+        players: allPlayers,
+        stats: {
+          totalPlayers: allPlayers.length,
+          unassignedCount: unassignedPlayers.length,
+          teamPlayersCount: teamPlayers.length,
+          teamsCount: teamsSnapshot.size,
+        }
+      },
+    });
+  } catch (error: any) {
+    console.error('Error getting all registered players:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error retrieving registered players', 500);
+  }
+};
+
+/**
+ * Unsubscribe a player from the tournament completely
+ * DELETE /admin/tournaments/:tournamentId/unsubscribe/:userId
+ */
+export const unsubscribePlayerFromTournament = async (req: Request, res: Response) => {
+  try {
+    const { tournamentId, userId } = req.params;
+
+    if (!tournamentId || typeof tournamentId !== 'string' || tournamentId.trim() === '') {
+      throw new AppError('Tournament ID is required', 400);
+    }
+    if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+      throw new AppError('User ID is required', 400);
+    }
+
+    // Check if tournament exists
+    const tournamentDoc = await adminDb.collection('events').doc(tournamentId).get();
+    if (!tournamentDoc.exists) {
+      throw new AppError('Tournament not found', 404);
+    }
+
+    const batch = adminDb.batch();
+    let wasRemoved = false;
+    let removedFrom = '';
+
+    // Remove from unassigned players if present
+    const unassignedPlayerRef = adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('unassignedPlayers')
+      .doc(userId);
+
+    const unassignedPlayerDoc = await unassignedPlayerRef.get();
+    if (unassignedPlayerDoc.exists) {
+      batch.delete(unassignedPlayerRef);
+      wasRemoved = true;
+      removedFrom = 'joueurs non assignés';
+    }
+
+    // Remove from all teams
+    const teamsSnapshot = await adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('teams')
+      .get();
+
+    for (const teamDoc of teamsSnapshot.docs) {
+      const teamData = teamDoc.data();
+      const members = teamData.members || [];
+      const memberIndex = members.findIndex((m: any) => m.userId === userId);
+
+      if (memberIndex !== -1) {
+        const isCaptain = teamData.captainId === userId;
+        const updatedMembers = members.filter((m: any) => m.userId !== userId);
+
+        if (updatedMembers.length === 0) {
+          // Delete team if no members left
+          batch.delete(teamDoc.ref);
+          wasRemoved = true;
+          removedFrom = `équipe "${teamData.name}" (équipe supprimée car vide)`;
+        } else if (isCaptain) {
+          // Transfer captaincy to first remaining member
+          const newCaptain = updatedMembers[0];
+          batch.update(teamDoc.ref, {
+            members: updatedMembers,
+            captainId: newCaptain.userId,
+            updatedAt: new Date(),
+          });
+          wasRemoved = true;
+          removedFrom = `équipe "${teamData.name}" (capitaine transféré à ${newCaptain.pseudo})`;
+        } else {
+          // Just remove the member
+          batch.update(teamDoc.ref, {
+            members: updatedMembers,
+            updatedAt: new Date(),
+          });
+          wasRemoved = true;
+          removedFrom = `équipe "${teamData.name}"`;
+        }
+        break;
+      }
+    }
+
+    if (!wasRemoved) {
+      throw new AppError('Ce joueur n\'est pas inscrit à ce tournoi', 404);
+    }
+
+    await batch.commit();
+
+    res.json({
+      success: true,
+      message: `Joueur désinscrit avec succès (retiré de: ${removedFrom})`,
+    });
+  } catch (error: any) {
+    console.error('Error unsubscribing player from tournament:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error unsubscribing player', 500);
+  }
+};
+
+/**
+ * Remove a player from a team (admin only)
+ * DELETE /admin/tournaments/:tournamentId/teams/:teamId/members/:userId
+ */
+export const removePlayerFromTeam = async (req: Request, res: Response) => {
+  try {
+    const { tournamentId, teamId, userId } = req.params;
+    const { moveToUnassigned } = req.query;
+
+    if (!tournamentId || typeof tournamentId !== 'string' || tournamentId.trim() === '') {
+      throw new AppError('Tournament ID is required', 400);
+    }
+    if (!teamId || typeof teamId !== 'string' || teamId.trim() === '') {
+      throw new AppError('Team ID is required', 400);
+    }
+    if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+      throw new AppError('User ID is required', 400);
+    }
+
+    // Get team
+    const teamRef = adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('teams')
+      .doc(teamId);
+
+    const teamDoc = await teamRef.get();
+    if (!teamDoc.exists) {
+      throw new AppError('Team not found', 404);
+    }
+
+    const teamData = teamDoc.data()!;
+    const members = teamData.members || [];
+    const memberIndex = members.findIndex((m: any) => m.userId === userId);
+
+    if (memberIndex === -1) {
+      throw new AppError('Ce joueur n\'est pas membre de cette équipe', 404);
+    }
+
+    const member = members[memberIndex];
+    const isCaptain = teamData.captainId === userId;
+    const updatedMembers = members.filter((m: any) => m.userId !== userId);
+
+    const batch = adminDb.batch();
+    let message = '';
+
+    if (updatedMembers.length === 0) {
+      // Delete team if no members left
+      batch.delete(teamRef);
+      message = `Joueur retiré et équipe "${teamData.name}" supprimée (aucun membre restant)`;
+    } else if (isCaptain) {
+      // Transfer captaincy to first remaining member
+      const newCaptain = updatedMembers[0];
+      batch.update(teamRef, {
+        members: updatedMembers,
+        captainId: newCaptain.userId,
+        updatedAt: new Date(),
+      });
+      message = `Capitaine retiré de "${teamData.name}", capitainerie transférée à ${newCaptain.pseudo}`;
+    } else {
+      // Just remove the member
+      batch.update(teamRef, {
+        members: updatedMembers,
+        updatedAt: new Date(),
+      });
+      message = `Joueur retiré de l'équipe "${teamData.name}"`;
+    }
+
+    // Move to unassigned if requested
+    if (moveToUnassigned === 'true' && !member.isVirtual) {
+      // Get user data for more complete info
+      const userDoc = await adminDb.collection('users').doc(userId).get();
+      const userData = userDoc.exists ? userDoc.data() : null;
+
+      const unassignedPlayerRef = adminDb
+        .collection('events')
+        .doc(tournamentId)
+        .collection('unassignedPlayers')
+        .doc(userId);
+
+      batch.set(unassignedPlayerRef, {
+        userId: userId,
+        pseudo: member.pseudo || userData?.pseudo || 'Inconnu',
+        email: userData?.email || member.email || '',
+        level: member.level || userData?.level || 'N/A',
+        sexe: userData?.sexe || member.sexe || 'homme',
+        registeredAt: new Date(),
+      });
+      message += ' et ajouté aux joueurs non assignés';
+    }
+
+    await batch.commit();
+
+    res.json({
+      success: true,
+      message,
+    });
+  } catch (error: any) {
+    console.error('Error removing player from team:', error);
+    if (error instanceof AppError) throw error;
+    throw new AppError('Error removing player from team', 500);
+  }
+};

@@ -263,6 +263,29 @@ class AdminService {
   async removeUnassignedPlayer(tournamentId: string, userId: string) {
     return apiService.delete(`/admin/tournaments/${tournamentId}/unassigned-players/${userId}`);
   }
+
+  /**
+   * Player Unsubscription Management
+   */
+  async getAllRegisteredPlayers(tournamentId: string) {
+    return apiService.get<{
+      players: any[];
+      stats: {
+        totalPlayers: number;
+        unassignedCount: number;
+        teamPlayersCount: number;
+        teamsCount: number;
+      };
+    }>(`/admin/tournaments/${tournamentId}/all-players`);
+  }
+
+  async unsubscribePlayerFromTournament(tournamentId: string, userId: string) {
+    return apiService.delete(`/admin/tournaments/${tournamentId}/unsubscribe/${userId}`);
+  }
+
+  async removePlayerFromTeam(tournamentId: string, teamId: string, userId: string, moveToUnassigned: boolean = false) {
+    return apiService.delete(`/admin/tournaments/${tournamentId}/teams/${teamId}/members/${userId}?moveToUnassigned=${moveToUnassigned}`);
+  }
 }
 
 export default new AdminService();

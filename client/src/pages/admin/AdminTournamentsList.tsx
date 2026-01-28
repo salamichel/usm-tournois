@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import AdminLayout from '@components/AdminLayout';
 import adminService from '@services/admin.service';
 import toast from 'react-hot-toast';
-import { Plus, Edit, Trash2, Copy, Eye, Crown, Users, Sparkles, Grid3x3, Target } from 'lucide-react';
+import { Plus, Edit, Trash2, Copy, Eye, Crown, Users, Sparkles, Grid3x3, Target, UserMinus } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -153,6 +153,13 @@ const AdminTournamentsList = () => {
                           title="Joueurs non assignés"
                         >
                           <Users size={18} />
+                        </Link>
+                        <Link
+                          to={`/admin/tournaments/${tournament.id}/unsubscribe`}
+                          className="text-red-500 hover:text-red-700"
+                          title="Désinscriptions"
+                        >
+                          <UserMinus size={18} />
                         </Link>
                         {tournament.tournamentFormat !== 'king' && (
                           <>

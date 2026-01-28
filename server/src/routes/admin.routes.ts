@@ -86,6 +86,13 @@ router.put('/tournaments/:tournamentId/unassigned-players/:userId', asyncHandler
 router.delete('/tournaments/:tournamentId/unassigned-players/:userId', asyncHandler(adminController.removeUnassignedPlayer));
 
 /**
+ * Player Unsubscription Management
+ */
+router.get('/tournaments/:tournamentId/all-players', asyncHandler(adminController.getAllRegisteredPlayers));
+router.delete('/tournaments/:tournamentId/unsubscribe/:userId', asyncHandler(adminController.unsubscribePlayerFromTournament));
+router.delete('/tournaments/:tournamentId/teams/:teamId/members/:userId', asyncHandler(adminController.removePlayerFromTeam));
+
+/**
  * Dashboard
  */
 router.get('/dashboard', asyncHandler(adminController.getDashboard));
