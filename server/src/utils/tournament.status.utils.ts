@@ -81,8 +81,8 @@ export const calculateTournamentStatus = (
     // Si pas de dates définies, on considère comme ouvert
     // Le tournoi est complet si toutes les équipes complètes sont atteintes OU si toutes les places d'équipes sont prises OU si tous les joueurs sont inscrits
     if (isFullByCompleteTeams || isFullByTotalTeams || isFullByPlayers) {
-      // Liste d'attente disponible si activée, avec de la place, et pas encore complet par équipes totales
-      if (tournament.waitingListEnabled && tournament.waitingListSize > 0 && !isFullByTotalTeams && !isFullByPlayers) {
+      // Liste d'attente disponible si activée et avec de la place
+      if (tournament.waitingListEnabled && tournament.waitingListSize > 0) {
         status = "Liste d'attente";
         message = 'Tournoi complet, liste d\'attente disponible.';
       } else {
@@ -96,7 +96,7 @@ export const calculateTournamentStatus = (
   } else {
     // Inscriptions fermées : vérifier si le tournoi est vraiment complet
     if (isFullByCompleteTeams || isFullByTotalTeams || isFullByPlayers) {
-      if (tournament.waitingListEnabled && tournament.waitingListSize > 0 && !isFullByTotalTeams && !isFullByPlayers) {
+      if (tournament.waitingListEnabled && tournament.waitingListSize > 0) {
         status = "Liste d'attente";
         message = 'Tournoi complet, liste d\'attente disponible.';
       } else {
