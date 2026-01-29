@@ -85,11 +85,13 @@ export const getAllTournaments = async (req: Request, res: Response) => {
           .collection('teams')
           .get();
 
-        // Count complete teams (teams with required number of players)
+        // Count complete teams (teams with required number of players) and total players in teams
         let completeTeamsCount = 0;
+        let totalPlayersInTeams = 0;
         for (const teamDoc of teamsSnapshot.docs) {
           const teamData = teamDoc.data();
           const membersCount = teamData.members?.length || 0;
+          totalPlayersInTeams += membersCount;
           const minPlayers = tournamentData.minPlayersPerTeam || tournamentData.playersPerTeam;
           if (membersCount >= minPlayers) {
             completeTeamsCount++;
@@ -163,7 +165,8 @@ export const getAllTournaments = async (req: Request, res: Response) => {
           hasMatches,
           isRankingFrozen,
           unassignedPlayersCount,
-          waitingListCurrentSize
+          waitingListCurrentSize,
+          totalPlayersInTeams
         );
 
         const result: any = {
@@ -334,6 +337,7 @@ export const getTournamentById = async (req: Request, res: Response) => {
       const minPlayers = tournamentData?.minPlayersPerTeam || tournamentData?.playersPerTeam;
       return (team.members?.length || 0) >= minPlayers;
     }).length;
+    const totalPlayersInTeams = teams.reduce((sum: number, team: any) => sum + (team.members?.length || 0), 0);
 
     const hasMatches = pools.some((pool: any) => pool.matches && pool.matches.length > 0) ||
       eliminationMatches.length > 0;
@@ -349,7 +353,8 @@ export const getTournamentById = async (req: Request, res: Response) => {
       hasMatches,
       isRankingFrozen,
       unassignedPlayers.length,
-      waitingList.length
+      waitingList.length,
+      totalPlayersInTeams
     );
 
     res.json({

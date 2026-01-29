@@ -31,7 +31,8 @@ export const calculateTournamentStatus = (
   hasMatches: boolean = false,
   isRankingFrozen: boolean = false,
   unassignedPlayersCount: number = 0,
-  waitingListCurrentSize: number = 0
+  waitingListCurrentSize: number = 0,
+  totalPlayersInTeams: number = 0
 ): TournamentStatusResult => {
   const now = new Date();
   const tournamentDate = toDate(tournament.date) || new Date(8640000000000000);
@@ -49,7 +50,6 @@ export const calculateTournamentStatus = (
 
   // Calculer si le tournoi est complet par nombre de joueurs (pour mode random/individuel)
   const maxTotalPlayers = tournament.maxTeams * (tournament.playersPerTeam || 2);
-  const totalPlayersInTeams = totalTeamsCount * (tournament.playersPerTeam || 2);
   const currentTotalPlayers = totalPlayersInTeams + unassignedPlayersCount;
   const isFullByPlayers = currentTotalPlayers >= maxTotalPlayers;
 
