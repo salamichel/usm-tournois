@@ -451,7 +451,10 @@ const TournamentDetailPage = () => {
   const isFullByPlayers = (): boolean => {
     if (!tournament) return false;
     const maxTotalPlayers = tournament.maxTeams * (tournament.playersPerTeam || 2);
-    const totalPlayersInTeams = (tournament.teams?.length || 0) * (tournament.playersPerTeam || 2);
+    const totalPlayersInTeams = tournament.teams?.reduce(
+      (sum, team) => sum + (team.members?.length || 0),
+      0
+    ) || 0;
     const unassignedPlayersCount = tournament.unassignedPlayers?.length || 0;
     const currentTotalPlayers = totalPlayersInTeams + unassignedPlayersCount;
     return currentTotalPlayers >= maxTotalPlayers;
