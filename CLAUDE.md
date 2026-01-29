@@ -88,7 +88,35 @@ Les inscriptions sont ouvertes si :
 
 ---
 
+## Configuration du Tournoi
+
+| Champ | Description |
+|-------|-------------|
+| `maxTeams` | Nombre maximum d'équipes |
+| `playersPerTeam` | Nombre de joueurs par équipe |
+| `minPlayersPerTeam` | Minimum de joueurs pour qu'une équipe soit "complète" |
+| `waitingListSize` | Taille de la liste d'attente (0 = désactivée) |
+
+**Capacité max** = `maxTeams × playersPerTeam`
+
+---
+
+## Architecture Client/Serveur
+
+**Important** : Le statut est calculé **uniquement côté serveur** dans `tournament.status.utils.ts`. Le client utilise directement le `status` retourné par l'API, sans recalcul local.
+
+```
+Serveur                              Client
+┌─────────────────────┐              ┌─────────────────────┐
+│ calculateTournament │              │ tournament.status   │
+│ Status()            │ ──────────►  │ (utilisé tel quel)  │
+│ → status            │   API        │                     │
+└─────────────────────┘              └─────────────────────┘
+```
+
+---
+
 ## Fichiers Concernés
 
-- **Serveur** : `server/src/utils/tournament.status.utils.ts` - Calcul du statut
-- **Client** : `client/src/pages/public/TournamentDetailPage.tsx` - Affichage des boutons d'inscription
+- **Serveur** : `server/src/utils/tournament.status.utils.ts` - Calcul du statut (source de vérité)
+- **Client** : `client/src/pages/public/TournamentDetailPage.tsx` - Affichage basé sur `tournament.status`
