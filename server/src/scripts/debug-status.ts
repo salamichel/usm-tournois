@@ -7,7 +7,6 @@ const testTournament = {
   maxTeams: 16,
   registrationStartDateTime: new Date('2025-12-09T20:00:00'),
   registrationEndDateTime: new Date('2025-12-14T23:59:00'),
-  waitingListEnabled: false,
   waitingListSize: 0
 };
 

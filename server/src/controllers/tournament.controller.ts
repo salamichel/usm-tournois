@@ -916,7 +916,7 @@ export const joinWaitingList = async (req: Request, res: Response) => {
     }
 
     const tournament = tournamentDoc.data();
-    if (!tournament?.waitingListEnabled || (tournament?.waitingListSize || 0) <= 0) {
+    if ((tournament?.waitingListSize || 0) <= 0) {
       throw new AppError('Waiting list is not enabled for this tournament', 400);
     }
 

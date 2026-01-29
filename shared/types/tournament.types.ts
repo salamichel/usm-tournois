@@ -73,8 +73,7 @@ export interface Tournament {
   pointsPerSetElimination: number;
   tieBreakEnabledElimination: boolean;
 
-  // Waiting list configuration
-  waitingListEnabled: boolean;
+  // Waiting list configuration (size > 0 = enabled)
   waitingListSize: number;
 
   // Tournament format
@@ -135,7 +134,6 @@ export interface CreateTournamentDto {
   setsPerMatchElimination: number;
   pointsPerSetElimination: number;
   tieBreakEnabledElimination: boolean;
-  waitingListEnabled: boolean;
   waitingListSize: number;
   coverImage?: string;
   isClubInternal?: boolean;

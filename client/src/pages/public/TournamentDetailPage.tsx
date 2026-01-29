@@ -500,9 +500,7 @@ const TournamentDetailPage = () => {
       const waitingListMaxSize = tournament.waitingListSize || 0;
       const waitingListCurrentSize = tournament.waitingList?.length || 0;
       const waitingListHasSpace = waitingListCurrentSize < waitingListMaxSize;
-      const showWaitingList = tournament.waitingListEnabled &&
-                              waitingListMaxSize > 0 &&
-                              waitingListHasSpace;
+      const showWaitingList = waitingListMaxSize > 0 && waitingListHasSpace;
       return { showRegister: false, showWaitingList };
     }
 
@@ -552,13 +550,12 @@ const TournamentDetailPage = () => {
       // Check if waiting list is available (independent of user login status)
       const waitingListMaxSize = tournament.waitingListSize || 0;
       const waitingListCurrentSize = tournament.waitingList?.length || 0;
-      const waitingListEnabled = tournament.waitingListEnabled && waitingListMaxSize > 0;
       const waitingListHasSpace = waitingListCurrentSize < waitingListMaxSize;
 
-      if (waitingListEnabled && waitingListHasSpace) {
+      if (waitingListMaxSize > 0 && waitingListHasSpace) {
         // Waiting list available - don't show "complet" message, let the button section handle it
         return null;
-      } else if (waitingListEnabled && !waitingListHasSpace) {
+      } else if (waitingListMaxSize > 0 && !waitingListHasSpace) {
         return {
           message: 'Le tournoi est complet et la liste d\'attente est pleine.',
           type: 'warning'

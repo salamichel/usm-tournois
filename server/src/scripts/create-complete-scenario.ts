@@ -116,8 +116,7 @@ async function createTournament(options: ScenarioOptions): Promise<string> {
     requiresFemalePlayer: false,
     registrationsOpen: false, // Fermé car on crée tout automatiquement
     isActive: true,
-    waitingListEnabled: false,
-    waitingListSize: 0,
+    waitingListSize: 0, // 0 = désactivée
     setsPerMatchPool: 1,
     pointsPerSetPool: 21,
     maxTeamsPerPool: 4,
