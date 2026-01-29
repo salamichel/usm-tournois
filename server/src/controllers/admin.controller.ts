@@ -112,8 +112,6 @@ export const createTournament = async (req: Request, res: Response) => {
       whatsappGroupLink,
       registrationMode,
       tournamentFormat,
-      minPlayers,
-      maxPlayers,
       isClubInternal,
       signupQuestions,
     } = req.body;
@@ -166,8 +164,6 @@ export const createTournament = async (req: Request, res: Response) => {
       whatsappGroupLink: whatsappGroupLink?.trim() || '',
       registrationMode: registrationMode || 'teams',
       tournamentFormat: tournamentFormat || 'standard',
-      minPlayers: minPlayers ? parseInt(minPlayers) : 0,
-      maxPlayers: maxPlayers ? parseInt(maxPlayers) : 0,
       isClubInternal: isClubInternal === true || isClubInternal === 'true' || false,
       signupQuestions: parsedSignupQuestions || [],
       createdAt: new Date(),
@@ -267,8 +263,6 @@ export const updateTournament = async (req: Request, res: Response) => {
       whatsappGroupLink,
       registrationMode,
       tournamentFormat,
-      minPlayers,
-      maxPlayers,
       isClubInternal,
       signupQuestions,
     } = req.body;
@@ -328,8 +322,6 @@ export const updateTournament = async (req: Request, res: Response) => {
     if (whatsappGroupLink !== undefined && whatsappGroupLink !== null) updateData.whatsappGroupLink = whatsappGroupLink.trim();
     if (registrationMode !== undefined && registrationMode !== null) updateData.registrationMode = registrationMode;
     if (tournamentFormat !== undefined && tournamentFormat !== null) updateData.tournamentFormat = tournamentFormat;
-    if (minPlayers !== undefined && minPlayers !== null) updateData.minPlayers = parseInt(minPlayers);
-    if (maxPlayers !== undefined && maxPlayers !== null) updateData.maxPlayers = parseInt(maxPlayers);
     if (isClubInternal !== undefined && isClubInternal !== null) updateData.isClubInternal = isClubInternal === true || isClubInternal === 'true';
     if (parsedSignupQuestions !== undefined) updateData.signupQuestions = parsedSignupQuestions;
 
