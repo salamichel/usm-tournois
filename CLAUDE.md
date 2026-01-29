@@ -37,9 +37,10 @@ Un tournoi est considéré complet si l'une de ces conditions est vraie :
 
 | Variable | Condition |
 |----------|-----------|
-| `isFullByCompleteTeams` | Nombre d'équipes **complètes** >= `maxTeams` |
-| `isFullByTotalTeams` | Nombre **total** d'équipes (même incomplètes) >= `maxTeams` |
+| `isFullByCompleteTeams` | Nombre d'équipes **complètes** (>= `minPlayersPerTeam` joueurs) >= `maxTeams` |
 | `isFullByPlayers` | Nombre total de joueurs >= `maxTeams × playersPerTeam` |
+
+**Note** : Les équipes vides ou incomplètes ne comptent pas comme "places prises".
 
 ---
 
