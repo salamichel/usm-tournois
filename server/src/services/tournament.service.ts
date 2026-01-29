@@ -123,7 +123,6 @@ export function buildTournamentObject(
     requiresFemalePlayer: requiresFemalePlayer === 'on' || requiresFemalePlayer === true,
     registrationsOpen: registrationsOpen === 'on' || registrationsOpen === true,
     isActive: isActive === 'on' || isActive === true,
-    waitingListEnabled: parsedWaitingListSize > 0,
     waitingListSize: parsedWaitingListSize,
 
     setsPerMatchPool: parseInt(String(setsPerMatchPool)) || 1,

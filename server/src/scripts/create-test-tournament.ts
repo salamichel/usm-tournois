@@ -178,8 +178,7 @@ async function createTestTournament(options: TestTournamentOptions): Promise<voi
     requiresFemalePlayer: false,
     registrationsOpen: timing === 'future',
     isActive: timing !== 'past',
-    waitingListEnabled: true,
-    waitingListSize: Math.ceil(maxTeams * 0.25), // 25% de la capacité
+    waitingListSize: Math.ceil(maxTeams * 0.25), // 25% de la capacité (> 0 = activée)
 
     // Configuration des poules
     setsPerMatchPool: 1,

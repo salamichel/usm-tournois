@@ -82,13 +82,13 @@ export const calculateTournamentStatus = (
     // Si pas de dates définies, on considère comme ouvert
     // Le tournoi est complet si toutes les équipes complètes sont atteintes OU si toutes les places d'équipes sont prises OU si tous les joueurs sont inscrits
     if (isFullByCompleteTeams || isFullByTotalTeams || isFullByPlayers) {
-      // Liste d'attente disponible si activée, avec une taille > 0, et pas pleine
+      // Liste d'attente disponible si taille > 0 et pas pleine
       const waitingListMaxSize = tournament.waitingListSize || 0;
       const waitingListHasSpace = waitingListCurrentSize < waitingListMaxSize;
-      if (tournament.waitingListEnabled && waitingListMaxSize > 0 && waitingListHasSpace) {
+      if (waitingListMaxSize > 0 && waitingListHasSpace) {
         status = "Liste d'attente";
         message = 'Tournoi complet, liste d\'attente disponible.';
-      } else if (tournament.waitingListEnabled && waitingListMaxSize > 0 && !waitingListHasSpace) {
+      } else if (waitingListMaxSize > 0 && !waitingListHasSpace) {
         status = 'Complet';
         message = 'Le tournoi est complet et la liste d\'attente est pleine.';
       } else {
@@ -102,13 +102,13 @@ export const calculateTournamentStatus = (
   } else {
     // Inscriptions fermées : vérifier si le tournoi est vraiment complet
     if (isFullByCompleteTeams || isFullByTotalTeams || isFullByPlayers) {
-      // Liste d'attente disponible si activée, avec une taille > 0, et pas pleine
+      // Liste d'attente disponible si taille > 0 et pas pleine
       const waitingListMaxSize = tournament.waitingListSize || 0;
       const waitingListHasSpace = waitingListCurrentSize < waitingListMaxSize;
-      if (tournament.waitingListEnabled && waitingListMaxSize > 0 && waitingListHasSpace) {
+      if (waitingListMaxSize > 0 && waitingListHasSpace) {
         status = "Liste d'attente";
         message = 'Tournoi complet, liste d\'attente disponible.';
-      } else if (tournament.waitingListEnabled && waitingListMaxSize > 0 && !waitingListHasSpace) {
+      } else if (waitingListMaxSize > 0 && !waitingListHasSpace) {
         status = 'Complet';
         message = 'Le tournoi est complet et la liste d\'attente est pleine.';
       } else {

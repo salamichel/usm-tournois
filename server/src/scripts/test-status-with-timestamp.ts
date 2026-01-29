@@ -12,7 +12,6 @@ const testTournamentWithTimestamp = {
   maxTeams: 16,
   registrationStartDateTime: Timestamp.fromDate(futureDate),
   registrationEndDateTime: Timestamp.fromDate(endDate),
-  waitingListEnabled: false,
   waitingListSize: 0
 };
 
@@ -47,7 +46,6 @@ const testTournamentWithString = {
   maxTeams: 16,
   registrationStartDateTime: futureDate.toISOString(),
   registrationEndDateTime: endDate.toISOString(),
-  waitingListEnabled: false,
   waitingListSize: 0
 };
 
@@ -77,7 +75,6 @@ const testTournamentOpen = {
   maxTeams: 16,
   registrationStartDateTime: Timestamp.fromDate(pastDate),
   registrationEndDateTime: Timestamp.fromDate(endDate),
-  waitingListEnabled: false,
   waitingListSize: 0
 };
 

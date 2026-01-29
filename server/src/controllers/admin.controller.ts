@@ -108,7 +108,6 @@ export const createTournament = async (req: Request, res: Response) => {
       registrationStartDateTime,
       registrationEndDateTime,
       isActive,
-      waitingListEnabled,
       waitingListSize,
       whatsappGroupLink,
       registrationMode,
@@ -163,7 +162,6 @@ export const createTournament = async (req: Request, res: Response) => {
       registrationStartDateTime: registrationStartDateTime ? new Date(registrationStartDateTime) : new Date(),
       registrationEndDateTime: registrationEndDateTime ? new Date(registrationEndDateTime) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       isActive: isActive === true || isActive === 'true' || false,
-      waitingListEnabled: waitingListEnabled === true || waitingListEnabled === 'true' || false,
       waitingListSize: waitingListSize ? parseInt(waitingListSize) : 0,
       whatsappGroupLink: whatsappGroupLink?.trim() || '',
       registrationMode: registrationMode || 'teams',
@@ -265,7 +263,6 @@ export const updateTournament = async (req: Request, res: Response) => {
       registrationStartDateTime,
       registrationEndDateTime,
       isActive,
-      waitingListEnabled,
       waitingListSize,
       whatsappGroupLink,
       registrationMode,
@@ -327,7 +324,6 @@ export const updateTournament = async (req: Request, res: Response) => {
     if (registrationStartDateTime !== undefined && registrationStartDateTime !== null) updateData.registrationStartDateTime = new Date(registrationStartDateTime);
     if (registrationEndDateTime !== undefined && registrationEndDateTime !== null) updateData.registrationEndDateTime = new Date(registrationEndDateTime);
     if (isActive !== undefined && isActive !== null) updateData.isActive = isActive === true || isActive === 'true';
-    if (waitingListEnabled !== undefined && waitingListEnabled !== null) updateData.waitingListEnabled = waitingListEnabled === true || waitingListEnabled === 'true';
     if (waitingListSize !== undefined && waitingListSize !== null) updateData.waitingListSize = parseInt(waitingListSize);
     if (whatsappGroupLink !== undefined && whatsappGroupLink !== null) updateData.whatsappGroupLink = whatsappGroupLink.trim();
     if (registrationMode !== undefined && registrationMode !== null) updateData.registrationMode = registrationMode;
