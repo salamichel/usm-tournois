@@ -66,8 +66,6 @@ const AdminTournamentForm = () => {
     maxTeams: 16,
     minPlayersPerTeam: 2,
     playersPerTeam: 4,
-    minPlayers: 0,
-    maxPlayers: 0,
     waitingListSize: 0,
     type: '4x4',
     tournamentFormat: 'standard',
@@ -201,8 +199,6 @@ const AdminTournamentForm = () => {
         maxTeams: tournament.maxTeams || 16,
         minPlayersPerTeam: tournament.minPlayersPerTeam || 2,
         playersPerTeam: tournament.playersPerTeam || 4,
-        minPlayers: tournament.minPlayers || 0,
-        maxPlayers: tournament.maxPlayers || 0,
         waitingListSize: tournament.waitingListSize || 0,
         type: tournament.type || '4x4',
         tournamentFormat: tournament.tournamentFormat || 'standard',
@@ -701,46 +697,6 @@ const AdminTournamentForm = () => {
                     Les équipes sont générées automatiquement à chaque phase selon le format défini
                     (4v4, 2v2, etc.). La configuration des phases se fait après la création du tournoi.
                   </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="minPlayers" className="block text-sm font-medium text-gray-700 mb-1">
-                      Nombre minimum de joueurs
-                    </label>
-                    <input
-                      type="number"
-                      id="minPlayers"
-                      name="minPlayers"
-                      value={formData.minPlayers}
-                      onChange={handleChange}
-                      min="0"
-                      placeholder="Optionnel"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <p className="mt-1 text-xs text-gray-500">
-                      Laissez à 0 pour aucune limite minimum
-                    </p>
-                  </div>
-
-                  <div>
-                    <label htmlFor="maxPlayers" className="block text-sm font-medium text-gray-700 mb-1">
-                      Nombre maximum de joueurs
-                    </label>
-                    <input
-                      type="number"
-                      id="maxPlayers"
-                      name="maxPlayers"
-                      value={formData.maxPlayers}
-                      onChange={handleChange}
-                      min="0"
-                      placeholder="Optionnel"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <p className="mt-1 text-xs text-gray-500">
-                      Laissez à 0 pour aucune limite maximum
-                    </p>
-                  </div>
                 </div>
               </div>
             )}
