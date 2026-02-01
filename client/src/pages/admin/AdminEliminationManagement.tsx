@@ -110,6 +110,18 @@ const AdminEliminationManagement = () => {
   const isFinaleCompleted = matches.some(m => m.round === 'Finale' && m.status === 'completed');
   const isTournamentFrozen = tournament?.isFrozen || tournament?.status === 'frozen';
 
+  // Detect double bracket mode
+  const isDoubleBracket = matches.some(m => m.bracket === 'main' || m.bracket === 'consolation');
+  const mainBracketMatches = isDoubleBracket ? matches.filter(m => m.bracket === 'main') : matches;
+  const consolationMatches = isDoubleBracket ? matches.filter(m => m.bracket === 'consolation') : [];
+
+  // For double bracket, check if BOTH finales are completed
+  const isMainFinaleCompleted = mainBracketMatches.some(m => m.round === 'Finale' && m.status === 'completed');
+  const isConsolationFinaleCompleted = consolationMatches.some(m => m.round === 'Finale' && m.status === 'completed');
+  const areBothFinalesCompleted = isDoubleBracket
+    ? isMainFinaleCompleted && isConsolationFinaleCompleted
+    : isFinaleCompleted;
+
   if (loading) {
     return (
       <AdminLayout>
@@ -131,6 +143,110 @@ const AdminEliminationManagement = () => {
     { key: 'Finale', label: 'Finale' },
   ];
 
+  // Match Card Component
+  const MatchCard = ({
+    match,
+    onEditTeams,
+    onEditScore,
+  }: {
+    match: any;
+    onEditTeams: (match: any) => void;
+    onEditScore: (match: any) => void;
+  }) => (
+    <div className="border-2 border-gray-300 rounded-lg p-4 hover:border-blue-400 transition-colors bg-white">
+      <div className="flex justify-between items-center mb-3">
+        <span className="font-semibold text-gray-700">
+          Match {match.matchNumber || ''}
+        </span>
+        <span className={`text-xs px-2 py-1 rounded ${
+          match.status === 'completed' ? 'bg-green-100 text-green-800' :
+          match.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+          'bg-gray-100 text-gray-800'
+        }`}>
+          {match.status === 'completed' ? 'Terminé' :
+           match.status === 'in_progress' ? 'En cours' : 'À venir'}
+        </span>
+      </div>
+
+      {/* Teams and scores */}
+      <div className="space-y-2 mb-3">
+        <div className={`p-3 rounded ${
+          match.winnerId === match.team1?.id ? 'bg-green-50 border-2 border-green-300' : 'bg-gray-50 border border-gray-200'
+        }`}>
+          <div className="flex justify-between items-center">
+            <span className={`flex-1 ${match.winnerId === match.team1?.id ? 'font-bold' : ''}`}>
+              {match.team1?.name || 'À déterminer'}
+            </span>
+            {match.sets && match.sets.length > 0 && (
+              <div className="flex gap-2">
+                {match.sets.map((set: any, idx: number) => (
+                  <span key={idx} className="text-sm min-w-[24px] text-center">
+                    {set.score1 ?? '-'}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+          {match.team1?.members && match.team1.members.length > 0 && (
+            <div className="mt-1 text-xs text-gray-500">
+              {match.team1.members.map((m: any) => m.pseudo || m.name).join(' / ')}
+            </div>
+          )}
+        </div>
+        <div className={`p-3 rounded ${
+          match.winnerId === match.team2?.id ? 'bg-green-50 border-2 border-green-300' : 'bg-gray-50 border border-gray-200'
+        }`}>
+          <div className="flex justify-between items-center">
+            <span className={`flex-1 ${match.winnerId === match.team2?.id ? 'font-bold' : ''}`}>
+              {match.team2?.name || 'À déterminer'}
+            </span>
+            {match.sets && match.sets.length > 0 && (
+              <div className="flex gap-2">
+                {match.sets.map((set: any, idx: number) => (
+                  <span key={idx} className="text-sm min-w-[24px] text-center">
+                    {set.score2 ?? '-'}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+          {match.team2?.members && match.team2.members.length > 0 && (
+            <div className="mt-1 text-xs text-gray-500">
+              {match.team2.members.map((m: any) => m.pseudo || m.name).join(' / ')}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Edit buttons */}
+      <div className="flex justify-end gap-2">
+        <button
+          onClick={() => onEditTeams(match)}
+          className="text-sm text-purple-600 hover:text-purple-800 flex items-center gap-1 px-3 py-1 rounded hover:bg-purple-50 transition-colors"
+        >
+          <Users size={14} />
+          Équipes
+        </button>
+        <button
+          onClick={() => onEditScore(match)}
+          className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 px-3 py-1 rounded hover:bg-blue-50 transition-colors"
+        >
+          <Edit2 size={14} />
+          Scores
+        </button>
+      </div>
+
+      {/* Winner info */}
+      {match.winnerId && match.winnerName && (
+        <div className="mt-2 pt-2 border-t border-gray-200">
+          <p className="text-xs text-green-700 font-medium">
+            Vainqueur: {match.winnerName}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <AdminLayout>
       <div className="max-w-7xl mx-auto">
@@ -147,15 +263,15 @@ const AdminEliminationManagement = () => {
           {matches.length > 0 && (
             <button
               onClick={handleFreezeRanking}
-              disabled={!isFinaleCompleted}
+              disabled={!areBothFinalesCompleted}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors ${
-                isFinaleCompleted
+                areBothFinalesCompleted
                   ? isTournamentFrozen
                     ? 'bg-green-600 text-white hover:bg-green-700'
                     : 'bg-red-600 text-white hover:bg-red-700'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
-              title={!isFinaleCompleted ? 'La finale doit être terminée pour figer le classement' : isTournamentFrozen ? 'Relancer le calcul des points' : 'Figer le classement final'}
+              title={!areBothFinalesCompleted ? (isDoubleBracket ? 'Les deux finales doivent être terminées' : 'La finale doit être terminée pour figer le classement') : isTournamentFrozen ? 'Relancer le calcul des points' : 'Figer le classement final'}
             >
               <Lock size={18} />
               {isTournamentFrozen ? 'Recalculer les points' : 'Figer le classement'}
@@ -173,7 +289,71 @@ const AdminEliminationManagement = () => {
               Retour aux Poules
             </Link>
           </div>
+        ) : isDoubleBracket ? (
+          /* Double Bracket Layout - Side by Side */
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            {/* Main Bracket */}
+            <div className="bg-gradient-to-br from-blue-50 to-white rounded-lg shadow-md p-4">
+              <h2 className="text-2xl font-bold mb-4 text-blue-800 flex items-center gap-2">
+                <Trophy size={24} />
+                Tableau Principal
+              </h2>
+              <div className="space-y-4">
+                {roundOrder.map(({ key, label }) => {
+                  const roundMatches = mainBracketMatches.filter(m => m.round === key);
+                  if (roundMatches.length === 0) return null;
+
+                  return (
+                    <div key={`main-${key}`} className="bg-white rounded-lg p-4 border border-blue-200">
+                      <h3 className="text-lg font-bold mb-3 text-blue-700">{label}</h3>
+                      <div className="space-y-3">
+                        {roundMatches.map((match) => (
+                          <MatchCard
+                            key={match.id}
+                            match={match}
+                            onEditTeams={handleEditMatchTeams}
+                            onEditScore={handleEditMatchScore}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Consolation Bracket */}
+            <div className="bg-gradient-to-br from-orange-50 to-white rounded-lg shadow-md p-4">
+              <h2 className="text-2xl font-bold mb-4 text-orange-800 flex items-center gap-2">
+                <Trophy size={24} />
+                Tableau Consolante
+              </h2>
+              <div className="space-y-4">
+                {roundOrder.map(({ key, label }) => {
+                  const roundMatches = consolationMatches.filter(m => m.round === key);
+                  if (roundMatches.length === 0) return null;
+
+                  return (
+                    <div key={`consolation-${key}`} className="bg-white rounded-lg p-4 border border-orange-200">
+                      <h3 className="text-lg font-bold mb-3 text-orange-700">{label}</h3>
+                      <div className="space-y-3">
+                        {roundMatches.map((match) => (
+                          <MatchCard
+                            key={match.id}
+                            match={match}
+                            onEditTeams={handleEditMatchTeams}
+                            onEditScore={handleEditMatchScore}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         ) : (
+          /* Single Bracket Layout */
           <div className="space-y-6">
             {roundOrder.map(({ key, label }) => {
               const roundMatches = matches.filter(m => m.round === key);
@@ -184,98 +364,12 @@ const AdminEliminationManagement = () => {
                   <h2 className="text-2xl font-bold mb-4">{label}</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {roundMatches.map((match) => (
-                      <div key={match.id} className="border-2 border-gray-300 rounded-lg p-4 hover:border-blue-400 transition-colors">
-                        <div className="flex justify-between items-center mb-3">
-                          <span className="font-semibold text-gray-700">
-                            Match {match.matchNumber || ''}
-                          </span>
-                          <span className={`text-xs px-2 py-1 rounded ${
-                            match.status === 'completed' ? 'bg-green-100 text-green-800' :
-                            match.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {match.status === 'completed' ? 'Terminé' :
-                             match.status === 'in_progress' ? 'En cours' : 'À venir'}
-                          </span>
-                        </div>
-
-                        {/* Teams and scores */}
-                        <div className="space-y-2 mb-3">
-                          <div className={`p-3 rounded ${
-                            match.winnerId === match.team1?.id ? 'bg-green-50 border-2 border-green-300' : 'bg-gray-50 border border-gray-200'
-                          }`}>
-                            <div className="flex justify-between items-center">
-                              <span className={`flex-1 ${match.winnerId === match.team1?.id ? 'font-bold' : ''}`}>
-                                {match.team1?.name || 'À déterminer'}
-                              </span>
-                              {match.sets && match.sets.length > 0 && (
-                                <div className="flex gap-2">
-                                  {match.sets.map((set: any, idx: number) => (
-                                    <span key={idx} className="text-sm min-w-[24px] text-center">
-                                      {set.score1 ?? '-'}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                            {match.team1?.members && match.team1.members.length > 0 && (
-                              <div className="mt-1 text-xs text-gray-500">
-                                {match.team1.members.map((m: any) => m.pseudo || m.name).join(' / ')}
-                              </div>
-                            )}
-                          </div>
-                          <div className={`p-3 rounded ${
-                            match.winnerId === match.team2?.id ? 'bg-green-50 border-2 border-green-300' : 'bg-gray-50 border border-gray-200'
-                          }`}>
-                            <div className="flex justify-between items-center">
-                              <span className={`flex-1 ${match.winnerId === match.team2?.id ? 'font-bold' : ''}`}>
-                                {match.team2?.name || 'À déterminer'}
-                              </span>
-                              {match.sets && match.sets.length > 0 && (
-                                <div className="flex gap-2">
-                                  {match.sets.map((set: any, idx: number) => (
-                                    <span key={idx} className="text-sm min-w-[24px] text-center">
-                                      {set.score2 ?? '-'}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                            {match.team2?.members && match.team2.members.length > 0 && (
-                              <div className="mt-1 text-xs text-gray-500">
-                                {match.team2.members.map((m: any) => m.pseudo || m.name).join(' / ')}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Edit buttons */}
-                        <div className="flex justify-end gap-2">
-                          <button
-                            onClick={() => handleEditMatchTeams(match)}
-                            className="text-sm text-purple-600 hover:text-purple-800 flex items-center gap-1 px-3 py-1 rounded hover:bg-purple-50 transition-colors"
-                          >
-                            <Users size={14} />
-                            Équipes
-                          </button>
-                          <button
-                            onClick={() => handleEditMatchScore(match)}
-                            className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 px-3 py-1 rounded hover:bg-blue-50 transition-colors"
-                          >
-                            <Edit2 size={14} />
-                            Scores
-                          </button>
-                        </div>
-
-                        {/* Winner info */}
-                        {match.winnerId && match.winnerName && (
-                          <div className="mt-2 pt-2 border-t border-gray-200">
-                            <p className="text-xs text-green-700 font-medium">
-                              🏆 Vainqueur: {match.winnerName}
-                            </p>
-                          </div>
-                        )}
-                      </div>
+                      <MatchCard
+                        key={match.id}
+                        match={match}
+                        onEditTeams={handleEditMatchTeams}
+                        onEditScore={handleEditMatchScore}
+                      />
                     ))}
                   </div>
                 </div>

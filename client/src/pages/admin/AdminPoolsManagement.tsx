@@ -43,6 +43,7 @@ const AdminPoolsManagement = () => {
   const [qualifiedTeams, setQualifiedTeams] = useState<string[]>([]);
   const [showQualificationPanel, setShowQualificationPanel] = useState(false);
   const [showDistributeModal, setShowDistributeModal] = useState(false);
+  const [bracketType, setBracketType] = useState<'single' | 'double'>('single');
   const [distributeSortBy, setDistributeSortBy] = useState<'weight' | 'globalRanking'>('weight');
   const [distributeClearExisting, setDistributeClearExisting] = useState(false);
 
@@ -189,11 +190,12 @@ const AdminPoolsManagement = () => {
       return;
     }
 
-    if (!confirm(`Voulez-vous vraiment générer les matchs d'élimination avec ${qualifiedTeams.length} équipes sélectionnées ? Cette action supprimera les matchs d'élimination existants.`)) return;
+    const bracketLabel = bracketType === 'double' ? 'double (principal + consolante)' : 'simple';
+    if (!confirm(`Voulez-vous vraiment générer un tableau ${bracketLabel} avec ${qualifiedTeams.length} équipes sélectionnées ? Cette action supprimera les matchs d'élimination existants.`)) return;
 
     try {
-      await adminService.generateEliminationBracketWithTeams(tournamentId!, qualifiedTeams);
-      toast.success('Matchs d\'élimination générés avec succès');
+      const response: any = await adminService.generateEliminationBracketWithTeams(tournamentId!, qualifiedTeams, bracketType);
+      toast.success(response.message || 'Matchs d\'élimination générés avec succès');
 
       // Nettoyer le localStorage après succès
       localStorage.removeItem(qualifiedTeamsStorageKey);
@@ -589,13 +591,54 @@ const AdminPoolsManagement = () => {
                   ))}
                 </div>
 
+                {/* Choix du type de tableau */}
+                <div className="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                  <h4 className="font-semibold mb-3">Type de tableau</h4>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="bracketType"
+                        value="single"
+                        checked={bracketType === 'single'}
+                        onChange={() => setBracketType('single')}
+                        className="h-4 w-4"
+                      />
+                      <div>
+                        <span className="font-medium">Tableau simple</span>
+                        <p className="text-xs text-gray-500">Élimination directe classique</p>
+                      </div>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="bracketType"
+                        value="double"
+                        checked={bracketType === 'double'}
+                        onChange={() => setBracketType('double')}
+                        className="h-4 w-4"
+                      />
+                      <div>
+                        <span className="font-medium">Tableau double</span>
+                        <p className="text-xs text-gray-500">Principal (top poules) + Consolante (bas poules)</p>
+                      </div>
+                    </label>
+                  </div>
+                  {bracketType === 'double' && (
+                    <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800">
+                      <strong>Info :</strong> Les équipes en haut de classement de chaque poule iront dans le tableau principal,
+                      les équipes en bas iront dans le tableau consolante. Classement unifié final.
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex gap-4">
                   <button
                     onClick={handleGenerateElimination}
                     disabled={qualifiedTeams.length < 2}
                     className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-md disabled:cursor-not-allowed"
                   >
-                    Générer les Matchs ({qualifiedTeams.length} équipes)
+                    Générer {bracketType === 'double' ? 'les Tableaux' : 'le Tableau'} ({qualifiedTeams.length} équipes)
                   </button>
                   <button
                     onClick={() => {
