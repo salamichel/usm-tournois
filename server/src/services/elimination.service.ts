@@ -1,4 +1,4 @@
-import type { EliminationMatch } from '@shared/types';
+import type { EliminationMatch, BracketSide } from '@shared/types';
 
 /**
  * Structure of an elimination bracket
@@ -430,5 +430,467 @@ export function generateEliminationBracket(
   }
 
   console.log('End of generateEliminationBracket. Total number of matches generated:', matches.length);
+  return matches;
+}
+
+/**
+ * Qualified team with pool ranking info for double bracket
+ */
+export interface QualifiedTeamWithRank extends QualifiedTeam {
+  poolRank: number; // Rank within the pool (1 = first, 2 = second, etc.)
+  globalRank?: number; // Optional global rank across all pools
+}
+
+/**
+ * Result of double bracket generation
+ */
+export interface DoubleBracketResult {
+  mainBracket: EliminationMatch[];
+  consolationBracket: EliminationMatch[];
+  allMatches: EliminationMatch[];
+}
+
+/**
+ * Generates a double elimination bracket system with main and consolation brackets.
+ * Top half of each pool goes to main bracket, bottom half goes to consolation bracket.
+ * Teams from different pools are crossed to avoid early rematches.
+ *
+ * @param qualifiedTeams All qualified teams with their pool rankings
+ * @param tournamentConfig Tournament configuration
+ * @param teamsPerPool Number of teams per pool (to determine split)
+ * @returns Object containing main bracket, consolation bracket, and all matches combined
+ */
+export function generateDoubleBracket(
+  qualifiedTeams: QualifiedTeamWithRank[],
+  tournamentConfig: EliminationTournamentConfig,
+  teamsPerPool: number
+): DoubleBracketResult {
+  console.log('Starting generateDoubleBracket');
+  console.log(`Total qualified teams: ${qualifiedTeams.length}`);
+  console.log(`Teams per pool: ${teamsPerPool}`);
+
+  // Split teams into main and consolation based on pool ranking
+  const halfPerPool = Math.ceil(teamsPerPool / 2);
+
+  const mainTeams: QualifiedTeamWithRank[] = [];
+  const consolationTeams: QualifiedTeamWithRank[] = [];
+
+  // Group teams by pool
+  const teamsByPool: { [poolName: string]: QualifiedTeamWithRank[] } = {};
+  qualifiedTeams.forEach(team => {
+    const poolName = team.poolName || 'Unknown';
+    if (!teamsByPool[poolName]) {
+      teamsByPool[poolName] = [];
+    }
+    teamsByPool[poolName].push(team);
+  });
+
+  // Sort teams within each pool by rank and split
+  Object.keys(teamsByPool).forEach(poolName => {
+    const poolTeams = teamsByPool[poolName].sort((a, b) => a.poolRank - b.poolRank);
+
+    poolTeams.forEach((team, index) => {
+      if (index < halfPerPool) {
+        mainTeams.push(team);
+      } else {
+        consolationTeams.push(team);
+      }
+    });
+  });
+
+  console.log(`Main bracket teams (${mainTeams.length}):`, mainTeams.map(t => `${t.name} (${t.poolName} #${t.poolRank})`));
+  console.log(`Consolation bracket teams (${consolationTeams.length}):`, consolationTeams.map(t => `${t.name} (${t.poolName} #${t.poolRank})`));
+
+  // Sort teams for seeding with pool crossing
+  // For main bracket: sort by pool rank globally, then apply crossing
+  const sortedMainTeams = sortTeamsWithPoolCrossing(mainTeams);
+  const sortedConsolationTeams = sortTeamsWithPoolCrossing(consolationTeams);
+
+  // Generate main bracket
+  console.log('Generating main bracket...');
+  const mainMatches = generateBracketWithSide(
+    sortedMainTeams,
+    tournamentConfig,
+    'main',
+    1 // Start match numbers at 1
+  );
+
+  // Generate consolation bracket
+  console.log('Generating consolation bracket...');
+  const lastMainMatchNumber = mainMatches.length > 0
+    ? Math.max(...mainMatches.map(m => m.matchNumber))
+    : 0;
+
+  const consolationMatches = generateBracketWithSide(
+    sortedConsolationTeams,
+    tournamentConfig,
+    'consolation',
+    lastMainMatchNumber + 1 // Continue match numbers after main bracket
+  );
+
+  // Combine all matches
+  const allMatches = [...mainMatches, ...consolationMatches];
+
+  console.log(`Double bracket generation complete. Main: ${mainMatches.length} matches, Consolation: ${consolationMatches.length} matches`);
+
+  return {
+    mainBracket: mainMatches,
+    consolationBracket: consolationMatches,
+    allMatches,
+  };
+}
+
+/**
+ * Sort teams with pool crossing to avoid teams from same pool meeting early.
+ * Uses a snake draft pattern across pools.
+ */
+function sortTeamsWithPoolCrossing(teams: QualifiedTeamWithRank[]): QualifiedTeam[] {
+  // Group by pool
+  const teamsByPool: { [poolName: string]: QualifiedTeamWithRank[] } = {};
+  teams.forEach(team => {
+    const poolName = team.poolName || 'Unknown';
+    if (!teamsByPool[poolName]) {
+      teamsByPool[poolName] = [];
+    }
+    teamsByPool[poolName].push(team);
+  });
+
+  // Sort each pool by rank
+  const poolNames = Object.keys(teamsByPool).sort();
+  poolNames.forEach(poolName => {
+    teamsByPool[poolName].sort((a, b) => a.poolRank - b.poolRank);
+  });
+
+  // Interleave teams using snake draft
+  // This ensures teams from same pool are spread apart
+  const result: QualifiedTeam[] = [];
+  const maxTeamsInAnyPool = Math.max(...Object.values(teamsByPool).map(t => t.length));
+
+  for (let rankIndex = 0; rankIndex < maxTeamsInAnyPool; rankIndex++) {
+    // Alternate direction for snake pattern
+    const poolOrder = rankIndex % 2 === 0 ? poolNames : [...poolNames].reverse();
+
+    for (const poolName of poolOrder) {
+      if (teamsByPool[poolName][rankIndex]) {
+        result.push({
+          id: teamsByPool[poolName][rankIndex].id,
+          name: teamsByPool[poolName][rankIndex].name,
+          poolName: teamsByPool[poolName][rankIndex].poolName,
+        });
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Generate a single bracket (main or consolation) with the specified side label.
+ */
+function generateBracketWithSide(
+  teams: QualifiedTeam[],
+  tournamentConfig: EliminationTournamentConfig,
+  bracketSide: BracketSide,
+  startMatchNumber: number
+): EliminationMatch[] {
+  if (teams.length < 2) {
+    console.log(`Not enough teams for ${bracketSide} bracket (${teams.length} teams)`);
+    return [];
+  }
+
+  const bracketPrefix = bracketSide === 'main' ? 'P' : 'C'; // P for Principal, C for Consolante
+  const { byes, preliminaryMatches, mainBracketSize, firstMainRoundName, teamsPlayingPreliminary } =
+    calculateBracketStructure(teams.length);
+
+  console.log(`${bracketSide} bracket structure: Teams=${teams.length}, Byes=${byes}, Preliminary=${preliminaryMatches}, MainSize=${mainBracketSize}`);
+
+  const matches: EliminationMatch[] = [];
+  let matchNumberCounter = startMatchNumber;
+  const initialSets = Array.from(
+    { length: tournamentConfig.setsPerMatchElimination || 3 },
+    () => ({ score1: null, score2: null })
+  );
+
+  // 1. Generate preliminary matches if necessary
+  const preliminaryMatchRefs: Array<{
+    id: string;
+    matchNumber: number;
+    team1Index: number;
+    team2Index: number;
+  }> = [];
+
+  if (preliminaryMatches > 0) {
+    console.log(`Generating ${preliminaryMatches} preliminary matches for ${bracketSide} bracket.`);
+    const startIndex = byes;
+    for (let i = 0; i < preliminaryMatches; i++) {
+      const team1Index = startIndex + i;
+      const team2Index = teams.length - 1 - i;
+
+      const team1 = teams[team1Index];
+      const team2 = teams[team2Index];
+
+      const matchRefId = `${bracketPrefix}-preliminary-${matchNumberCounter}`;
+      preliminaryMatchRefs.push({
+        id: matchRefId,
+        matchNumber: matchNumberCounter,
+        team1Index,
+        team2Index,
+      });
+
+      matches.push({
+        id: matchRefId,
+        matchNumber: matchNumberCounter++,
+        round: 'Tour Préliminaire',
+        bracket: bracketSide,
+        team1: {
+          id: team1.id,
+          name: team1.name,
+          poolName: team1.poolName,
+        },
+        team2: {
+          id: team2.id,
+          name: team2.name,
+          poolName: team2.poolName,
+        },
+        sets: JSON.parse(JSON.stringify(initialSets)),
+        status: 'scheduled',
+        type: 'elimination',
+        setsToWin: tournamentConfig.setsPerMatchElimination,
+        pointsPerSet: tournamentConfig.pointsPerSetElimination,
+        tieBreakEnabled: tournamentConfig.tieBreakEnabledElimination || false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    }
+  }
+
+  // 2. Prepare teams for the main bracket
+  const teamsForMainBracket: Array<
+    | { type: 'direct'; team: QualifiedTeam }
+    | { type: 'preliminary'; sourceMatchId: string; sourceMatchNumber: number }
+  > = [];
+
+  // Teams with byes
+  for (let i = 0; i < byes; i++) {
+    teamsForMainBracket.push({
+      type: 'direct',
+      team: teams[i],
+    });
+  }
+
+  // Winners of preliminary matches
+  for (let i = 0; i < preliminaryMatchRefs.length; i++) {
+    teamsForMainBracket.push({
+      type: 'preliminary',
+      sourceMatchId: preliminaryMatchRefs[i].id,
+      sourceMatchNumber: preliminaryMatchRefs[i].matchNumber,
+    });
+  }
+
+  // 3. Generate matches for the first main bracket round
+  const mainBracketMatches: Array<{ id: string; matchNumber: number }> = [];
+  const numMainBracketMatches = mainBracketSize / 2;
+
+  for (let i = 0; i < numMainBracketMatches; i++) {
+    const team1Data = teamsForMainBracket[i];
+    const team2Data = teamsForMainBracket[mainBracketSize - 1 - i];
+
+    const matchRefId = `${bracketPrefix}-main-${matchNumberCounter}`;
+    mainBracketMatches.push({
+      id: matchRefId,
+      matchNumber: matchNumberCounter,
+    });
+
+    let team1: any;
+    if (team1Data.type === 'direct') {
+      team1 = {
+        id: team1Data.team.id,
+        name: team1Data.team.name,
+        poolName: team1Data.team.poolName,
+      };
+    } else {
+      team1 = {
+        id: null,
+        name: `Vainqueur ${bracketPrefix}${team1Data.sourceMatchNumber}`,
+        sourceMatchId: team1Data.sourceMatchId,
+        sourceTeamType: 'winner',
+      };
+    }
+
+    let team2: any;
+    if (team2Data.type === 'direct') {
+      team2 = {
+        id: team2Data.team.id,
+        name: team2Data.team.name,
+        poolName: team2Data.team.poolName,
+      };
+    } else {
+      team2 = {
+        id: null,
+        name: `Vainqueur ${bracketPrefix}${team2Data.sourceMatchNumber}`,
+        sourceMatchId: team2Data.sourceMatchId,
+        sourceTeamType: 'winner',
+      };
+    }
+
+    matches.push({
+      id: matchRefId,
+      matchNumber: matchNumberCounter++,
+      round: firstMainRoundName,
+      bracket: bracketSide,
+      team1,
+      team2,
+      sets: JSON.parse(JSON.stringify(initialSets)),
+      status: 'scheduled',
+      type: 'elimination',
+      setsToWin: tournamentConfig.setsPerMatchElimination,
+      pointsPerSet: tournamentConfig.pointsPerSetElimination,
+      tieBreakEnabled: tournamentConfig.tieBreakEnabledElimination || false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  }
+
+  // 4. Update preliminary matches with nextMatchId
+  for (let i = 0; i < preliminaryMatchRefs.length; i++) {
+    const prelimMatch = preliminaryMatchRefs[i];
+    const targetMainMatchIndex = matches.findIndex((m) => {
+      if (m.round !== firstMainRoundName) return false;
+      return m.team1?.sourceMatchId === prelimMatch.id || m.team2?.sourceMatchId === prelimMatch.id;
+    });
+
+    if (targetMainMatchIndex !== -1) {
+      const prelimMatchIndex = matches.findIndex((m) => m.id === prelimMatch.id);
+      if (prelimMatchIndex !== -1) {
+        matches[prelimMatchIndex].nextMatchId = matches[targetMainMatchIndex].id;
+        if (matches[targetMainMatchIndex].team1?.sourceMatchId === prelimMatch.id) {
+          matches[prelimMatchIndex].nextMatchTeamSlot = 'team1';
+        } else {
+          matches[prelimMatchIndex].nextMatchTeamSlot = 'team2';
+        }
+      }
+    }
+  }
+
+  // 5. Generate subsequent rounds
+  let previousRoundMatches = mainBracketMatches;
+  let currentRoundName = firstMainRoundName;
+
+  while (previousRoundMatches.length > 1) {
+    const nextRoundMatches: Array<{ id: string; matchNumber: number }> = [];
+    let nextRoundName: string;
+
+    if (currentRoundName === 'Seizième de finale') {
+      nextRoundName = 'Huitième de finale';
+    } else if (currentRoundName === 'Huitième de finale') {
+      nextRoundName = 'Quart de finale';
+    } else if (currentRoundName === 'Quart de finale') {
+      nextRoundName = 'Demi-finale';
+    } else if (currentRoundName === 'Demi-finale') {
+      nextRoundName = 'Finale';
+    } else {
+      break;
+    }
+
+    for (let i = 0; i < previousRoundMatches.length / 2; i++) {
+      const sourceMatch1 = previousRoundMatches[i * 2];
+      const sourceMatch2 = previousRoundMatches[i * 2 + 1];
+
+      const matchRefId = `${bracketPrefix}-${nextRoundName.replace(/\s/g, '-').toLowerCase()}-${matchNumberCounter}`;
+      nextRoundMatches.push({
+        id: matchRefId,
+        matchNumber: matchNumberCounter,
+      });
+
+      matches.push({
+        id: matchRefId,
+        matchNumber: matchNumberCounter++,
+        round: nextRoundName,
+        bracket: bracketSide,
+        team1: {
+          id: null,
+          name: `Vainqueur ${bracketPrefix}${sourceMatch1.matchNumber}`,
+          sourceMatchId: sourceMatch1.id,
+          sourceTeamType: 'winner',
+        },
+        team2: {
+          id: null,
+          name: `Vainqueur ${bracketPrefix}${sourceMatch2.matchNumber}`,
+          sourceMatchId: sourceMatch2.id,
+          sourceTeamType: 'winner',
+        },
+        sets: JSON.parse(JSON.stringify(initialSets)),
+        status: 'scheduled',
+        type: 'elimination',
+        setsToWin: tournamentConfig.setsPerMatchElimination,
+        pointsPerSet: tournamentConfig.pointsPerSetElimination,
+        tieBreakEnabled: tournamentConfig.tieBreakEnabledElimination || false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const matchIndex1 = matches.findIndex((m) => m.id === sourceMatch1.id);
+      if (matchIndex1 !== -1) {
+        matches[matchIndex1].nextMatchId = matchRefId;
+        matches[matchIndex1].nextMatchTeamSlot = 'team1';
+      }
+
+      const matchIndex2 = matches.findIndex((m) => m.id === sourceMatch2.id);
+      if (matchIndex2 !== -1) {
+        matches[matchIndex2].nextMatchId = matchRefId;
+        matches[matchIndex2].nextMatchTeamSlot = 'team2';
+      }
+    }
+
+    previousRoundMatches = nextRoundMatches;
+    currentRoundName = nextRoundName;
+  }
+
+  // 6. Add 3rd place match
+  const semiFinals = matches.filter((m) => m.round === 'Demi-finale');
+  if (semiFinals.length === 2) {
+    const m3pRefId = `${bracketPrefix}-match-3eme-place-${matchNumberCounter}`;
+
+    matches.push({
+      id: m3pRefId,
+      matchNumber: matchNumberCounter++,
+      round: 'Match 3ème place',
+      bracket: bracketSide,
+      team1: {
+        id: null,
+        name: `Perdant ${bracketPrefix}${semiFinals[0].matchNumber}`,
+        sourceMatchId: semiFinals[0].id,
+        sourceTeamType: 'loser',
+      },
+      team2: {
+        id: null,
+        name: `Perdant ${bracketPrefix}${semiFinals[1].matchNumber}`,
+        sourceMatchId: semiFinals[1].id,
+        sourceTeamType: 'loser',
+      },
+      sets: JSON.parse(JSON.stringify(initialSets)),
+      status: 'scheduled',
+      type: 'elimination',
+      setsToWin: tournamentConfig.setsPerMatchElimination,
+      pointsPerSet: tournamentConfig.pointsPerSetElimination,
+      tieBreakEnabled: tournamentConfig.tieBreakEnabledElimination || false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const df1Index = matches.findIndex((m) => m.id === semiFinals[0].id);
+    if (df1Index !== -1) {
+      matches[df1Index].nextMatchLoserId = m3pRefId;
+      matches[df1Index].nextMatchLoserTeamSlot = 'team1';
+    }
+
+    const df2Index = matches.findIndex((m) => m.id === semiFinals[1].id);
+    if (df2Index !== -1) {
+      matches[df2Index].nextMatchLoserId = m3pRefId;
+      matches[df2Index].nextMatchLoserTeamSlot = 'team2';
+    }
+  }
+
+  console.log(`${bracketSide} bracket generated: ${matches.length} matches`);
   return matches;
 }

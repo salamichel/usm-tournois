@@ -167,12 +167,19 @@ class AdminService {
     return apiService.get<{ matches: any[] }>(`/admin/tournaments/${tournamentId}/elimination`);
   }
 
-  async generateEliminationBracket(tournamentId: string) {
-    return apiService.post(`/admin/tournaments/${tournamentId}/generate-elimination`);
+  async generateEliminationBracket(tournamentId: string, bracketType?: 'single' | 'double') {
+    return apiService.post(`/admin/tournaments/${tournamentId}/generate-elimination`, { bracketType });
   }
 
-  async generateEliminationBracketWithTeams(tournamentId: string, qualifiedTeamIds: string[]) {
-    return apiService.post(`/admin/tournaments/${tournamentId}/generate-elimination`, { qualifiedTeamIds });
+  async generateEliminationBracketWithTeams(
+    tournamentId: string,
+    qualifiedTeamIds: string[],
+    bracketType?: 'single' | 'double'
+  ) {
+    return apiService.post(`/admin/tournaments/${tournamentId}/generate-elimination`, {
+      qualifiedTeamIds,
+      bracketType,
+    });
   }
 
   async freezeRanking(tournamentId: string) {

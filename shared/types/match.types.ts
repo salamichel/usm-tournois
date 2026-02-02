@@ -17,6 +17,9 @@ export type EliminationRound =
   | 'Finale'
   | string; // Allow dynamic round names like "Tour de X"
 
+export type BracketType = 'single' | 'double';
+export type BracketSide = 'main' | 'consolation';
+
 export interface MatchSet {
   score1: number;
   score2: number;
@@ -67,6 +70,7 @@ export interface EliminationMatch extends Match {
   nextMatchLoserTeamSlot?: 'team1' | 'team2'; // Which slot the loser goes to
   position?: number; // Position in bracket
   type?: 'elimination'; // Match type
+  bracket?: BracketSide; // 'main' for principal bracket, 'consolation' for consolation bracket
 }
 
 export interface Pool {
@@ -134,6 +138,12 @@ export interface GenerateMatchesDto {
 
 export interface GenerateEliminationBracketDto {
   tournamentId: string;
+  bracketType?: BracketType; // 'single' (default) or 'double'
+}
+
+export interface DoubleBracketStructure {
+  mainBracket: EliminationBracketStructure;
+  consolationBracket: EliminationBracketStructure;
 }
 
 export interface GenerateRoundScheduleDto {

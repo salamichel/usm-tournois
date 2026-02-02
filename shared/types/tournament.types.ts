@@ -72,6 +72,7 @@ export interface Tournament {
   setsPerMatchElimination: number;
   pointsPerSetElimination: number;
   tieBreakEnabledElimination: boolean;
+  bracketType?: BracketType; // 'single' (default) or 'double' (main + consolation)
 
   // Waiting list configuration (size > 0 = enabled)
   waitingListSize: number;
@@ -134,6 +135,7 @@ export interface CreateTournamentDto {
   setsPerMatchElimination: number;
   pointsPerSetElimination: number;
   tieBreakEnabledElimination: boolean;
+  bracketType?: BracketType;
   waitingListSize: number;
   coverImage?: string;
   isClubInternal?: boolean;
@@ -178,4 +180,7 @@ export interface TournamentDetails extends Tournament {
 // Import types from other files (will be defined)
 import type { Team } from './team.types';
 import type { UnassignedPlayer } from './player.types';
-import type { Pool, EliminationMatch, FinalRanking } from './match.types';
+import type { Pool, EliminationMatch, FinalRanking, BracketType } from './match.types';
+
+// Re-export BracketType for backwards compatibility
+export type { BracketType };
