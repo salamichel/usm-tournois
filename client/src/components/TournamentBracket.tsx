@@ -1,5 +1,5 @@
 import React from 'react';
-import { Edit } from 'lucide-react';
+import { Edit, Trophy } from 'lucide-react';
 
 interface Match {
   id: string;
@@ -10,6 +10,7 @@ interface Match {
   team2?: { id?: string; name: string };
   sets?: Array<{ score1: number | null; score2: number | null }>;
   status: string;
+  bracket?: 'main' | 'consolation'; // For double bracket tournaments
 }
 
 interface TournamentBracketProps {
@@ -190,6 +191,84 @@ const TournamentBracket: React.FC<TournamentBracketProps> = ({
     );
   }
 
+  // Detect double bracket mode
+  const isDoubleBracket = matches.some(m => m.bracket === 'main' || m.bracket === 'consolation');
+
+  if (isDoubleBracket) {
+    // Split matches by bracket type
+    const mainMatches = matches.filter(m => m.bracket === 'main');
+    const consolationMatches = matches.filter(m => m.bracket === 'consolation');
+
+    // Group matches by round for each bracket
+    const groupMatchesByRound = (bracketMatches: Match[]) => {
+      const grouped: Record<string, Match[]> = {};
+      bracketMatches.forEach((match) => {
+        if (!grouped[match.round]) {
+          grouped[match.round] = [];
+        }
+        grouped[match.round].push(match);
+      });
+      return grouped;
+    };
+
+    const mainGrouped = groupMatchesByRound(mainMatches);
+    const consolationGrouped = groupMatchesByRound(consolationMatches);
+
+    const getExistingRounds = (grouped: Record<string, Match[]>) => {
+      return Object.keys(grouped).sort((a, b) => {
+        const orderA = roundOrderMap[a] || 999;
+        const orderB = roundOrderMap[b] || 999;
+        if (orderA !== orderB) return orderA - orderB;
+        return a.localeCompare(b);
+      });
+    };
+
+    const mainRounds = getExistingRounds(mainGrouped);
+    const consolationRounds = getExistingRounds(consolationGrouped);
+
+    const renderBracket = (
+      grouped: Record<string, Match[]>,
+      rounds: string[],
+      title: string,
+      colorClass: string,
+      bgClass: string
+    ) => (
+      <div className={`flex-1 ${bgClass} rounded-lg p-4`}>
+        <h3 className={`text-xl font-bold mb-4 flex items-center gap-2 ${colorClass}`}>
+          <Trophy size={20} />
+          {title}
+        </h3>
+        <div className="overflow-x-auto pb-4">
+          <div className="flex gap-4 min-w-max">
+            {[...rounds].reverse().map((round) => (
+              <div key={round} className="flex-shrink-0" style={{ minWidth: '240px' }}>
+                <h4 className={`text-sm font-bold text-center mb-3 px-3 py-1.5 ${colorClass === 'text-blue-800' ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'} rounded-lg`}>
+                  {round}
+                </h4>
+                <div className="space-y-2">
+                  {grouped[round].map((match) => renderMatch(match))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          {renderBracket(mainGrouped, mainRounds, 'Tableau Principal', 'text-blue-800', 'bg-blue-50')}
+          {renderBracket(consolationGrouped, consolationRounds, 'Tableau Consolante', 'text-orange-800', 'bg-orange-50')}
+        </div>
+        <div className="text-center text-sm text-gray-500">
+          <p>Le classement final combine les deux tableaux : places 1-{mainMatches.length > 0 ? Math.ceil(new Set(mainMatches.map(m => m.team1?.id).concat(mainMatches.map(m => m.team2?.id))).size / 2) : '?'} (principal) puis suivantes (consolante)</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Single bracket mode (original)
   return (
     <div className="overflow-x-auto pb-4">
       <div className="flex gap-6 min-w-max">
