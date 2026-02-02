@@ -3,8 +3,8 @@ import { adminDb } from '../config/firebase.config';
 import * as flexibleKingService from '../services/flexible-king.service';
 import * as kingService from '../services/king.service';
 import * as playerPointsService from '../services/playerPoints.service';
-import type {
 import { handleControllerError, ErrorHandlers } from '../utils/error.utils';
+import type {
   FlexibleKingPhase,
   FlexibleKingTournamentData,
   KingPlayer,
