@@ -20,9 +20,11 @@ export async function removePlayersFromUnassigned(
   const shouldCommit = !batch; // Only commit if we created the batch ourselves
 
   for (const member of members) {
-    // Skip virtual players if they don't have a real userId
-    const playerId = member.userId || member.id;
-    if (!playerId) continue;
+    const playerId = member.userId;
+    if (!playerId) {
+      console.warn('Skipping member without userId:', member);
+      continue;
+    }
 
     const unassignedRef = adminDb
       .collection('events')
@@ -53,10 +55,13 @@ export async function addPlayersToUnassigned(
   const shouldCommit = !batch;
 
   for (const member of members) {
-    const playerId = member.userId || member.id;
-    if (!playerId) continue;
+    const playerId = member.userId;
+    if (!playerId) {
+      console.warn('Skipping member without userId:', member);
+      continue;
+    }
 
-    // Fetch user data to get complete information
+    // Start with member data as baseline
     let playerData: any = {
       userId: playerId,
       pseudo: member.pseudo || 'Unknown',
@@ -80,7 +85,7 @@ export async function addPlayersToUnassigned(
           };
         }
       } catch (err) {
-        console.warn(`Could not fetch user data for ${playerId}, using member data`);
+        console.warn(`Could not fetch user data for ${playerId}, using member data:`, err);
       }
     }
 
@@ -121,18 +126,18 @@ export async function syncUnassignedPlayersOnUpdate(
   const shouldCommit = !batch;
 
   // Create sets of user IDs for comparison
-  const oldMemberIds = new Set(oldMembers.map(m => m.userId || m.id).filter(Boolean));
-  const newMemberIds = new Set(newMembers.map(m => m.userId || m.id).filter(Boolean));
+  const oldMemberIds = new Set(oldMembers.map(m => m.userId).filter(Boolean));
+  const newMemberIds = new Set(newMembers.map(m => m.userId).filter(Boolean));
 
   // Find added members (in new but not in old)
   const addedMembers = newMembers.filter(m => {
-    const id = m.userId || m.id;
+    const id = m.userId;
     return id && !oldMemberIds.has(id);
   });
 
   // Find removed members (in old but not in new)
   const removedMembers = oldMembers.filter(m => {
-    const id = m.userId || m.id;
+    const id = m.userId;
     return id && !newMemberIds.has(id);
   });
 
