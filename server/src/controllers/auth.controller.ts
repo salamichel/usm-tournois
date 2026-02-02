@@ -3,6 +3,7 @@ import { adminAuth, adminDb } from '../config/firebase.config';
 import { AppError } from '../middlewares/error.middleware';
 import { sendPasswordResetEmail } from '../services/email.service';
 import type {
+import { handleControllerError, ErrorHandlers } from '../utils/error.utils';
   CreateUserDto,
   LoginCredentials,
   ChangePasswordDto,
@@ -77,7 +78,7 @@ export const signup = async (req: Request, res: Response) => {
   const { email, password, pseudo, level }: CreateUserDto = req.body;
 
   if (!email || !password || !pseudo || !level) {
-    throw new AppError('Tous les champs sont requis.', 400);
+    ErrorHandlers.validation('Tous les champs sont requis.');
   }
 
   try {
@@ -142,19 +143,17 @@ export const signup = async (req: Request, res: Response) => {
       message: 'Compte créé avec succès',
       data: { user: sessionUser },
     });
-  } catch (error: any) {
-    console.error('Signup error:', error);
-
+  } catch (error) {
     let message = 'Erreur lors de l\'inscription.';
-    if (error.code === 'auth/email-already-exists') {
+    if ((error as any).code === 'auth/email-already-exists') {
       message = 'Cet email est déjà utilisé.';
-    } else if (error.code === 'auth/invalid-email') {
+    } else if ((error as any).code === 'auth/invalid-email') {
       message = 'Format d\'email invalide.';
-    } else if (error.code === 'auth/weak-password') {
+    } else if ((error as any).code === 'auth/weak-password') {
       message = 'Le mot de passe doit contenir au moins 6 caractères.';
     }
 
-    throw new AppError(message, 400);
+    handleControllerError(error, 'during user signup', message, 400);
   }
 };
 
@@ -167,7 +166,7 @@ export const login = async (req: Request, res: Response) => {
   const { email, password }: LoginCredentials = req.body;
 
   if (!email || !password) {
-    throw new AppError('Email et mot de passe requis.', 400);
+    ErrorHandlers.validation('Email et mot de passe requis.');
   }
 
   try {
@@ -178,7 +177,7 @@ export const login = async (req: Request, res: Response) => {
     const userDoc = await adminDb.collection('users').doc(verifiedUser.uid).get();
 
     if (!userDoc.exists) {
-      throw new AppError('Données utilisateur introuvables.', 404);
+      ErrorHandlers.notFound('User data', verifiedUser.uid);
     }
 
     const userData = userDoc.data() as User;
@@ -199,23 +198,21 @@ export const login = async (req: Request, res: Response) => {
       message: 'Connexion réussie',
       data: { user: sessionUser },
     });
-  } catch (error: any) {
-    console.error('Login error:', error);
-
+  } catch (error) {
     let message = 'Email ou mot de passe incorrect.';
-    if (error.code === 'auth/user-not-found' || error.code === 'auth/email-not-found') {
+    if ((error as any).code === 'auth/user-not-found' || (error as any).code === 'auth/email-not-found') {
       message = 'Aucun compte associé à cet email.';
-    } else if (error.code === 'auth/invalid-email') {
+    } else if ((error as any).code === 'auth/invalid-email') {
       message = 'Format d\'email invalide.';
-    } else if (error.code === 'auth/invalid-password' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-login-credentials') {
+    } else if ((error as any).code === 'auth/invalid-password' || (error as any).code === 'auth/wrong-password' || (error as any).code === 'auth/invalid-login-credentials') {
       message = 'Email ou mot de passe incorrect.';
-    } else if (error.code === 'auth/too-many-requests') {
+    } else if ((error as any).code === 'auth/too-many-requests') {
       message = 'Trop de tentatives de connexion. Veuillez réessayer plus tard.';
-    } else if (error.code === 'auth/user-disabled') {
+    } else if ((error as any).code === 'auth/user-disabled') {
       message = 'Ce compte a été désactivé.';
     }
 
-    throw new AppError(message, 401);
+    handleControllerError(error, 'during user login', message, 401);
   }
 };
 
@@ -227,8 +224,7 @@ export const login = async (req: Request, res: Response) => {
 export const logout = async (req: Request, res: Response) => {
   req.session.destroy((err) => {
     if (err) {
-      console.error('Logout error:', err);
-      throw new AppError('Erreur lors de la déconnexion.', 500);
+      handleControllerError(err, 'during user logout', 'Erreur lors de la déconnexion.');
     }
 
     res.clearCookie('connect.sid');
@@ -246,7 +242,7 @@ export const logout = async (req: Request, res: Response) => {
  */
 export const getCurrentUser = async (req: Request, res: Response) => {
   if (!req.user) {
-    throw new AppError('Non authentifié.', 401);
+    ErrorHandlers.unauthorized('Non authentifié.');
   }
 
   res.json({
@@ -264,15 +260,15 @@ export const changePassword = async (req: Request, res: Response) => {
   const { currentPassword, newPassword }: ChangePasswordDto = req.body;
 
   if (!req.user) {
-    throw new AppError('Non authentifié.', 401);
+    ErrorHandlers.unauthorized('Non authentifié.');
   }
 
   if (!currentPassword) {
-    throw new AppError('Le mot de passe actuel est requis.', 400);
+    ErrorHandlers.validation('Le mot de passe actuel est requis.');
   }
 
   if (!newPassword || newPassword.length < 6) {
-    throw new AppError('Le nouveau mot de passe doit contenir au moins 6 caractères.', 400);
+    ErrorHandlers.validation('Le nouveau mot de passe doit contenir au moins 6 caractères.');
   }
 
   try {
@@ -288,14 +284,12 @@ export const changePassword = async (req: Request, res: Response) => {
       success: true,
       message: 'Mot de passe modifié avec succès',
     });
-  } catch (error: any) {
-    console.error('Change password error:', error);
-
-    if (error.code === 'auth/invalid-password' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-login-credentials') {
-      throw new AppError('Le mot de passe actuel est incorrect.', 400);
+  } catch (error) {
+    if ((error as any).code === 'auth/invalid-password' || (error as any).code === 'auth/wrong-password' || (error as any).code === 'auth/invalid-login-credentials') {
+      handleControllerError(error, 'during password verification', 'Le mot de passe actuel est incorrect.', 400);
     }
 
-    throw new AppError('Erreur lors de la modification du mot de passe.', 500);
+    handleControllerError(error, 'during password change', 'Erreur lors de la modification du mot de passe.', 500);
   }
 };
 
@@ -308,7 +302,7 @@ export const claimVirtualAccount = async (req: Request, res: Response) => {
   const { email, password, pseudo, level, virtualUserId } = req.body;
 
   if (!email || !password || !pseudo || !level || !virtualUserId) {
-    throw new AppError('Tous les champs sont requis.', 400);
+    ErrorHandlers.validation('Tous les champs sont requis.');
   }
 
   try {
@@ -316,17 +310,17 @@ export const claimVirtualAccount = async (req: Request, res: Response) => {
     const virtualUserDoc = await adminDb.collection('users').doc(virtualUserId).get();
 
     if (!virtualUserDoc.exists) {
-      throw new AppError('Compte virtuel introuvable.', 404);
+      ErrorHandlers.notFound('Virtual account', virtualUserId);
     }
 
     const virtualUserData = virtualUserDoc.data();
 
     if (!virtualUserData?.isVirtual) {
-      throw new AppError('Ce compte n\'est pas un compte virtuel.', 400);
+      ErrorHandlers.validation('Ce compte n\'est pas un compte virtuel.');
     }
 
     if (virtualUserData.pseudo !== pseudo) {
-      throw new AppError('Le pseudo ne correspond pas au compte virtuel.', 400);
+      ErrorHandlers.validation('Le pseudo ne correspond pas au compte virtuel.');
     }
 
     // Create new real user in Firebase Auth
@@ -433,23 +427,17 @@ export const claimVirtualAccount = async (req: Request, res: Response) => {
       message: 'Compte virtuel récupéré avec succès !',
       data: { user: sessionUser },
     });
-  } catch (error: any) {
-    console.error('Claim virtual account error:', error);
-
-    if (error instanceof AppError) {
-      throw error;
-    }
-
+  } catch (error) {
     let message = 'Erreur lors de la récupération du compte virtuel.';
-    if (error.code === 'auth/email-already-exists') {
+    if ((error as any).code === 'auth/email-already-exists') {
       message = 'Cet email est déjà utilisé.';
-    } else if (error.code === 'auth/invalid-email') {
+    } else if ((error as any).code === 'auth/invalid-email') {
       message = 'Format d\'email invalide.';
-    } else if (error.code === 'auth/weak-password') {
+    } else if ((error as any).code === 'auth/weak-password') {
       message = 'Le mot de passe doit contenir au moins 6 caractères.';
     }
 
-    throw new AppError(message, 400);
+    handleControllerError(error, 'while claiming virtual account', message, 400);
   }
 };
 
@@ -462,7 +450,7 @@ export const requestPasswordReset = async (req: Request, res: Response) => {
   const { email }: RequestPasswordResetDto = req.body;
 
   if (!email) {
-    throw new AppError('Email requis.', 400);
+    ErrorHandlers.validation('Email requis.');
   }
 
   try {
@@ -486,10 +474,10 @@ export const requestPasswordReset = async (req: Request, res: Response) => {
       success: true,
       message: 'Un email de réinitialisation a été envoyé.',
     });
-  } catch (error: any) {
+  } catch (error) {
+    // Log error but don't reveal if user exists for security reasons
     console.error('Request password reset error:', error);
 
-    // Don't reveal if user exists or not for security reasons
     // Always return success message
     res.json({
       success: true,
@@ -507,7 +495,7 @@ export const verifyPasswordResetToken = async (req: Request, res: Response) => {
   const { token } = req.params;
 
   if (!token) {
-    throw new AppError('Token requis.', 400);
+    ErrorHandlers.validation('Token requis.');
   }
 
   try {
@@ -519,17 +507,15 @@ export const verifyPasswordResetToken = async (req: Request, res: Response) => {
       message: 'Token valide.',
       data: { email },
     });
-  } catch (error: any) {
-    console.error('Verify reset token error:', error);
-
+  } catch (error) {
     let message = 'Token invalide ou expiré.';
-    if (error.code === 'auth/expired-action-code') {
+    if ((error as any).code === 'auth/expired-action-code') {
       message = 'Le lien de réinitialisation a expiré.';
-    } else if (error.code === 'auth/invalid-action-code') {
+    } else if ((error as any).code === 'auth/invalid-action-code') {
       message = 'Le lien de réinitialisation est invalide ou a déjà été utilisé.';
     }
 
-    throw new AppError(message, 400);
+    handleControllerError(error, 'while verifying password reset token', message, 400);
   }
 };
 
@@ -542,11 +528,11 @@ export const resetPassword = async (req: Request, res: Response) => {
   const { token, newPassword }: ResetPasswordDto = req.body;
 
   if (!token || !newPassword) {
-    throw new AppError('Token et nouveau mot de passe requis.', 400);
+    ErrorHandlers.validation('Token et nouveau mot de passe requis.');
   }
 
   if (newPassword.length < 6) {
-    throw new AppError('Le mot de passe doit contenir au moins 6 caractères.', 400);
+    ErrorHandlers.validation('Le mot de passe doit contenir au moins 6 caractères.');
   }
 
   try {
@@ -566,18 +552,16 @@ export const resetPassword = async (req: Request, res: Response) => {
       success: true,
       message: 'Mot de passe réinitialisé avec succès.',
     });
-  } catch (error: any) {
-    console.error('Reset password error:', error);
-
+  } catch (error) {
     let message = 'Erreur lors de la réinitialisation du mot de passe.';
-    if (error.code === 'auth/expired-action-code') {
+    if ((error as any).code === 'auth/expired-action-code') {
       message = 'Le lien de réinitialisation a expiré.';
-    } else if (error.code === 'auth/invalid-action-code') {
+    } else if ((error as any).code === 'auth/invalid-action-code') {
       message = 'Le lien de réinitialisation est invalide ou a déjà été utilisé.';
-    } else if (error.code === 'auth/user-not-found') {
+    } else if ((error as any).code === 'auth/user-not-found') {
       message = 'Utilisateur introuvable.';
     }
 
-    throw new AppError(message, 400);
+    handleControllerError(error, 'while resetting password', message, 400);
   }
 };

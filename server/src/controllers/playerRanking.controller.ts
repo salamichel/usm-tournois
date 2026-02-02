@@ -4,7 +4,7 @@
  */
 
 import { Request, Response } from 'express';
-import { AppError } from '../middlewares/error.middleware';
+import { handleControllerError, ErrorHandlers } from '../utils/error.utils';
 import {
   getGlobalPlayerRankings,
   getPlayerStats,
@@ -38,10 +38,8 @@ export const getPlayerRanking = async (req: Request, res: Response) => {
     };
 
     res.json(response);
-  } catch (error: any) {
-    console.error('Error getting player ranking:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error getting player ranking', 500);
+  } catch (error) {
+    handleControllerError(error, 'getting player ranking');
   }
 };
 
@@ -56,7 +54,7 @@ export const getPlayerStatistics = async (req: Request, res: Response) => {
     const stats = await getPlayerStats(playerId);
 
     if (!stats) {
-      throw new AppError('Player not found or has no tournament data', 404);
+      ErrorHandlers.notFound('Player', playerId);
     }
 
     const response: PlayerStatsResponse = {
@@ -67,10 +65,8 @@ export const getPlayerStatistics = async (req: Request, res: Response) => {
     };
 
     res.json(response);
-  } catch (error: any) {
-    console.error('Error getting player statistics:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error getting player statistics', 500);
+  } catch (error) {
+    handleControllerError(error, 'getting player statistics');
   }
 };
 
@@ -92,10 +88,8 @@ export const getTournamentPoints = async (req: Request, res: Response) => {
     };
 
     res.json(response);
-  } catch (error: any) {
-    console.error('Error getting tournament player points:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error getting tournament player points', 500);
+  } catch (error) {
+    handleControllerError(error, 'getting tournament player points');
   }
 };
 
@@ -118,10 +112,8 @@ export const getSeasonRanking = async (req: Request, res: Response) => {
         total,
       },
     });
-  } catch (error: any) {
-    console.error('Error getting season ranking:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error getting season ranking', 500);
+  } catch (error) {
+    handleControllerError(error, 'getting season ranking');
   }
 };
 
@@ -137,9 +129,7 @@ export const recalculateRankings = async (req: Request, res: Response) => {
       success: true,
       message: 'All global rankings recalculated successfully',
     });
-  } catch (error: any) {
-    console.error('Error recalculating rankings:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error recalculating rankings', 500);
+  } catch (error) {
+    handleControllerError(error, 'recalculating rankings');
   }
 };

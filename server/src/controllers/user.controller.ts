@@ -2,19 +2,20 @@ import { Request, Response } from 'express';
 import { adminDb } from '../config/firebase.config';
 import { AppError } from '../middlewares/error.middleware';
 import { convertTimestamps } from '../utils/firestore.utils';
+import { handleControllerError, ErrorHandlers } from '../utils/error.utils';
 
 export const getUserDashboard = async (req: Request, res: Response) => {
   try {
     const userId = req.user?.uid;
 
     if (!userId) {
-      throw new AppError('User not authenticated', 401);
+      ErrorHandlers.unauthorized('User not authenticated');
     }
 
     // Get user data
     const userDoc = await adminDb.collection('users').doc(userId).get();
     if (!userDoc.exists) {
-      throw new AppError('User not found', 404);
+      ErrorHandlers.notFound('User', userId);
     }
 
     const userData = convertTimestamps({
@@ -80,10 +81,8 @@ export const getUserDashboard = async (req: Request, res: Response) => {
         registeredTournaments,
       },
     });
-  } catch (error: any) {
-    console.error('Error getting user dashboard:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error retrieving user dashboard', 500);
+  } catch (error) {
+    handleControllerError(error, 'getting user dashboard');
   }
 };
 
@@ -92,13 +91,13 @@ export const getUserProfile = async (req: Request, res: Response) => {
     const userId = req.user?.uid;
 
     if (!userId) {
-      throw new AppError('User not authenticated', 401);
+      ErrorHandlers.unauthorized('User not authenticated');
     }
 
     const userDoc = await adminDb.collection('users').doc(userId).get();
 
     if (!userDoc.exists) {
-      throw new AppError('User not found', 404);
+      ErrorHandlers.notFound('User', userId);
     }
 
     const user = convertTimestamps({
@@ -110,10 +109,8 @@ export const getUserProfile = async (req: Request, res: Response) => {
       success: true,
       data: { user },
     });
-  } catch (error: any) {
-    console.error('Error getting user profile:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error retrieving user profile', 500);
+  } catch (error) {
+    handleControllerError(error, 'getting user profile');
   }
 };
 
@@ -122,14 +119,14 @@ export const updateUserProfile = async (req: Request, res: Response) => {
     const userId = req.user?.uid;
 
     if (!userId) {
-      throw new AppError('User not authenticated', 401);
+      ErrorHandlers.unauthorized('User not authenticated');
     }
 
     const { pseudo, level, email, clubId } = req.body;
 
     const userDoc = await adminDb.collection('users').doc(userId).get();
     if (!userDoc.exists) {
-      throw new AppError('User not found', 404);
+      ErrorHandlers.notFound('User', userId);
     }
 
     const updateData: any = {
@@ -147,10 +144,8 @@ export const updateUserProfile = async (req: Request, res: Response) => {
       success: true,
       message: 'User profile updated successfully',
     });
-  } catch (error: any) {
-    console.error('Error updating user profile:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error updating user profile', 500);
+  } catch (error) {
+    handleControllerError(error, 'updating user profile');
   }
 };
 
@@ -159,7 +154,7 @@ export const searchUsers = async (req: Request, res: Response) => {
     const { query, excludeVirtual } = req.query;
 
     if (!query || String(query).trim() === '') {
-      throw new AppError('Search query is required', 400);
+      ErrorHandlers.validation('Search query is required');
     }
 
     const queryLower = String(query).toLowerCase().trim();
@@ -195,9 +190,7 @@ export const searchUsers = async (req: Request, res: Response) => {
       success: true,
       data: { users: matchingUsers },
     });
-  } catch (error: any) {
-    console.error('Error searching users:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error searching users', 500);
+  } catch (error) {
+    handleControllerError(error, 'searching users');
   }
 };

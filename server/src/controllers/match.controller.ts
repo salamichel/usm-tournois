@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { adminDb } from '../config/firebase.config';
-import { AppError } from '../middlewares/error.middleware';
+import { handleControllerError, ErrorHandlers } from '../utils/error.utils';
 import {
   determineMatchResult,
   propagateEliminationMatchResults
@@ -13,21 +13,21 @@ export const submitScores = async (req: Request, res: Response) => {
     const { sets, matchType, poolId } = req.body;
 
     if (!userId) {
-      throw new AppError('User not authenticated', 401);
+      ErrorHandlers.unauthorized('User not authenticated');
     }
 
     if (!sets || !Array.isArray(sets)) {
-      throw new AppError('Sets data is required and must be an array', 400);
+      ErrorHandlers.validation('Sets data is required and must be an array');
     }
 
     if (!matchType || (matchType !== 'pool' && matchType !== 'elimination')) {
-      throw new AppError('Invalid match type', 400);
+      ErrorHandlers.validation('Invalid match type');
     }
 
     // Get tournament
     const tournamentDoc = await adminDb.collection('events').doc(tournamentId).get();
     if (!tournamentDoc.exists) {
-      throw new AppError('Tournament not found', 404);
+      ErrorHandlers.notFound('Tournament', tournamentId);
     }
 
     const tournament = tournamentDoc.data();
@@ -43,9 +43,8 @@ export const submitScores = async (req: Request, res: Response) => {
     if (!finalRankingSnapshot.empty) {
       const firstRanking = finalRankingSnapshot.docs[0].data();
       if (firstRanking?.frozenAt) {
-        throw new AppError(
-          'Le classement est figé. Vous ne pouvez plus modifier les scores.',
-          403
+        ErrorHandlers.forbidden(
+          'Le classement est figé. Vous ne pouvez plus modifier les scores.'
         );
       }
     }
@@ -54,7 +53,7 @@ export const submitScores = async (req: Request, res: Response) => {
     let matchRef;
     if (matchType === 'pool') {
       if (!poolId) {
-        throw new AppError('Pool ID is required for pool matches', 400);
+        ErrorHandlers.validation('Pool ID is required for pool matches');
       }
       matchRef = adminDb
         .collection('events')
@@ -73,14 +72,14 @@ export const submitScores = async (req: Request, res: Response) => {
 
     const matchDoc = await matchRef.get();
     if (!matchDoc.exists) {
-      throw new AppError('Match not found', 404);
+      ErrorHandlers.notFound('Match', matchId);
     }
 
     const matchData = matchDoc.data();
 
     // Verify user is captain of either team1 or team2
     if (!matchData?.team1?.id || !matchData?.team2?.id) {
-      throw new AppError('Match team information is incomplete', 400);
+      ErrorHandlers.validation('Match team information is incomplete');
     }
 
     const team1Doc = await adminDb
@@ -101,9 +100,8 @@ export const submitScores = async (req: Request, res: Response) => {
     const isTeam2Captain = team2Doc.exists && team2Doc.data()?.captainId === userId;
 
     if (!isTeam1Captain && !isTeam2Captain) {
-      throw new AppError(
-        'Vous devez être le capitaine d\'une des équipes pour soumettre les scores',
-        403
+      ErrorHandlers.forbidden(
+        'Vous devez être le capitaine d\'une des équipes pour soumettre les scores'
       );
     }
 
@@ -180,8 +178,6 @@ export const submitScores = async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error('Error submitting scores:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error submitting scores', 500);
+    handleControllerError(error, 'submitting scores', 'Error submitting scores');
   }
 };
