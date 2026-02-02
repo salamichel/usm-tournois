@@ -8,7 +8,13 @@ import { AppError } from '../middlewares/error.middleware';
 import { handleControllerError, ErrorHandlers } from '../utils/error.utils';
 import { convertTimestamps } from '../utils/firestore.utils';
 import { calculateMatchOutcome, propagateEliminationMatchResults } from '../services/match.service';
-import { generateEliminationBracket as generateEliminationBracketService, QualifiedTeam, EliminationTournamentConfig } from '../services/elimination.service';
+import {
+  generateEliminationBracket as generateEliminationBracketService,
+  generateDoubleBracket,
+  QualifiedTeam,
+  QualifiedTeamWithRank,
+  EliminationTournamentConfig
+} from '../services/elimination.service';
 import { awardPointsToTeam, deleteTournamentPoints, updateGlobalRankings } from '../services/playerPoints.service';
 
 export const getEliminationMatches = async (req: Request, res: Response) => {
@@ -96,7 +102,7 @@ export const getEliminationMatches = async (req: Request, res: Response) => {
 export const generateEliminationBracket = async (req: Request, res: Response) => {
   try {
     const { tournamentId } = req.params;
-    const { qualifiedTeamIds } = req.body; // Nouvelle option : liste manuelle des équipes qualifiées
+    const { qualifiedTeamIds, bracketType } = req.body; // bracketType: 'single' (default) or 'double'
 
     // Get tournament configuration
     const tournamentDoc = await adminDb.collection('events').doc(tournamentId).get();
@@ -345,8 +351,58 @@ export const generateEliminationBracket = async (req: Request, res: Response) =>
       tieBreakEnabledElimination: tournament.tieBreakEnabledElimination || false,
     };
 
-    // Generate bracket using the service (handles any number of teams)
-    const generatedMatches = generateEliminationBracketService(qualifiedTeams, tournamentConfig);
+    let generatedMatches: any[];
+    const useBracketType = bracketType || tournament.bracketType || 'single';
+
+    if (useBracketType === 'double') {
+      // Double bracket: main + consolation
+      console.log('Generating double bracket (main + consolation)');
+
+      // Calculate pool rank for each team
+      const teamsWithRank: QualifiedTeamWithRank[] = [];
+
+      // Group qualified teams by pool and assign ranks
+      const teamsByPool: { [poolName: string]: any[] } = {};
+      qualifiedTeams.forEach((team: any) => {
+        const poolName = team.poolName || 'Unknown';
+        if (!teamsByPool[poolName]) {
+          teamsByPool[poolName] = [];
+        }
+        const stats = allTeamStats[team.id] || { points: 0, setsWon: 0, setsLost: 0 };
+        teamsByPool[poolName].push({ ...team, ...stats });
+      });
+
+      // Sort each pool and assign ranks
+      Object.keys(teamsByPool).forEach(poolName => {
+        teamsByPool[poolName].sort((a: any, b: any) => {
+          if (b.points !== a.points) return b.points - a.points;
+          if (b.setsWon !== a.setsWon) return b.setsWon - a.setsWon;
+          return a.setsLost - b.setsLost;
+        });
+
+        teamsByPool[poolName].forEach((team: any, index: number) => {
+          teamsWithRank.push({
+            id: team.id,
+            name: team.name,
+            poolName: team.poolName,
+            poolRank: index + 1, // 1-based rank
+          });
+        });
+      });
+
+      // Determine teams per pool for splitting
+      const poolSizes = Object.values(teamsByPool).map(teams => teams.length);
+      const maxTeamsPerPool = Math.max(...poolSizes);
+
+      const doubleBracketResult = generateDoubleBracket(teamsWithRank, tournamentConfig, maxTeamsPerPool);
+      generatedMatches = doubleBracketResult.allMatches;
+
+      console.log(`Double bracket generated: ${doubleBracketResult.mainBracket.length} main matches, ${doubleBracketResult.consolationBracket.length} consolation matches`);
+    } else {
+      // Single bracket (default)
+      console.log('Generating single bracket');
+      generatedMatches = generateEliminationBracketService(qualifiedTeams, tournamentConfig);
+    }
 
     if (generatedMatches.length === 0) {
       ErrorHandlers.validation('No matches could be generated. Please check your tournament configuration.');
@@ -390,15 +446,21 @@ export const generateEliminationBracket = async (req: Request, res: Response) =>
       if (matchAny.nextMatchTeamSlot) matchData.nextMatchTeamSlot = matchAny.nextMatchTeamSlot;
       if (matchAny.nextMatchLoserId) matchData.nextMatchLoserId = matchAny.nextMatchLoserId;
       if (matchAny.nextMatchLoserTeamSlot) matchData.nextMatchLoserTeamSlot = matchAny.nextMatchLoserTeamSlot;
+      // Add bracket side for double bracket tournaments
+      if (matchAny.bracket) matchData.bracket = matchAny.bracket;
 
       batch.set(matchRef, matchData);
     }
 
     await batch.commit();
 
+    const bracketTypeLabel = useBracketType === 'double' ? 'double (principal + consolante)' : 'simple';
     res.json({
       success: true,
-      message: `Elimination bracket generated successfully with ${generatedMatches.length} matches for ${qualifiedTeams.length} teams`,
+      message: `Tableau ${bracketTypeLabel} généré avec succès: ${generatedMatches.length} matchs pour ${qualifiedTeams.length} équipes`,
+      bracketType: useBracketType,
+      matchCount: generatedMatches.length,
+      teamCount: qualifiedTeams.length,
     });
   } catch (error: any) {
     handleControllerError(error, 'generating elimination bracket', 'Error generating elimination bracket', 500);
