@@ -8,6 +8,7 @@ import { AppError } from '../middlewares/error.middleware';
 import { handleControllerError, ErrorHandlers } from '../utils/error.utils';
 import { convertTimestamps } from '../utils/firestore.utils';
 import { calculateTeamGlobalRanking } from './admin.helpers';
+import { removePlayersFromUnassigned, addPlayersToUnassigned, syncUnassignedPlayersOnUpdate } from '../utils/unassigned-players.utils';
 
 export const getTeams = async (req: Request, res: Response) => {
   try {
@@ -141,6 +142,11 @@ export const createTeam = async (req: Request, res: Response) => {
       .collection('teams')
       .add(teamData);
 
+    // Remove team members from unassigned players
+    if (teamData.members && teamData.members.length > 0) {
+      await removePlayersFromUnassigned(tournamentId, teamData.members);
+    }
+
     res.json({
       success: true,
       message: 'Team created successfully',
@@ -170,6 +176,9 @@ export const updateTeam = async (req: Request, res: Response) => {
       ErrorHandlers.notFound('Team', teamId);
     }
 
+    const teamData = teamDoc.data();
+    const oldMembers = teamData?.members || [];
+
     const updateData: any = {
       updatedAt: new Date(),
     };
@@ -194,6 +203,9 @@ export const updateTeam = async (req: Request, res: Response) => {
       updateData.members = members;
       // Automatically calculate globalRanking based on members' points
       updateData.globalRanking = await calculateTeamGlobalRanking(members);
+
+      // Synchronize unassigned players when members change
+      await syncUnassignedPlayersOnUpdate(tournamentId, oldMembers, members);
     }
     if (recruitmentOpen !== undefined && recruitmentOpen !== null) updateData.recruitmentOpen = recruitmentOpen === true || recruitmentOpen === 'true';
     if (weight !== undefined && weight !== null) updateData.weight = parseInt(weight) || 0;
@@ -225,6 +237,14 @@ export const deleteTeam = async (req: Request, res: Response) => {
     const teamDoc = await teamRef.get();
     if (!teamDoc.exists) {
       ErrorHandlers.notFound('Team', teamId);
+    }
+
+    const teamData = teamDoc.data();
+    const members = teamData?.members || [];
+
+    // Add all team members back to unassigned players before deleting
+    if (members.length > 0) {
+      await addPlayersToUnassigned(tournamentId, members);
     }
 
     await teamRef.delete();

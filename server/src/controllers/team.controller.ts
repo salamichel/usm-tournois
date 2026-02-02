@@ -4,6 +4,7 @@ import { AppError } from '../middlewares/error.middleware';
 import { convertTimestamps } from '../utils/firestore.utils';
 import * as teamService from '../services/team.service';
 import { handleControllerError, ErrorHandlers } from '../utils/error.utils';
+import { removePlayersFromUnassigned } from '../utils/unassigned-players.utils';
 
 /**
  * Get team by ID
@@ -923,22 +924,27 @@ export const createTeam = async (req: Request, res: Response) => {
       .collection('teams')
       .doc();
 
+    const teamMembers = [
+      {
+        userId: userId,
+        pseudo: userData?.pseudo || 'Unknown',
+        level: userData?.level || 'N/A',
+      },
+    ];
+
     await teamRef.set({
       name: name.trim(),
       captainId: userId,
       captainPseudo: userData?.pseudo || 'Unknown',
-      members: [
-        {
-          userId: userId,
-          pseudo: userData?.pseudo || 'Unknown',
-          level: userData?.level || 'N/A',
-        },
-      ],
+      members: teamMembers,
       recruitmentOpen: recruitmentOpen !== false,
       registeredAt: new Date().toISOString(),
       createdAt: new Date(),
       updatedAt: new Date(),
     });
+
+    // Remove captain from unassigned players
+    await removePlayersFromUnassigned(tournamentId, teamMembers);
 
     res.status(201).json({
       success: true,
