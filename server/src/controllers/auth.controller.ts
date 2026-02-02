@@ -2,8 +2,8 @@ import { Request, Response } from 'express';
 import { adminAuth, adminDb } from '../config/firebase.config';
 import { AppError } from '../middlewares/error.middleware';
 import { sendPasswordResetEmail } from '../services/email.service';
-import type {
 import { handleControllerError, ErrorHandlers } from '../utils/error.utils';
+import type {
   CreateUserDto,
   LoginCredentials,
   ChangePasswordDto,
