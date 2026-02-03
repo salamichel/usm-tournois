@@ -79,10 +79,12 @@ export async function addPlayersToUnassigned(
             userId: playerId,
             pseudo: userData?.pseudo || member.pseudo || 'Unknown',
             level: userData?.level || member.level || 'N/A',
-            sexe: userData?.sexe,
-            email: userData?.email,
             isVirtual: false,
           };
+
+          // Add optional fields only if they exist (Firestore doesn't accept undefined)
+          if (userData?.sexe) playerData.sexe = userData.sexe;
+          if (userData?.email) playerData.email = userData.email;
         }
       } catch (err) {
         console.warn(`Could not fetch user data for ${playerId}, using member data:`, err);
