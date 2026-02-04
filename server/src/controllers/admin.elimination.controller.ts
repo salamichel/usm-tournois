@@ -15,7 +15,7 @@ import {
   QualifiedTeamWithRank,
   EliminationTournamentConfig
 } from '../services/elimination.service';
-import { awardPointsToTeam, deleteTournamentPoints, updateGlobalRankings } from '../services/playerPoints.service';
+import { awardPointsToTeam, deleteTournamentPoints, updateGlobalRankings, getPointsForRank } from '../services/playerPoints.service';
 
 export const getEliminationMatches = async (req: Request, res: Response) => {
   try {
@@ -583,6 +583,123 @@ export const freezeRanking = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * Helper function to build ranking from a single bracket (main or consolation)
+ * @param matches Array of matches from the bracket
+ * @param startRank Starting rank for this bracket
+ * @returns Array of ranked teams
+ */
+function buildBracketRanking(matches: any[], startRank: number): any[] {
+  const ranking: any[] = [];
+  const rankedTeamIds = new Set<string>();
+
+  // Find finale and 3rd place match
+  const finale = matches.find((m: any) => m.round === 'Finale');
+  const thirdPlaceMatch = matches.find((m: any) => m.round === 'Match 3ème place');
+
+  if (!finale || finale.status !== 'completed') {
+    // No finale found or not completed, cannot rank this bracket
+    return ranking;
+  }
+
+  let currentRank = startRank;
+
+  // 1st place: Winner of finale
+  if (finale.winnerId && finale.winnerName) {
+    ranking.push({
+      rank: currentRank,
+      teamName: finale.winnerName,
+      teamId: finale.winnerId,
+      points: getPointsForRank(currentRank),
+    });
+    rankedTeamIds.add(finale.winnerId);
+    currentRank++;
+  }
+
+  // 2nd place: Loser of finale
+  if (finale.loserId && finale.loserName) {
+    ranking.push({
+      rank: currentRank,
+      teamName: finale.loserName,
+      teamId: finale.loserId,
+      points: getPointsForRank(currentRank),
+    });
+    rankedTeamIds.add(finale.loserId);
+    currentRank++;
+  }
+
+  // 3rd and 4th place from 3rd place match
+  if (thirdPlaceMatch && thirdPlaceMatch.status === 'completed') {
+    if (thirdPlaceMatch.winnerId && thirdPlaceMatch.winnerName) {
+      ranking.push({
+        rank: currentRank,
+        teamName: thirdPlaceMatch.winnerName,
+        teamId: thirdPlaceMatch.winnerId,
+        points: getPointsForRank(currentRank),
+      });
+      rankedTeamIds.add(thirdPlaceMatch.winnerId);
+      currentRank++;
+    }
+    if (thirdPlaceMatch.loserId && thirdPlaceMatch.loserName) {
+      ranking.push({
+        rank: currentRank,
+        teamName: thirdPlaceMatch.loserName,
+        teamId: thirdPlaceMatch.loserId,
+        points: getPointsForRank(currentRank),
+      });
+      rankedTeamIds.add(thirdPlaceMatch.loserId);
+      currentRank++;
+    }
+  }
+
+  // Find semi-final losers not already in ranking (if no 3rd place match)
+  const semiFinals = matches.filter((m: any) => m.round === 'Demi-finale' && m.status === 'completed');
+  semiFinals.forEach((sf: any) => {
+    if (sf.loserId && sf.loserName && !rankedTeamIds.has(sf.loserId)) {
+      ranking.push({
+        rank: currentRank,
+        teamName: sf.loserName,
+        teamId: sf.loserId,
+        points: getPointsForRank(currentRank),
+      });
+      rankedTeamIds.add(sf.loserId);
+      currentRank++;
+    }
+  });
+
+  // Find quarter-final losers
+  const quarterFinals = matches.filter((m: any) => m.round === 'Quart de finale' && m.status === 'completed');
+  quarterFinals.forEach((qf: any) => {
+    if (qf.loserId && qf.loserName && !rankedTeamIds.has(qf.loserId)) {
+      ranking.push({
+        rank: currentRank,
+        teamName: qf.loserName,
+        teamId: qf.loserId,
+        points: getPointsForRank(currentRank),
+      });
+      rankedTeamIds.add(qf.loserId);
+      currentRank++;
+    }
+  });
+
+  // Find preliminary match losers
+  const preliminaryMatches = matches.filter((m: any) => m.round === 'Tour Préliminaire' && m.status === 'completed');
+  preliminaryMatches.forEach((pm: any) => {
+    if (pm.loserId && pm.loserName && !rankedTeamIds.has(pm.loserId)) {
+      ranking.push({
+        rank: currentRank,
+        teamName: pm.loserName,
+        teamId: pm.loserId,
+        points: getPointsForRank(currentRank),
+      });
+      rankedTeamIds.add(pm.loserId);
+      currentRank++;
+    }
+  });
+
+  return ranking;
+}
+
 export const freezeEliminationRanking = async (req: Request, res: Response) => {
   try {
     const { tournamentId } = req.params;
@@ -687,100 +804,44 @@ export const freezeEliminationRanking = async (req: Request, res: Response) => {
       }
     });
 
-    // Find final and 3rd place match
-    const finale = matches.find((m: any) => m.round === 'Finale');
-    const thirdPlaceMatch = matches.find((m: any) => m.round === 'Match 3ème place');
-
-    if (!finale || finale.status !== 'completed') {
-      ErrorHandlers.validation('La finale doit être terminée pour figer le classement');
-    }
+    // Detect if this is a double bracket tournament
+    const isDoubleBracket = matches.some((m: any) => m.bracket);
 
     // Build ranking from elimination results
     const ranking: any[] = [];
 
-    // 1st place: Winner of finale
-    if (finale.winnerId && finale.winnerName) {
-      ranking.push({
-        rank: 1,
-        teamName: finale.winnerName,
-        teamId: finale.winnerId,
-        points: 100,
-      });
+    if (isDoubleBracket) {
+      // DOUBLE BRACKET: Separate main and consolation brackets
+      const mainMatches = matches.filter((m: any) => m.bracket === 'main');
+      const consolationMatches = matches.filter((m: any) => m.bracket === 'consolation');
+
+      // Find finals for each bracket
+      const mainFinale = mainMatches.find((m: any) => m.round === 'Finale');
+      const consolationFinale = consolationMatches.find((m: any) => m.round === 'Finale');
+
+      if (!mainFinale || mainFinale.status !== 'completed') {
+        ErrorHandlers.validation('La finale du tableau principal doit être terminée pour figer le classement');
+      }
+
+      // Build main bracket ranking
+      const mainRanking = buildBracketRanking(mainMatches, 1);
+      ranking.push(...mainRanking);
+
+      // Build consolation bracket ranking (ranks continue after main bracket)
+      const consolationRanking = buildBracketRanking(consolationMatches, ranking.length + 1);
+      ranking.push(...consolationRanking);
+
+    } else {
+      // SINGLE BRACKET: Use same helper function
+      const finale = matches.find((m: any) => m.round === 'Finale');
+
+      if (!finale || finale.status !== 'completed') {
+        ErrorHandlers.validation('La finale doit être terminée pour figer le classement');
+      }
+
+      const singleRanking = buildBracketRanking(matches, 1);
+      ranking.push(...singleRanking);
     }
-
-    // 2nd place: Loser of finale
-    if (finale.loserId && finale.loserName) {
-      ranking.push({
-        rank: 2,
-        teamName: finale.loserName,
-        teamId: finale.loserId,
-        points: 80,
-      });
-    }
-
-    // 3rd and 4th place from 3rd place match
-    if (thirdPlaceMatch && thirdPlaceMatch.status === 'completed') {
-      if (thirdPlaceMatch.winnerId && thirdPlaceMatch.winnerName) {
-        ranking.push({
-          rank: 3,
-          teamName: thirdPlaceMatch.winnerName,
-          teamId: thirdPlaceMatch.winnerId,
-          points: 60,
-        });
-      }
-      if (thirdPlaceMatch.loserId && thirdPlaceMatch.loserName) {
-        ranking.push({
-          rank: 4,
-          teamName: thirdPlaceMatch.loserName,
-          teamId: thirdPlaceMatch.loserId,
-          points: 40,
-        });
-      }
-    }
-
-    // Find semi-final losers not already in ranking (if no 3rd place match)
-    const semiFinals = matches.filter((m: any) => m.round === 'Demi-finale' && m.status === 'completed');
-    const rankedTeamIds = new Set(ranking.map((r) => r.teamId));
-
-    semiFinals.forEach((sf: any) => {
-      if (sf.loserId && sf.loserName && !rankedTeamIds.has(sf.loserId)) {
-        ranking.push({
-          rank: ranking.length + 1,
-          teamName: sf.loserName,
-          teamId: sf.loserId,
-          points: 30,
-        });
-        rankedTeamIds.add(sf.loserId);
-      }
-    });
-
-    // Find quarter-final losers
-    const quarterFinals = matches.filter((m: any) => m.round === 'Quart de finale' && m.status === 'completed');
-    quarterFinals.forEach((qf: any) => {
-      if (qf.loserId && qf.loserName && !rankedTeamIds.has(qf.loserId)) {
-        ranking.push({
-          rank: ranking.length + 1,
-          teamName: qf.loserName,
-          teamId: qf.loserId,
-          points: 20,
-        });
-        rankedTeamIds.add(qf.loserId);
-      }
-    });
-
-    // Find preliminary match losers
-    const preliminaryMatches = matches.filter((m: any) => m.round === 'Tour Préliminaire' && m.status === 'completed');
-    preliminaryMatches.forEach((pm: any) => {
-      if (pm.loserId && pm.loserName && !rankedTeamIds.has(pm.loserId)) {
-        ranking.push({
-          rank: ranking.length + 1,
-          teamName: pm.loserName,
-          teamId: pm.loserId,
-          points: 10,
-        });
-        rankedTeamIds.add(pm.loserId);
-      }
-    });
 
     if (ranking.length === 0) {
       ErrorHandlers.validation('Unable to calculate ranking from elimination matches');
