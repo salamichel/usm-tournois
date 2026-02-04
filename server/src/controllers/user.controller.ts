@@ -178,7 +178,7 @@ export const searchUsers = async (req: Request, res: Response) => {
         return pseudoMatch || emailMatch;
       })
       .map(user => ({
-        id: user.id,
+        uid: user.id, // Use 'uid' to match User interface
         pseudo: user.pseudo,
         email: user.email,
         level: user.level,
