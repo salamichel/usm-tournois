@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Trophy, Medal, TrendingUp, Award, Building2, Globe, CalendarRange } from 'lucide-react';
+import { Trophy, Medal, TrendingUp, Award, Globe, CalendarRange } from 'lucide-react';
 import playerRankingService from '@services/playerRanking.service';
 import seasonService from '@services/season.service';
 import type { PlayerGlobalRanking } from '@shared/types/playerPoints.types';
@@ -208,12 +208,6 @@ const PlayerRankingPage = () => {
             <div className="flex items-center justify-between gap-2">
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-semibold text-gray-900 truncate">{player.pseudo}</div>
-                {player.clubName && (
-                  <div className="flex items-center gap-1 text-xs text-gray-600">
-                    <Building2 size={10} />
-                    <span className="truncate">{player.clubName}</span>
-                  </div>
-                )}
               </div>
               <div className="text-right flex-shrink-0">
                 <div className="text-sm font-bold text-gray-900">{player.totalPoints} pts</div>
@@ -318,9 +312,6 @@ const PlayerRankingPage = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Joueur
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Club
-                  </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Points Totaux
                   </th>
@@ -359,16 +350,6 @@ const PlayerRankingPage = () => {
                           )}
                         </div>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {player.clubName ? (
-                        <div className="flex items-center gap-1 text-sm text-gray-600">
-                          <Building2 size={14} className="text-gray-400" />
-                          <span>{player.clubName}</span>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-gray-400">-</span>
-                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <div className="flex items-center justify-center gap-1">
