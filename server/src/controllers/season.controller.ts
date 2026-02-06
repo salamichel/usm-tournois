@@ -6,6 +6,7 @@
 import { Request, Response } from 'express';
 import { adminDb } from '../config/firebase.config';
 import type { Season } from '../../../shared/types/season.types';
+import { handleControllerError, ErrorHandlers } from '../utils/error.utils';
 
 /**
  * Get all seasons
@@ -35,11 +36,7 @@ export const getAllSeasons = async (req: Request, res: Response) => {
       data: { seasons },
     });
   } catch (error) {
-    console.error('Error fetching seasons:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching seasons',
-    });
+    handleControllerError(error, 'fetching seasons');
   }
 };
 
@@ -78,11 +75,7 @@ export const getActiveSeason = async (req: Request, res: Response) => {
       data: { season },
     });
   } catch (error) {
-    console.error('Error fetching active season:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching active season',
-    });
+    handleControllerError(error, 'fetching active season');
   }
 };
 
@@ -96,10 +89,7 @@ export const getSeasonById = async (req: Request, res: Response) => {
     const seasonDoc = await adminDb.collection('seasons').doc(seasonId).get();
 
     if (!seasonDoc.exists) {
-      return res.status(404).json({
-        success: false,
-        message: 'Season not found',
-      });
+      ErrorHandlers.notFound('Season', seasonId);
     }
 
     const data = seasonDoc.data()!;
@@ -118,11 +108,7 @@ export const getSeasonById = async (req: Request, res: Response) => {
       data: { season },
     });
   } catch (error) {
-    console.error('Error fetching season:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching season',
-    });
+    handleControllerError(error, 'fetching season');
   }
 };
 
@@ -134,20 +120,14 @@ export const createSeason = async (req: Request, res: Response) => {
     const { name, startDate, endDate } = req.body;
 
     if (!name || !startDate || !endDate) {
-      return res.status(400).json({
-        success: false,
-        message: 'Name, startDate, and endDate are required',
-      });
+      ErrorHandlers.validation('Name, startDate, and endDate are required');
     }
 
     const start = new Date(startDate);
     const end = new Date(endDate);
 
     if (start >= end) {
-      return res.status(400).json({
-        success: false,
-        message: 'Start date must be before end date',
-      });
+      ErrorHandlers.validation('Start date must be before end date');
     }
 
     // Check for overlapping seasons
@@ -159,10 +139,7 @@ export const createSeason = async (req: Request, res: Response) => {
 
       // Check if dates overlap
       if (start < existingEnd && end > existingStart) {
-        return res.status(400).json({
-          success: false,
-          message: `Les dates chevauchent la saison "${existing.name}"`,
-        });
+        ErrorHandlers.validation(`Les dates chevauchent la saison "${existing.name}"`);
       }
     }
 
@@ -188,11 +165,7 @@ export const createSeason = async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error('Error creating season:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error creating season',
-    });
+    handleControllerError(error, 'creating season');
   }
 };
 
@@ -208,10 +181,7 @@ export const updateSeason = async (req: Request, res: Response) => {
     const seasonDoc = await seasonRef.get();
 
     if (!seasonDoc.exists) {
-      return res.status(404).json({
-        success: false,
-        message: 'Season not found',
-      });
+      ErrorHandlers.notFound('Season', seasonId);
     }
 
     const updateData: any = {
@@ -247,11 +217,7 @@ export const updateSeason = async (req: Request, res: Response) => {
       message: 'Season updated successfully',
     });
   } catch (error) {
-    console.error('Error updating season:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error updating season',
-    });
+    handleControllerError(error, 'updating season');
   }
 };
 
@@ -266,10 +232,7 @@ export const deleteSeason = async (req: Request, res: Response) => {
     const seasonDoc = await seasonRef.get();
 
     if (!seasonDoc.exists) {
-      return res.status(404).json({
-        success: false,
-        message: 'Season not found',
-      });
+      ErrorHandlers.notFound('Season', seasonId);
     }
 
     // Check if season has any rankings
@@ -280,10 +243,7 @@ export const deleteSeason = async (req: Request, res: Response) => {
       .get();
 
     if (!rankingsSnapshot.empty) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot delete season with existing rankings. Please clear rankings first.',
-      });
+      ErrorHandlers.validation('Cannot delete season with existing rankings. Please clear rankings first.');
     }
 
     await seasonRef.delete();
@@ -293,11 +253,7 @@ export const deleteSeason = async (req: Request, res: Response) => {
       message: 'Season deleted successfully',
     });
   } catch (error) {
-    console.error('Error deleting season:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error deleting season',
-    });
+    handleControllerError(error, 'deleting season');
   }
 };
 

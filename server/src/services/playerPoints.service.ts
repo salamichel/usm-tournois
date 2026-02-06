@@ -16,7 +16,7 @@ import { findSeasonForDate } from '../controllers/season.controller';
 /**
  * Get points for a given rank based on tournament position
  */
-function getPointsForRank(rank: number): number {
+export function getPointsForRank(rank: number): number {
   if (rank === 1) return 100;
   if (rank === 2) return 80;
   if (rank === 3) return 65;

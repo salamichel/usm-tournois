@@ -5,6 +5,7 @@ import type { Tournament, UnassignedPlayer, Team, TeamMember, TournamentQuestion
 import { convertTimestamps } from '../utils/firestore.utils';
 import { calculateTournamentStatus } from '../utils/tournament.status.utils';
 import { calculatePoolRanking } from '../services/match.service';
+import { handleControllerError, ErrorHandlers } from '../utils/error.utils';
 
 /**
  * Validate question responses against tournament's required questions
@@ -24,19 +25,19 @@ const validateQuestionResponses = (
   }
 
   if (!questionResponses || questionResponses.length === 0) {
-    throw new AppError('Des réponses aux questions sont requises pour l\'inscription', 400);
+    ErrorHandlers.validation('Des réponses aux questions sont requises pour l\'inscription');
   }
 
   for (const question of requiredQuestions) {
     const response = questionResponses.find(r => r.questionId === question.id);
     if (!response || !response.selectedOptionId) {
-      throw new AppError(`La question "${question.question}" est obligatoire`, 400);
+      ErrorHandlers.validation(`La question "${question.question}" est obligatoire`);
     }
 
     // Validate that the selected option exists
     const optionExists = question.options.some(o => o.id === response.selectedOptionId);
     if (!optionExists) {
-      throw new AppError(`Option invalide pour la question "${question.question}"`, 400);
+      ErrorHandlers.validation(`Option invalide pour la question "${question.question}"`);
     }
   }
 };
@@ -219,8 +220,7 @@ export const getAllTournaments = async (req: Request, res: Response) => {
       data: { tournaments },
     });
   } catch (error) {
-    console.error('Error getting tournaments:', error);
-    throw new AppError('Error retrieving tournaments', 500);
+    handleControllerError(error, 'getting tournaments', 'Error retrieving tournaments');
   }
 };
 
@@ -234,7 +234,7 @@ export const getTournamentById = async (req: Request, res: Response) => {
     const tournamentDoc = await adminDb.collection('events').doc(id).get();
 
     if (!tournamentDoc.exists) {
-      throw new AppError('Tournament not found', 404);
+      ErrorHandlers.notFound('Tournament', id);
     }
 
     // Get teams
@@ -374,9 +374,7 @@ export const getTournamentById = async (req: Request, res: Response) => {
       }),
     });
   } catch (error) {
-    console.error('Error getting tournament:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error retrieving tournament', 500);
+    handleControllerError(error, 'getting tournament', 'Error retrieving tournament');
   }
 };
 
@@ -389,19 +387,19 @@ export const registerPlayer = async (req: Request, res: Response) => {
   const userId = (req as any).user?.uid;
 
   if (!userId) {
-    throw new AppError('User not authenticated', 401);
+    ErrorHandlers.unauthorized('User not authenticated');
   }
 
   try {
     // Check if tournament exists and is active
     const tournamentDoc = await adminDb.collection('events').doc(tournamentId).get();
     if (!tournamentDoc.exists) {
-      throw new AppError('Tournament not found', 404);
+      ErrorHandlers.notFound('Tournament', tournamentId);
     }
 
     const tournament = tournamentDoc.data();
     if (!tournament?.isActive) {
-      throw new AppError('Tournament is not active', 400);
+      ErrorHandlers.validation('Tournament is not active');
     }
 
     // Validate question responses
@@ -410,7 +408,7 @@ export const registerPlayer = async (req: Request, res: Response) => {
     // Get user data
     const userDoc = await adminDb.collection('users').doc(userId).get();
     if (!userDoc.exists) {
-      throw new AppError('User not found', 404);
+      ErrorHandlers.notFound('User', userId);
     }
 
     const userData = userDoc.data();
@@ -437,9 +435,7 @@ export const registerPlayer = async (req: Request, res: Response) => {
       message: 'Successfully registered as free player',
     });
   } catch (error) {
-    console.error('Error registering player:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error registering player', 500);
+    handleControllerError(error, 'registering player', 'Error registering player');
   }
 };
 
@@ -452,14 +448,14 @@ export const registerTeam = async (req: Request, res: Response) => {
   const userId = (req as any).user?.uid;
 
   if (!userId) {
-    throw new AppError('User not authenticated', 401);
+    ErrorHandlers.unauthorized('User not authenticated');
   }
 
   try {
     // Verify tournament exists
     const tournamentDoc = await adminDb.collection('events').doc(tournamentId).get();
     if (!tournamentDoc.exists) {
-      throw new AppError('Tournament not found', 404);
+      ErrorHandlers.notFound('Tournament', tournamentId);
     }
 
     // Find team across all tournaments where user is captain
@@ -484,7 +480,7 @@ export const registerTeam = async (req: Request, res: Response) => {
     }
 
     if (!foundTeamData) {
-      throw new AppError('Team not found or you are not the captain', 404);
+      ErrorHandlers.notFound('Team', teamId);
     }
 
     // Check if already registered
@@ -496,7 +492,7 @@ export const registerTeam = async (req: Request, res: Response) => {
       .get();
 
     if (existingRegistration.exists) {
-      throw new AppError('Team is already registered for this tournament', 400);
+      ErrorHandlers.validation('Team is already registered for this tournament');
     }
 
     // Register team
@@ -515,9 +511,7 @@ export const registerTeam = async (req: Request, res: Response) => {
       message: 'Team successfully registered for tournament',
     });
   } catch (error) {
-    console.error('Error registering team:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error registering team', 500);
+    handleControllerError(error, 'registering team', 'Error registering team');
   }
 };
 
@@ -530,7 +524,7 @@ export const unregisterTeam = async (req: Request, res: Response) => {
   const userId = (req as any).user?.uid;
 
   if (!userId) {
-    throw new AppError('User not authenticated', 401);
+    ErrorHandlers.unauthorized('User not authenticated');
   }
 
   try {
@@ -542,12 +536,12 @@ export const unregisterTeam = async (req: Request, res: Response) => {
       .get();
 
     if (!teamDoc.exists) {
-      throw new AppError('Team not found in this tournament', 404);
+      ErrorHandlers.notFound('Team', teamId);
     }
 
     const teamData = teamDoc.data();
     if (teamData?.captainId !== userId) {
-      throw new AppError('You are not the captain of this team', 403);
+      ErrorHandlers.forbidden('You are not the captain of this team');
     }
 
     // Remove team from tournament
@@ -563,9 +557,7 @@ export const unregisterTeam = async (req: Request, res: Response) => {
       message: 'Team successfully unregistered from tournament',
     });
   } catch (error) {
-    console.error('Error unregistering team:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error unregistering team', 500);
+    handleControllerError(error, 'unregistering team', 'Error unregistering team');
   }
 };
 
@@ -577,7 +569,7 @@ export const leaveTournament = async (req: Request, res: Response) => {
   const userId = (req as any).user?.uid;
 
   if (!userId) {
-    throw new AppError('User not authenticated', 401);
+    ErrorHandlers.unauthorized('User not authenticated');
   }
 
   try {
@@ -620,9 +612,7 @@ export const leaveTournament = async (req: Request, res: Response) => {
       message: 'Successfully left tournament',
     });
   } catch (error) {
-    console.error('Error leaving tournament:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error leaving tournament', 500);
+    handleControllerError(error, 'leaving tournament', 'Error leaving tournament');
   }
 };
 
@@ -635,14 +625,14 @@ export const joinTeam = async (req: Request, res: Response) => {
   const userId = (req as any).user?.uid;
 
   if (!userId) {
-    throw new AppError('User not authenticated', 401);
+    ErrorHandlers.unauthorized('User not authenticated');
   }
 
   try {
     // Check tournament exists
     const tournamentDoc = await adminDb.collection('events').doc(tournamentId).get();
     if (!tournamentDoc.exists) {
-      throw new AppError('Tournament not found', 404);
+      ErrorHandlers.notFound('Tournament', tournamentId);
     }
 
     const tournament = tournamentDoc.data();
@@ -659,7 +649,7 @@ export const joinTeam = async (req: Request, res: Response) => {
       .get();
 
     if (!teamDoc.exists) {
-      throw new AppError('Team not found in this tournament', 404);
+      ErrorHandlers.notFound('Team', teamId);
     }
 
     const teamData = teamDoc.data();
@@ -667,19 +657,19 @@ export const joinTeam = async (req: Request, res: Response) => {
     // Check if team is full
     const currentMembers = teamData?.members || [];
     if (currentMembers.length >= (tournament?.playersPerTeam || 4)) {
-      throw new AppError('Team has reached maximum number of players', 400);
+      ErrorHandlers.validation('Team has reached maximum number of players');
     }
 
     // Check if user is already in team
     const alreadyInTeam = currentMembers.some((m: any) => m.userId === userId);
     if (alreadyInTeam) {
-      throw new AppError('You are already a member of this team', 400);
+      ErrorHandlers.validation('You are already a member of this team');
     }
 
     // Get user data
     const userDoc = await adminDb.collection('users').doc(userId).get();
     if (!userDoc.exists) {
-      throw new AppError('User not found', 404);
+      ErrorHandlers.notFound('User', userId);
     }
 
     const userData = userDoc.data();
@@ -720,9 +710,7 @@ export const joinTeam = async (req: Request, res: Response) => {
       message: `Successfully joined team ${teamData?.name}`,
     });
   } catch (error) {
-    console.error('Error joining team:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error joining team', 500);
+    handleControllerError(error, 'joining team', 'Error joining team');
   }
 };
 
@@ -735,7 +723,7 @@ export const leaveTeam = async (req: Request, res: Response) => {
   const userId = (req as any).user?.uid;
 
   if (!userId) {
-    throw new AppError('User not authenticated', 401);
+    ErrorHandlers.unauthorized('User not authenticated');
   }
 
   try {
@@ -747,7 +735,7 @@ export const leaveTeam = async (req: Request, res: Response) => {
       .get();
 
     if (!teamDoc.exists) {
-      throw new AppError('Team not found', 404);
+      ErrorHandlers.notFound('Team', teamId);
     }
 
     const teamData = teamDoc.data();
@@ -755,7 +743,7 @@ export const leaveTeam = async (req: Request, res: Response) => {
     const memberToLeave = members.find((m: any) => m.userId === userId);
 
     if (!memberToLeave) {
-      throw new AppError('You are not a member of this team', 400);
+      ErrorHandlers.validation('You are not a member of this team');
     }
 
     const batch = adminDb.batch();
@@ -803,9 +791,7 @@ export const leaveTeam = async (req: Request, res: Response) => {
       message: 'Successfully left team',
     });
   } catch (error) {
-    console.error('Error leaving team:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error leaving team', 500);
+    handleControllerError(error, 'leaving team', 'Error leaving team');
   }
 };
 
@@ -818,25 +804,25 @@ export const createTeam = async (req: Request, res: Response) => {
   const userId = (req as any).user?.uid;
 
   if (!userId) {
-    throw new AppError('User not authenticated', 401);
+    ErrorHandlers.unauthorized('User not authenticated');
   }
 
   if (!teamName || teamName.trim() === '') {
-    throw new AppError('Team name is required', 400);
+    ErrorHandlers.validation('Team name is required');
   }
 
   try {
     // Check tournament exists
     const tournamentDoc = await adminDb.collection('events').doc(tournamentId).get();
     if (!tournamentDoc.exists) {
-      throw new AppError('Tournament not found', 404);
+      ErrorHandlers.notFound('Tournament', tournamentId);
     }
 
     const tournamentData = tournamentDoc.data();
 
     // Check if tournament is in random mode (teams are generated by admin)
     if (tournamentData?.registrationMode === 'random') {
-      throw new AppError('Cannot create teams in this tournament. Teams will be generated randomly by the admin.', 403);
+      ErrorHandlers.forbidden('Cannot create teams in this tournament. Teams will be generated randomly by the admin.');
     }
 
     // Validate question responses
@@ -845,7 +831,7 @@ export const createTeam = async (req: Request, res: Response) => {
     // Get user data
     const userDoc = await adminDb.collection('users').doc(userId).get();
     if (!userDoc.exists) {
-      throw new AppError('User not found', 404);
+      ErrorHandlers.notFound('User', userId);
     }
 
     const userData = userDoc.data();
@@ -896,9 +882,7 @@ export const createTeam = async (req: Request, res: Response) => {
       teamId: newTeamRef.id,
     });
   } catch (error) {
-    console.error('Error creating team:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error creating team', 500);
+    handleControllerError(error, 'creating team', 'Error creating team');
   }
 };
 
@@ -910,19 +894,19 @@ export const joinWaitingList = async (req: Request, res: Response) => {
   const userId = (req as any).user?.uid;
 
   if (!userId) {
-    throw new AppError('User not authenticated', 401);
+    ErrorHandlers.unauthorized('User not authenticated');
   }
 
   try {
     // Check tournament exists and has waiting list enabled
     const tournamentDoc = await adminDb.collection('events').doc(tournamentId).get();
     if (!tournamentDoc.exists) {
-      throw new AppError('Tournament not found', 404);
+      ErrorHandlers.notFound('Tournament', tournamentId);
     }
 
     const tournament = tournamentDoc.data();
     if ((tournament?.waitingListSize || 0) <= 0) {
-      throw new AppError('Waiting list is not enabled for this tournament', 400);
+      ErrorHandlers.validation('Waiting list is not enabled for this tournament');
     }
 
     // Find user's team where they are captain
@@ -934,7 +918,7 @@ export const joinWaitingList = async (req: Request, res: Response) => {
       .get();
 
     if (teamsSnapshot.empty) {
-      throw new AppError('You must be a team captain to join the waiting list', 400);
+      ErrorHandlers.validation('You must be a team captain to join the waiting list');
     }
 
     const teamDoc = teamsSnapshot.docs[0];
@@ -948,7 +932,7 @@ export const joinWaitingList = async (req: Request, res: Response) => {
       .get();
 
     if (waitingListSnapshot.size >= (tournament.waitingListSize || 0)) {
-      throw new AppError('Waiting list is full', 400);
+      ErrorHandlers.validation('Waiting list is full');
     }
 
     // Add to waiting list
@@ -967,8 +951,6 @@ export const joinWaitingList = async (req: Request, res: Response) => {
       message: 'Successfully added to waiting list',
     });
   } catch (error) {
-    console.error('Error joining waiting list:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error joining waiting list', 500);
+    handleControllerError(error, 'joining waiting list', 'Error joining waiting list');
   }
 };

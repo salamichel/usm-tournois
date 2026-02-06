@@ -6,6 +6,7 @@ import type { Club, ClubWithStats } from '../../../shared/types/club.types';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { handleControllerError, ErrorHandlers } from '../utils/error.utils';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -40,8 +41,7 @@ export const getAllClubs = async (req: Request, res: Response) => {
       data: { clubs },
     });
   } catch (error) {
-    console.error('Error getting all clubs:', error);
-    throw new AppError('Error retrieving clubs', 500);
+    handleControllerError(error, 'getting all clubs', 'Error retrieving clubs', 500);
   }
 };
 
@@ -55,7 +55,7 @@ export const getClubById = async (req: Request, res: Response) => {
     const clubDoc = await adminDb.collection('clubs').doc(id).get();
 
     if (!clubDoc.exists) {
-      throw new AppError('Club not found', 404);
+      ErrorHandlers.notFound('Club', id);
     }
 
     const clubData = convertTimestamps({
@@ -68,9 +68,7 @@ export const getClubById = async (req: Request, res: Response) => {
       data: { club: clubData },
     });
   } catch (error) {
-    console.error('Error getting club:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error retrieving club', 500);
+    handleControllerError(error, 'getting club', 'Error retrieving club', 500);
   }
 };
 
@@ -83,7 +81,7 @@ export const createClub = async (req: Request, res: Response) => {
 
     // Validate required fields
     if (!name || name.trim() === '') {
-      throw new AppError('Club name is required', 400);
+      ErrorHandlers.validation('Club name is required');
     }
 
     // Check if club with same name already exists
@@ -93,7 +91,7 @@ export const createClub = async (req: Request, res: Response) => {
       .get();
 
     if (!existingClubSnapshot.empty) {
-      throw new AppError('A club with this name already exists', 400);
+      ErrorHandlers.validation('A club with this name already exists');
     }
 
     // Handle uploaded logo file (if any)
@@ -122,9 +120,7 @@ export const createClub = async (req: Request, res: Response) => {
       data: { club: createdClub },
     });
   } catch (error) {
-    console.error('Error creating club:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error creating club', 500);
+    handleControllerError(error, 'creating club', 'Error creating club', 500);
   }
 };
 
@@ -139,7 +135,7 @@ export const updateClub = async (req: Request, res: Response) => {
     const clubDoc = await adminDb.collection('clubs').doc(id).get();
 
     if (!clubDoc.exists) {
-      throw new AppError('Club not found', 404);
+      ErrorHandlers.notFound('Club', id);
     }
 
     // Check if new name already exists (excluding current club)
@@ -150,7 +146,7 @@ export const updateClub = async (req: Request, res: Response) => {
         .get();
 
       if (!existingClubSnapshot.empty && existingClubSnapshot.docs[0].id !== id) {
-        throw new AppError('A club with this name already exists', 400);
+        ErrorHandlers.validation('A club with this name already exists');
       }
     }
 
@@ -190,9 +186,7 @@ export const updateClub = async (req: Request, res: Response) => {
       data: { club: updatedClub },
     });
   } catch (error) {
-    console.error('Error updating club:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error updating club', 500);
+    handleControllerError(error, 'updating club', 'Error updating club', 500);
   }
 };
 
@@ -206,7 +200,7 @@ export const deleteClub = async (req: Request, res: Response) => {
     const clubDoc = await adminDb.collection('clubs').doc(id).get();
 
     if (!clubDoc.exists) {
-      throw new AppError('Club not found', 404);
+      ErrorHandlers.notFound('Club', id);
     }
 
     // Check if there are players associated with this club
@@ -216,9 +210,8 @@ export const deleteClub = async (req: Request, res: Response) => {
       .get();
 
     if (!usersSnapshot.empty) {
-      throw new AppError(
-        `Cannot delete club. ${usersSnapshot.size} player(s) are still associated with this club.`,
-        400
+      ErrorHandlers.validation(
+        `Cannot delete club. ${usersSnapshot.size} player(s) are still associated with this club.`
       );
     }
 
@@ -239,9 +232,7 @@ export const deleteClub = async (req: Request, res: Response) => {
       message: 'Club deleted successfully',
     });
   } catch (error) {
-    console.error('Error deleting club:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error deleting club', 500);
+    handleControllerError(error, 'deleting club', 'Error deleting club', 500);
   }
 };
 
@@ -255,7 +246,7 @@ export const getClubPlayers = async (req: Request, res: Response) => {
     const clubDoc = await adminDb.collection('clubs').doc(id).get();
 
     if (!clubDoc.exists) {
-      throw new AppError('Club not found', 404);
+      ErrorHandlers.notFound('Club', id);
     }
 
     const usersSnapshot = await adminDb
@@ -275,8 +266,6 @@ export const getClubPlayers = async (req: Request, res: Response) => {
       data: { players },
     });
   } catch (error) {
-    console.error('Error getting club players:', error);
-    if (error instanceof AppError) throw error;
-    throw new AppError('Error retrieving club players', 500);
+    handleControllerError(error, 'getting club players', 'Error retrieving club players', 500);
   }
 };

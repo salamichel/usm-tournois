@@ -3,6 +3,7 @@ import { adminDb } from '../config/firebase.config';
 import * as flexibleKingService from '../services/flexible-king.service';
 import * as kingService from '../services/king.service';
 import * as playerPointsService from '../services/playerPoints.service';
+import { handleControllerError, ErrorHandlers } from '../utils/error.utils';
 import type {
   FlexibleKingPhase,
   FlexibleKingTournamentData,
@@ -21,7 +22,7 @@ export const getFlexibleKingDashboard = async (req: Request, res: Response) => {
     // Get tournament
     const tournamentDoc = await adminDb.collection('events').doc(tournamentId).get();
     if (!tournamentDoc.exists) {
-      return res.status(404).json({ success: false, message: 'Tournament not found' });
+      ErrorHandlers.notFound('Tournament', tournamentId);
     }
 
     const tournament = { id: tournamentDoc.id, ...tournamentDoc.data() };
@@ -31,10 +32,7 @@ export const getFlexibleKingDashboard = async (req: Request, res: Response) => {
     const flexKingDoc = await flexKingDocRef.get();
 
     if (!flexKingDoc.exists) {
-      return res.status(404).json({
-        success: false,
-        message: 'Flexible King Mode not initialized for this tournament',
-      });
+      ErrorHandlers.notFound('Flexible King Mode', tournamentId);
     }
 
     const kingData = (flexKingDoc.data() || {}) as FlexibleKingTournamentData;
@@ -103,8 +101,7 @@ export const getFlexibleKingDashboard = async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error('Error getting flexible King dashboard:', error);
-    res.status(500).json({ success: false, message: 'Error loading flexible King dashboard' });
+    handleControllerError(error, 'getting flexible King dashboard', 'Error loading flexible King dashboard');
   }
 };
 
@@ -117,17 +114,14 @@ export const initializeFlexibleKing = async (req: Request, res: Response) => {
 
   try {
     if (!phases || !Array.isArray(phases) || phases.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Phases configuration is required',
-      });
+      ErrorHandlers.validation('Phases configuration is required');
     }
 
     const tournamentRef = adminDb.collection('events').doc(tournamentId);
     const tournamentDoc = await tournamentRef.get();
 
     if (!tournamentDoc.exists) {
-      return res.status(404).json({ success: false, message: 'Tournament not found' });
+      ErrorHandlers.notFound('Tournament', tournamentId);
     }
 
     // Get registered players count for validation
@@ -143,11 +137,7 @@ export const initializeFlexibleKing = async (req: Request, res: Response) => {
     );
 
     if (!validation.valid) {
-      return res.status(400).json({
-        success: false,
-        message: 'Configuration validation failed',
-        errors: validation.errors,
-      });
+      ErrorHandlers.validation(`Configuration validation failed: ${validation.errors?.join(', ')}`);
     }
 
     // Initialize King data structure
@@ -197,11 +187,7 @@ export const initializeFlexibleKing = async (req: Request, res: Response) => {
       data: kingData,
     });
   } catch (error) {
-    console.error('Error initializing flexible King:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error initializing flexible King Mode',
-    });
+    handleControllerError(error, 'initializing flexible King Mode', 'Error initializing flexible King Mode');
   }
 };
 
@@ -214,10 +200,7 @@ export const updatePhaseConfiguration = async (req: Request, res: Response) => {
 
   try {
     if (!config) {
-      return res.status(400).json({
-        success: false,
-        message: 'Phase configuration is required',
-      });
+      ErrorHandlers.validation('Phase configuration is required');
     }
 
     const tournamentRef = adminDb.collection('events').doc(tournamentId);
@@ -227,10 +210,7 @@ export const updatePhaseConfiguration = async (req: Request, res: Response) => {
     const phaseDoc = await phaseDocRef.get();
 
     if (!phaseDoc.exists) {
-      return res.status(404).json({
-        success: false,
-        message: `Phase ${phaseNumber} not found`,
-      });
+      ErrorHandlers.notFound(`Phase ${phaseNumber}`);
     }
 
     const batch = adminDb.batch();
@@ -254,11 +234,7 @@ export const updatePhaseConfiguration = async (req: Request, res: Response) => {
       message: `Phase ${phaseNumber} configuration updated successfully`,
     });
   } catch (error) {
-    console.error('Error updating phase configuration:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error updating phase configuration',
-    });
+    handleControllerError(error, 'updating phase configuration', 'Error updating phase configuration');
   }
 };
 
@@ -273,7 +249,7 @@ export const startFlexibleKingPhase = async (req: Request, res: Response) => {
     const tournamentDoc = await tournamentRef.get();
 
     if (!tournamentDoc.exists) {
-      return res.status(404).json({ success: false, message: 'Tournament not found' });
+      ErrorHandlers.notFound('Tournament', tournamentId);
     }
 
     const flexKingDocRef = tournamentRef.collection('flexibleKing').doc('mainData');
@@ -282,10 +258,7 @@ export const startFlexibleKingPhase = async (req: Request, res: Response) => {
     const phaseDoc = await phaseDocRef.get();
 
     if (!phaseDoc.exists) {
-      return res.status(404).json({
-        success: false,
-        message: `Phase ${phaseNumber} not found`,
-      });
+      ErrorHandlers.notFound(`Phase ${phaseNumber}`);
     }
 
     const phase = { id: phaseDoc.id, ...phaseDoc.data() } as FlexibleKingPhase;
@@ -311,19 +284,13 @@ export const startFlexibleKingPhase = async (req: Request, res: Response) => {
       const previousPhaseDoc = await previousPhaseDocRef.get();
 
       if (!previousPhaseDoc.exists) {
-        return res.status(400).json({
-          success: false,
-          message: `Previous phase ${previousPhaseNumber} not found`,
-        });
+        ErrorHandlers.validation(`Previous phase ${previousPhaseNumber} not found`);
       }
 
       const previousPhase = previousPhaseDoc.data() as FlexibleKingPhase;
 
       if (previousPhase.status !== 'completed') {
-        return res.status(400).json({
-          success: false,
-          message: `Previous phase ${previousPhaseNumber} must be completed first`,
-        });
+        ErrorHandlers.validation(`Previous phase ${previousPhaseNumber} must be completed first`);
       }
 
       phase.participantIds = previousPhase.qualifiedIds;
@@ -333,10 +300,7 @@ export const startFlexibleKingPhase = async (req: Request, res: Response) => {
     const validation = flexibleKingService.validatePhaseStart(phase, registeredPlayers.length);
 
     if (!validation.valid) {
-      return res.status(400).json({
-        success: false,
-        message: validation.error,
-      });
+      ErrorHandlers.validation(validation.error);
     }
 
     // Generate pools and matches
@@ -404,11 +368,7 @@ export const startFlexibleKingPhase = async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error('Error starting flexible King phase:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error starting phase',
-    });
+    handleControllerError(error, 'starting flexible King phase', 'Error starting phase');
   }
 };
 
@@ -426,19 +386,13 @@ export const completeFlexibleKingPhase = async (req: Request, res: Response) => 
     const phaseDoc = await phaseDocRef.get();
 
     if (!phaseDoc.exists) {
-      return res.status(404).json({
-        success: false,
-        message: `Phase ${phaseNumber} not found`,
-      });
+      ErrorHandlers.notFound(`Phase ${phaseNumber}`);
     }
 
     const phase = phaseDoc.data() as FlexibleKingPhase;
 
     if (phase.status !== 'in_progress') {
-      return res.status(400).json({
-        success: false,
-        message: `Phase ${phaseNumber} is not in progress`,
-      });
+      ErrorHandlers.validation(`Phase ${phaseNumber} is not in progress`);
     }
 
     // Load pools and matches
@@ -469,10 +423,7 @@ export const completeFlexibleKingPhase = async (req: Request, res: Response) => 
     const incompleteMatches = matches.filter((m) => m.status !== 'completed');
 
     if (incompleteMatches.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: `${incompleteMatches.length} matches still incomplete`,
-      });
+      ErrorHandlers.validation(`${incompleteMatches.length} matches still incomplete`);
     }
 
     // Calculate qualifiers
@@ -531,11 +482,7 @@ export const completeFlexibleKingPhase = async (req: Request, res: Response) => 
       },
     });
   } catch (error) {
-    console.error('Error completing flexible King phase:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error completing phase',
-    });
+    handleControllerError(error, 'completing flexible King phase', 'Error completing phase');
   }
 };
 
@@ -548,10 +495,7 @@ export const manageWithdrawals = async (req: Request, res: Response) => {
 
   try {
     if (!Array.isArray(withdrawnPlayerIds)) {
-      return res.status(400).json({
-        success: false,
-        message: 'withdrawnPlayerIds must be an array',
-      });
+      ErrorHandlers.validation('withdrawnPlayerIds must be an array');
     }
 
     const tournamentRef = adminDb.collection('events').doc(tournamentId);
@@ -561,10 +505,7 @@ export const manageWithdrawals = async (req: Request, res: Response) => {
     const phaseDoc = await phaseDocRef.get();
 
     if (!phaseDoc.exists) {
-      return res.status(404).json({
-        success: false,
-        message: `Phase ${phaseNumber} not found`,
-      });
+      ErrorHandlers.notFound(`Phase ${phaseNumber}`);
     }
 
     const batch = adminDb.batch();
@@ -589,11 +530,7 @@ export const manageWithdrawals = async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error('Error managing withdrawals:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error managing withdrawals',
-    });
+    handleControllerError(error, 'managing withdrawals', 'Error managing withdrawals');
   }
 };
 
@@ -606,10 +543,7 @@ export const manageRepechages = async (req: Request, res: Response) => {
 
   try {
     if (!Array.isArray(repechedPlayerIds)) {
-      return res.status(400).json({
-        success: false,
-        message: 'repechedPlayerIds must be an array',
-      });
+      ErrorHandlers.validation('repechedPlayerIds must be an array');
     }
 
     const tournamentRef = adminDb.collection('events').doc(tournamentId);
@@ -619,10 +553,7 @@ export const manageRepechages = async (req: Request, res: Response) => {
     const phaseDoc = await phaseDocRef.get();
 
     if (!phaseDoc.exists) {
-      return res.status(404).json({
-        success: false,
-        message: `Phase ${phaseNumber} not found`,
-      });
+      ErrorHandlers.notFound(`Phase ${phaseNumber}`);
     }
 
     const phase = phaseDoc.data() as FlexibleKingPhase;
@@ -654,11 +585,7 @@ export const manageRepechages = async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error('Error managing repechages:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error managing repechages',
-    });
+    handleControllerError(error, 'managing repechages', 'Error managing repechages');
   }
 };
 
@@ -676,10 +603,7 @@ export const resetFlexibleKingPhase = async (req: Request, res: Response) => {
     const phaseDoc = await phaseDocRef.get();
 
     if (!phaseDoc.exists) {
-      return res.status(404).json({
-        success: false,
-        message: `Phase ${phaseNumber} not found`,
-      });
+      ErrorHandlers.notFound(`Phase ${phaseNumber}`);
     }
 
     const batch = adminDb.batch();
@@ -719,11 +643,7 @@ export const resetFlexibleKingPhase = async (req: Request, res: Response) => {
       message: `Phase ${phaseNumber} reset successfully`,
     });
   } catch (error) {
-    console.error('Error resetting flexible King phase:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error resetting phase',
-    });
+    handleControllerError(error, 'resetting flexible King phase', 'Error resetting phase');
   }
 };
 
@@ -736,10 +656,7 @@ export const recordFlexibleKingMatchResult = async (req: Request, res: Response)
 
   try {
     if (setsWonTeam1 === undefined || setsWonTeam2 === undefined) {
-      return res.status(400).json({
-        success: false,
-        message: 'setsWonTeam1 and setsWonTeam2 are required',
-      });
+      ErrorHandlers.validation('setsWonTeam1 and setsWonTeam2 are required');
     }
 
     const tournamentRef = adminDb.collection('events').doc(tournamentId);
@@ -763,10 +680,7 @@ export const recordFlexibleKingMatchResult = async (req: Request, res: Response)
     }
 
     if (!matchRef || !matchData) {
-      return res.status(404).json({
-        success: false,
-        message: 'Match not found in this phase',
-      });
+      ErrorHandlers.notFound('Match', matchId);
     }
 
     // Determine winner
@@ -824,11 +738,7 @@ export const recordFlexibleKingMatchResult = async (req: Request, res: Response)
       },
     });
   } catch (error) {
-    console.error('Error recording match result:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error recording match result',
-    });
+    handleControllerError(error, 'recording match result', 'Error recording match result');
   }
 };
 
@@ -846,10 +756,7 @@ export const getPhaseStatistics = async (req: Request, res: Response) => {
     const phaseDoc = await phaseDocRef.get();
 
     if (!phaseDoc.exists) {
-      return res.status(404).json({
-        success: false,
-        message: `Phase ${phaseNumber} not found`,
-      });
+      ErrorHandlers.notFound(`Phase ${phaseNumber}`);
     }
 
     // Load all matches
@@ -871,11 +778,7 @@ export const getPhaseStatistics = async (req: Request, res: Response) => {
       data: stats,
     });
   } catch (error) {
-    console.error('Error getting phase statistics:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error getting phase statistics',
-    });
+    handleControllerError(error, 'getting phase statistics', 'Error getting phase statistics');
   }
 };
 
@@ -893,10 +796,7 @@ export const getPlayerPhaseStatistics = async (req: Request, res: Response) => {
     const phaseDoc = await phaseDocRef.get();
 
     if (!phaseDoc.exists) {
-      return res.status(404).json({
-        success: false,
-        message: `Phase ${phaseNumber} not found`,
-      });
+      ErrorHandlers.notFound(`Phase ${phaseNumber}`);
     }
 
     // Load all matches
@@ -921,11 +821,7 @@ export const getPlayerPhaseStatistics = async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error('Error getting player statistics:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error getting player statistics',
-    });
+    handleControllerError(error, 'getting player statistics', 'Error getting player statistics');
   }
 };
 
@@ -938,20 +834,14 @@ export const previewConfiguration = async (req: Request, res: Response) => {
 
   try {
     if (!phases || !Array.isArray(phases) || phases.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Phases configuration is required',
-      });
+      ErrorHandlers.validation('Phases configuration is required');
     }
 
     const tournamentRef = adminDb.collection('events').doc(tournamentId);
     const tournamentDoc = await tournamentRef.get();
 
     if (!tournamentDoc.exists) {
-      return res.status(404).json({
-        success: false,
-        message: 'Tournament not found',
-      });
+      ErrorHandlers.notFound('Tournament', tournamentId);
     }
 
     // Get registered players count
@@ -965,11 +855,7 @@ export const previewConfiguration = async (req: Request, res: Response) => {
     );
 
     if (!validation.valid) {
-      return res.status(400).json({
-        success: false,
-        message: 'Configuration validation failed',
-        errors: validation.errors,
-      });
+      ErrorHandlers.validation(`Configuration validation failed: ${validation.errors?.join(', ')}`);
     }
 
     // Generate preview for each phase
@@ -992,11 +878,7 @@ export const previewConfiguration = async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error('Error previewing configuration:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error previewing configuration',
-    });
+    handleControllerError(error, 'previewing configuration', 'Error previewing configuration');
   }
 };
 
@@ -1014,19 +896,13 @@ export const getRepechageCandidates = async (req: Request, res: Response) => {
     const phaseDoc = await phaseDocRef.get();
 
     if (!phaseDoc.exists) {
-      return res.status(404).json({
-        success: false,
-        message: `Phase ${phaseNumber} not found`,
-      });
+      ErrorHandlers.notFound(`Phase ${phaseNumber}`);
     }
 
     const phase = phaseDoc.data() as FlexibleKingPhase;
 
     if (phase.status !== 'completed') {
-      return res.status(400).json({
-        success: false,
-        message: `Phase ${phaseNumber} must be completed to get repechage candidates`,
-      });
+      ErrorHandlers.validation(`Phase ${phaseNumber} must be completed to get repechage candidates`);
     }
 
     // Load pools and matches
@@ -1068,11 +944,7 @@ export const getRepechageCandidates = async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error('Error getting repechage candidates:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error getting repechage candidates',
-    });
+    handleControllerError(error, 'getting repechage candidates', 'Error getting repechage candidates');
   }
 };
 
@@ -1088,33 +960,33 @@ export const setAllMatchesRandomScores = async (req: Request, res: Response) => 
     const tournamentDoc = await tournamentRef.get();
 
     if (!tournamentDoc.exists) {
-      return res.status(404).json({ success: false, message: 'Tournament not found' });
+      ErrorHandlers.notFound('Tournament', tournamentId);
     }
 
     const flexKingDocRef = tournamentRef.collection('flexibleKing').doc('mainData');
     const flexKingDoc = await flexKingDocRef.get();
 
     if (!flexKingDoc.exists) {
-      return res.status(404).json({ success: false, message: 'Flexible King Mode not initialized' });
+      ErrorHandlers.notFound('Flexible King Mode', tournamentId);
     }
 
     const kingData = flexKingDoc.data();
     const currentPhaseNumber = kingData?.currentPhaseNumber;
 
     if (!currentPhaseNumber) {
-      return res.status(400).json({ success: false, message: 'No active phase to set scores for' });
+      ErrorHandlers.validation('No active phase to set scores for');
     }
 
     const phaseDocRef = flexKingDocRef.collection('phases').doc(`phase-${currentPhaseNumber}`);
     const phaseDoc = await phaseDocRef.get();
 
     if (!phaseDoc.exists) {
-      return res.status(404).json({ success: false, message: `Phase ${currentPhaseNumber} not found` });
+      ErrorHandlers.notFound(`Phase ${currentPhaseNumber}`);
     }
 
     const phase = phaseDoc.data();
     if (phase?.status !== 'in_progress') {
-      return res.status(400).json({ success: false, message: 'Phase must be in progress to set scores' });
+      ErrorHandlers.validation('Phase must be in progress to set scores');
     }
 
     const batch = adminDb.batch();
@@ -1184,11 +1056,7 @@ export const setAllMatchesRandomScores = async (req: Request, res: Response) => 
       }
     });
   } catch (error) {
-    console.error('Error setting random scores:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error setting random scores',
-    });
+    handleControllerError(error, 'setting random scores', 'Error setting random scores');
   }
 };
 
@@ -1203,7 +1071,7 @@ export const freezeFlexibleKingTournament = async (req: Request, res: Response) 
     const tournamentDoc = await tournamentRef.get();
 
     if (!tournamentDoc.exists) {
-      return res.status(404).json({ success: false, message: 'Tournament not found' });
+      ErrorHandlers.notFound('Tournament', tournamentId);
     }
 
     const tournament = tournamentDoc.data();
@@ -1212,7 +1080,7 @@ export const freezeFlexibleKingTournament = async (req: Request, res: Response) 
     const flexKingDoc = await flexKingDocRef.get();
 
     if (!flexKingDoc.exists) {
-      return res.status(404).json({ success: false, message: 'Flexible King Mode not initialized' });
+      ErrorHandlers.notFound('Flexible King Mode', tournamentId);
     }
 
     const kingData = flexKingDoc.data();
@@ -1225,20 +1093,14 @@ export const freezeFlexibleKingTournament = async (req: Request, res: Response) 
     const lastPhase = phases.sort((a, b) => b.phaseNumber - a.phaseNumber)[0];
 
     if (!lastPhase || lastPhase.status !== 'completed') {
-      return res.status(400).json({
-        success: false,
-        message: 'La dernière phase doit être terminée pour figer le tournoi'
-      });
+      ErrorHandlers.validation('La dernière phase doit être terminée pour figer le tournoi');
     }
 
     // Get final ranking from last phase
     const finalRanking = lastPhase.ranking;
 
     if (!finalRanking || finalRanking.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Pas de classement disponible pour la dernière phase'
-      });
+      ErrorHandlers.validation('Pas de classement disponible pour la dernière phase');
     }
 
     // Delete existing points for this tournament (allows re-freeze)
@@ -1279,10 +1141,6 @@ export const freezeFlexibleKingTournament = async (req: Request, res: Response) 
       }
     });
   } catch (error) {
-    console.error('Error freezing tournament:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error freezing tournament',
-    });
+    handleControllerError(error, 'freezing tournament', 'Error freezing tournament');
   }
 };
