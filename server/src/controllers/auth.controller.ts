@@ -579,10 +579,16 @@ export const requestPasswordReset = async (req: Request, res: Response) => {
     clientUrl = clientUrl.replace(/\/+$/, '');
     console.log(`[Auth] URL client utilisée pour le lien : ${clientUrl}`);
 
-    // Generate password reset link
-    const resetLink = await adminAuth.generatePasswordResetLink(cleanEmail, {
-      url: clientUrl,
-    });
+    // Generate password reset link without actionCodeSettings to avoid auth/unauthorized-continue-uri
+    // (The oobCode will be extracted and embedded directly in our custom app reset URL)
+    let resetLink;
+    try {
+      resetLink = await adminAuth.generatePasswordResetLink(cleanEmail);
+    } catch (err) {
+      // Fallback if needed
+      console.warn('[Auth] Tentative avec continueUrl après échec sans paramètre:', err);
+      resetLink = await adminAuth.generatePasswordResetLink(cleanEmail, { url: clientUrl });
+    }
 
     // Extract oobCode to create direct link to custom reset page
     let appResetUrl = resetLink;
