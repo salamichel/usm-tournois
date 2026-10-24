@@ -542,8 +542,42 @@ export const requestPasswordReset = async (req: Request, res: Response) => {
     const userRecord = await adminAuth.getUserByEmail(cleanEmail);
     console.log(`[Auth] Utilisateur trouvé dans Firebase Auth : ${userRecord.uid} (${cleanEmail})`);
 
-    // Base client URL
-    const clientUrl = (process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/+$/, '');
+    // Determine client URL dynamically:
+    // 1. Origin header from request (e.g. https://usm-tournois.moka-web.net)
+    // 2. Referer header (origin part)
+    // 3. process.env.CLIENT_URL (if configured and not localhost)
+    // 4. Fallback: https://usm-tournois.moka-web.net in production, http://localhost:5173 in dev
+    let clientUrl = '';
+    const originHeader = req.get('origin');
+    const refererHeader = req.get('referer');
+
+    if (originHeader && !originHeader.includes('localhost')) {
+      clientUrl = originHeader;
+    } else if (refererHeader) {
+      try {
+        const refUrl = new URL(refererHeader);
+        if (!refUrl.origin.includes('localhost')) {
+          clientUrl = refUrl.origin;
+        }
+      } catch {
+        // ignore invalid referer URL
+      }
+    }
+
+    if (!clientUrl) {
+      if (process.env.CLIENT_URL && !process.env.CLIENT_URL.includes('localhost')) {
+        clientUrl = process.env.CLIENT_URL;
+      } else if (originHeader) {
+        clientUrl = originHeader;
+      } else {
+        clientUrl = process.env.NODE_ENV === 'production'
+          ? 'https://usm-tournois.moka-web.net'
+          : (process.env.CLIENT_URL || 'http://localhost:5173');
+      }
+    }
+
+    clientUrl = clientUrl.replace(/\/+$/, '');
+    console.log(`[Auth] URL client utilisée pour le lien : ${clientUrl}`);
 
     // Generate password reset link
     const resetLink = await adminAuth.generatePasswordResetLink(cleanEmail, {
