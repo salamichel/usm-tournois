@@ -43,3 +43,7 @@ temp/
 
 # Generated TypeScript files
 shared/types/*.js
+
+# Uploads
+public/uploads/*
+!public/uploads/.gitkeep

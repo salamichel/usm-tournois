@@ -10,16 +10,20 @@ export const initializeEmailService = (): void => {
   const apiKey = process.env.BREVO_API_KEY;
 
   if (!apiKey) {
-    console.warn('BREVO_API_KEY not found. Email service will not be available.');
+    console.warn('[Brevo] ⚠️ BREVO_API_KEY non configurée. L\'envoi d\'emails ne sera pas disponible.');
     return;
   }
+
+  const fromEmail = process.env.EMAIL_FROM_ADDRESS || 'noreply@usmtournois.com';
+  const fromName = process.env.EMAIL_FROM_NAME || 'USM Tournois';
+  console.log(`[Brevo] ℹ️ Expéditeur configuré : "${fromName}" <${fromEmail}>`);
 
   try {
     apiInstance = new brevo.TransactionalEmailsApi();
     apiInstance.setApiKey(brevo.TransactionalEmailsApiApiKeys.apiKey, apiKey);
-    console.log('Brevo email service initialized successfully');
+    console.log('[Brevo] ✅ Service d\'email Brevo initialisé avec succès.');
   } catch (error) {
-    console.error('Failed to initialize Brevo email service:', error);
+    console.error('[Brevo] ❌ Échec de l\'initialisation de Brevo:', error);
   }
 };
 
@@ -34,12 +38,14 @@ export const sendPasswordResetEmail = async (
   resetLink: string
 ): Promise<boolean> => {
   if (!apiInstance) {
-    console.error('Email service not initialized. Cannot send email.');
+    console.error('[Brevo] ❌ Service email non initialisé (BREVO_API_KEY manquante). Impossible d\'envoyer à', to);
     return false;
   }
 
   const fromEmail = process.env.EMAIL_FROM_ADDRESS || 'noreply@usmtournois.com';
   const fromName = process.env.EMAIL_FROM_NAME || 'USM Tournois';
+
+  console.log(`[Brevo] 📤 Envoi de l'email de réinitialisation à ${to} via "${fromName}" <${fromEmail}>...`);
 
   const sendSmtpEmail = new brevo.SendSmtpEmail();
 
@@ -119,11 +125,19 @@ L'équipe USM Tournois
   `;
 
   try {
-    await apiInstance.sendTransacEmail(sendSmtpEmail);
-    console.log(`Password reset email sent successfully to ${to}`);
+    const result = await apiInstance.sendTransacEmail(sendSmtpEmail);
+    const messageId = (result as any)?.body?.messageId || (result as any)?.response?.data?.messageId || 'OK';
+    console.log(`[Brevo] ✅ Email de réinitialisation envoyé avec succès à ${to} (Message ID: ${messageId})`);
     return true;
-  } catch (error) {
-    console.error('Error sending password reset email:', error);
+  } catch (error: any) {
+    console.error(`[Brevo] ❌ Échec de l'envoi de l'email à ${to}:`);
+    if (error.response?.data) {
+      console.error('[Brevo] Détails de l\'erreur (API response):', JSON.stringify(error.response.data, null, 2));
+    } else if (error.body) {
+      console.error('[Brevo] Détails de l\'erreur (body):', JSON.stringify(error.body, null, 2));
+    } else {
+      console.error('[Brevo] Message d\'erreur:', error.message || error);
+    }
     return false;
   }
 };
@@ -134,15 +148,14 @@ L'équipe USM Tournois
  */
 export const testEmailConnection = async (): Promise<boolean> => {
   if (!apiInstance) {
-    console.error('Email service not initialized');
+    console.error('[Brevo] ❌ Email service not initialized');
     return false;
   }
 
   try {
-    // This is just to verify the API key is valid
     return true;
   } catch (error) {
-    console.error('Email connection test failed:', error);
+    console.error('[Brevo] ❌ Email connection test failed:', error);
     return false;
   }
 };

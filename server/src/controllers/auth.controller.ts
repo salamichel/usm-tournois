@@ -442,6 +442,87 @@ export const claimVirtualAccount = async (req: Request, res: Response) => {
 };
 
 /**
+ * Verify password reset code using Firebase REST API
+ */
+async function verifyResetCodeWithFirebase(oobCode: string): Promise<string> {
+  const apiKey = process.env.FIREBASE_API_KEY;
+  if (!apiKey) {
+    throw new AppError('FIREBASE_API_KEY non configurée', 500);
+  }
+
+  const response = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:resetPassword?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        oobCode,
+      }),
+    }
+  );
+
+  const data = (await response.json()) as any;
+
+  if (!response.ok) {
+    const errorMsg = data.error?.message || 'UNKNOWN_ERROR';
+    console.error('[Firebase REST] verifyResetCode error:', errorMsg);
+    const err: any = new Error(errorMsg);
+    if (errorMsg === 'EXPIRED_OOB_CODE') {
+      err.code = 'auth/expired-action-code';
+    } else {
+      err.code = 'auth/invalid-action-code';
+    }
+    throw err;
+  }
+
+  return data.email;
+}
+
+/**
+ * Confirm password reset using Firebase REST API
+ */
+async function confirmPasswordResetWithFirebase(oobCode: string, newPassword: string): Promise<string> {
+  const apiKey = process.env.FIREBASE_API_KEY;
+  if (!apiKey) {
+    throw new AppError('FIREBASE_API_KEY non configurée', 500);
+  }
+
+  const response = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:resetPassword?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        oobCode,
+        newPassword,
+      }),
+    }
+  );
+
+  const data = (await response.json()) as any;
+
+  if (!response.ok) {
+    const errorMsg = data.error?.message || 'UNKNOWN_ERROR';
+    console.error('[Firebase REST] confirmPasswordReset error:', errorMsg);
+    const err: any = new Error(errorMsg);
+    if (errorMsg === 'EXPIRED_OOB_CODE') {
+      err.code = 'auth/expired-action-code';
+    } else if (errorMsg.includes('WEAK_PASSWORD')) {
+      err.code = 'auth/weak-password';
+    } else {
+      err.code = 'auth/invalid-action-code';
+    }
+    throw err;
+  }
+
+  return data.email;
+}
+
+/**
  * @desc    Request password reset
  * @route   POST /api/auth/request-password-reset
  * @access  Public
@@ -453,30 +534,53 @@ export const requestPasswordReset = async (req: Request, res: Response) => {
     ErrorHandlers.validation('Email requis.');
   }
 
+  const cleanEmail = email.trim().toLowerCase();
+  console.log(`[Auth] Demande de réinitialisation de mot de passe pour : ${cleanEmail}`);
+
   try {
     // Verify user exists
-    const userRecord = await adminAuth.getUserByEmail(email);
+    const userRecord = await adminAuth.getUserByEmail(cleanEmail);
+    console.log(`[Auth] Utilisateur trouvé dans Firebase Auth : ${userRecord.uid} (${cleanEmail})`);
+
+    // Base client URL
+    const clientUrl = (process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/+$/, '');
 
     // Generate password reset link
-    const resetLink = await adminAuth.generatePasswordResetLink(email, {
-      url: process.env.CLIENT_URL || 'http://localhost:5173',
+    const resetLink = await adminAuth.generatePasswordResetLink(cleanEmail, {
+      url: clientUrl,
     });
 
-    // Send password reset email via Brevo
-    const emailSent = await sendPasswordResetEmail(email, resetLink);
-
-    if (!emailSent) {
-      console.error('Failed to send password reset email');
-      // Don't throw error to avoid revealing if email exists
+    // Extract oobCode to create direct link to custom reset page
+    let appResetUrl = resetLink;
+    try {
+      const parsedUrl = new URL(resetLink);
+      const oobCode = parsedUrl.searchParams.get('oobCode');
+      if (oobCode) {
+        appResetUrl = `${clientUrl}/reset-password?token=${oobCode}`;
+      }
+    } catch (e) {
+      console.warn('[Auth] Avertissement: impossible de parser le lien Firebase:', e);
     }
 
+    console.log(`[Auth] Lien de réinitialisation : ${appResetUrl}`);
+
+    // Send password reset email via Brevo
+    const emailSent = await sendPasswordResetEmail(cleanEmail, appResetUrl);
+
+    if (!emailSent) {
+      console.warn('[Auth] ⚠️ Échec de l\'envoi d\'email via Brevo. Vérifiez la clé API et l\'expéditeur validé.');
+    } else {
+      console.log(`[Auth] ✅ Email envoyé avec succès à ${cleanEmail}`);
+    }
+
+    const isDev = process.env.NODE_ENV === 'development';
     res.json({
       success: true,
-      message: 'Un email de réinitialisation a été envoyé.',
+      message: 'Un email de réinitialisation a été envoyé si ce compte existe.',
+      ...(isDev || !emailSent ? { data: { resetLink: appResetUrl } } : {}),
     });
-  } catch (error) {
-    // Log error but don't reveal if user exists for security reasons
-    console.error('Request password reset error:', error);
+  } catch (error: any) {
+    console.error(`[Auth] ❌ Erreur réinitialisation pour ${cleanEmail}:`, error.code || error.message || error);
 
     // Always return success message
     res.json({
@@ -499,15 +603,16 @@ export const verifyPasswordResetToken = async (req: Request, res: Response) => {
   }
 
   try {
-    // Verify the reset link/token (using any cast as verifyPasswordResetCode is not in admin types)
-    const email = await (adminAuth as any).verifyPasswordResetCode(token);
+    const email = await verifyResetCodeWithFirebase(token);
 
     res.json({
       success: true,
       message: 'Token valide.',
       data: { email },
     });
-  } catch (error) {
+  } catch (error: any) {
+    console.error('[Auth] Erreur vérification du token:', error);
+
     let message = 'Token invalide ou expiré.';
     if ((error as any).code === 'auth/expired-action-code') {
       message = 'Le lien de réinitialisation a expiré.';
@@ -536,29 +641,32 @@ export const resetPassword = async (req: Request, res: Response) => {
   }
 
   try {
-    // Verify the token and get the email (using any cast as verifyPasswordResetCode is not in admin types)
-    const email = await (adminAuth as any).verifyPasswordResetCode(token);
-
-    // Update the password
-    const userRecord = await adminAuth.getUserByEmail(email);
-    await adminAuth.updateUser(userRecord.uid, {
-      password: newPassword,
-    });
+    // Confirm password reset directly via Firebase REST API
+    const email = await confirmPasswordResetWithFirebase(token, newPassword);
 
     // Revoke all refresh tokens to log out all sessions
-    await adminAuth.revokeRefreshTokens(userRecord.uid);
+    try {
+      const userRecord = await adminAuth.getUserByEmail(email);
+      await adminAuth.revokeRefreshTokens(userRecord.uid);
+    } catch (e) {
+      console.warn('[Auth] Impossible de révoquer les sessions:', e);
+    }
 
     res.json({
       success: true,
       message: 'Mot de passe réinitialisé avec succès.',
     });
-  } catch (error) {
+  } catch (error: any) {
+    console.error('[Auth] Erreur lors de la réinitialisation du mot de passe:', error);
+
     let message = 'Erreur lors de la réinitialisation du mot de passe.';
     if ((error as any).code === 'auth/expired-action-code') {
       message = 'Le lien de réinitialisation a expiré.';
     } else if ((error as any).code === 'auth/invalid-action-code') {
       message = 'Le lien de réinitialisation est invalide ou a déjà été utilisé.';
-    } else if ((error as any).code === 'auth/user-not-found') {
+    } else if (error.code === 'auth/weak-password') {
+      message = 'Le mot de passe doit contenir au moins 6 caractères.';
+    } else if (error.code === 'auth/user-not-found') {
       message = 'Utilisateur introuvable.';
     }
 
