@@ -581,14 +581,7 @@ export const requestPasswordReset = async (req: Request, res: Response) => {
 
     // Generate password reset link without actionCodeSettings to avoid auth/unauthorized-continue-uri
     // (The oobCode will be extracted and embedded directly in our custom app reset URL)
-    let resetLink;
-    try {
-      resetLink = await adminAuth.generatePasswordResetLink(cleanEmail);
-    } catch (err) {
-      // Fallback if needed
-      console.warn('[Auth] Tentative avec continueUrl après échec sans paramètre:', err);
-      resetLink = await adminAuth.generatePasswordResetLink(cleanEmail, { url: clientUrl });
-    }
+    const resetLink = await adminAuth.generatePasswordResetLink(cleanEmail);
 
     // Extract oobCode to create direct link to custom reset page
     let appResetUrl = resetLink;
@@ -620,9 +613,18 @@ export const requestPasswordReset = async (req: Request, res: Response) => {
       ...(isDev || !emailSent ? { data: { resetLink: appResetUrl } } : {}),
     });
   } catch (error: any) {
-    console.error(`[Auth] ❌ Erreur réinitialisation pour ${cleanEmail}:`, error.code || error.message || error);
+    const rawMsg = error.errorInfo?.message || error.message || '';
+    console.error(`[Auth] ❌ Erreur réinitialisation pour ${cleanEmail}:`, error.code || rawMsg);
 
-    // Always return success message
+    if (rawMsg.includes('RESET_PASSWORD_EXCEED_LIMIT') || error.code === 'auth/too-many-requests') {
+      console.warn(`[Auth] ⏳ Limite Firebase atteinte pour ${cleanEmail} (RESET_PASSWORD_EXCEED_LIMIT).`);
+      return res.status(429).json({
+        success: false,
+        message: 'Trop de demandes de réinitialisation pour cette adresse email. Veuillez patienter 15 à 30 minutes avant de réessayer.',
+      });
+    }
+
+    // Always return success message for other errors (security)
     res.json({
       success: true,
       message: 'Si un compte existe avec cet email, un lien de réinitialisation a été envoyé.',
