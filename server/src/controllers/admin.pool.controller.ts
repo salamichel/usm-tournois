@@ -195,9 +195,13 @@ export const assignTeamsToPool = async (req: Request, res: Response) => {
         .get();
 
       if (teamDoc.exists) {
+        const teamData = teamDoc.data();
+        if (teamData?.isWaitingList) {
+          ErrorHandlers.validation(`L'équipe "${teamData.name}" est en liste d'attente et ne peut pas être assignée à une poule`);
+        }
         teams.push({
           id: teamDoc.id,
-          name: teamDoc.data()?.name || 'Unknown Team',
+          name: teamData?.name || 'Unknown Team',
         });
       }
     }
@@ -232,13 +236,16 @@ export const distributeTeamsToPoolsAutomatically = async (req: Request, res: Res
       .collection('teams')
       .get();
 
-    const allTeams = teamsSnapshot.docs.map((doc) => ({
-      id: doc.id,
-      name: doc.data()?.name || 'Unknown Team',
-      weight: doc.data()?.weight || 0,
-      globalRanking: doc.data()?.globalRanking || 0,
-      poolId: doc.data()?.poolId,
-    }));
+    const allTeams = teamsSnapshot.docs
+      .map((doc) => ({
+        id: doc.id,
+        name: doc.data()?.name || 'Unknown Team',
+        weight: doc.data()?.weight || 0,
+        globalRanking: doc.data()?.globalRanking || 0,
+        poolId: doc.data()?.poolId,
+        isWaitingList: doc.data()?.isWaitingList || false,
+      }))
+      .filter((team) => !team.isWaitingList);
 
     const teamsToDistribute = clearExisting ? allTeams : allTeams.filter((team) => !team.poolId);
 

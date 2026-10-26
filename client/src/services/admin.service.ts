@@ -98,6 +98,18 @@ class AdminService {
     return apiService.delete(`/admin/tournaments/${tournamentId}/teams/${teamId}`);
   }
 
+  async moveToWaitingList(tournamentId: string, teamId: string) {
+    return apiService.post(`/admin/tournaments/${tournamentId}/teams/${teamId}/move-to-waiting-list`);
+  }
+
+  async promoteFromWaitingList(tournamentId: string, teamId: string) {
+    return apiService.post(`/admin/tournaments/${tournamentId}/teams/${teamId}/promote-from-waiting-list`);
+  }
+
+  async reorderWaitingList(tournamentId: string, teamIds: string[]) {
+    return apiService.post(`/admin/tournaments/${tournamentId}/teams/reorder-waiting-list`, { teamIds });
+  }
+
   async generateRandomTeams(tournamentId: string) {
     return apiService.post<{
       teamsCreated: number;

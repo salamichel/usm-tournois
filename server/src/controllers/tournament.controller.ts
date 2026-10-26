@@ -87,10 +87,19 @@ export const getAllTournaments = async (req: Request, res: Response) => {
           .get();
 
         // Count complete teams (teams with required number of players) and total players in teams
+        // Separate active teams from waiting list teams
         let completeTeamsCount = 0;
         let totalPlayersInTeams = 0;
+        let activeTeamsCount = 0;
+        let waitingListTeamsCount = 0;
+
         for (const teamDoc of teamsSnapshot.docs) {
           const teamData = teamDoc.data();
+          if (teamData.isWaitingList) {
+            waitingListTeamsCount++;
+            continue;
+          }
+          activeTeamsCount++;
           const membersCount = teamData.members?.length || 0;
           totalPlayersInTeams += membersCount;
           const minPlayers = tournamentData.minPlayersPerTeam || tournamentData.playersPerTeam;
@@ -107,13 +116,8 @@ export const getAllTournaments = async (req: Request, res: Response) => {
           .get();
         const unassignedPlayersCount = unassignedPlayersSnapshot.size;
 
-        // Count waiting list size
-        const waitingListSnapshot = await adminDb
-          .collection('events')
-          .doc(doc.id)
-          .collection('waitingListPlayers')
-          .get();
-        const waitingListCurrentSize = waitingListSnapshot.size;
+        // Waiting list size
+        const waitingListCurrentSize = waitingListTeamsCount;
 
         // Check if there are any matches (pools or elimination)
         let hasMatches = false;
@@ -162,7 +166,7 @@ export const getAllTournaments = async (req: Request, res: Response) => {
         const statusInfo = calculateTournamentStatus(
           tournamentData,
           completeTeamsCount,
-          teamsSnapshot.size,
+          activeTeamsCount,
           hasMatches,
           isRankingFrozen,
           unassignedPlayersCount,
@@ -173,7 +177,8 @@ export const getAllTournaments = async (req: Request, res: Response) => {
         const result: any = {
           id: doc.id,
           ...tournamentData,
-          registeredTeamsCount: teamsSnapshot.size,
+          registeredTeamsCount: activeTeamsCount,
+          waitingListTeamsCount: waitingListTeamsCount,
           completeTeamsCount: completeTeamsCount,
           unassignedPlayersCount: unassignedPlayersCount,
           status: statusInfo.status,
@@ -243,7 +248,18 @@ export const getTournamentById = async (req: Request, res: Response) => {
       .doc(id)
       .collection('teams')
       .get();
-    const teams = teamsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    const allTeams = teamsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    const teams = allTeams.filter((t: any) => !t.isWaitingList);
+    const waitingListTeams = allTeams
+      .filter((t: any) => t.isWaitingList)
+      .sort((a: any, b: any) => {
+        const orderA = a.waitingListOrder ?? 9999;
+        const orderB = b.waitingListOrder ?? 9999;
+        if (orderA !== orderB) return orderA - orderB;
+        const dateA = a.waitingListJoinedAt || a.createdAt;
+        const dateB = b.waitingListJoinedAt || b.createdAt;
+        return new Date(dateA || 0).getTime() - new Date(dateB || 0).getTime();
+      });
 
     // Get unassigned players
     const unassignedPlayersSnapshot = await adminDb
@@ -320,17 +336,6 @@ export const getTournamentById = async (req: Request, res: Response) => {
       ...doc.data(),
     }));
 
-    // Get waiting list
-    const waitingListSnapshot = await adminDb
-      .collection('events')
-      .doc(id)
-      .collection('waitingListPlayers')
-      .get();
-    const waitingList = waitingListSnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-
     // Calculate tournament status
     const tournamentData = tournamentDoc.data();
     const completeTeamsCount = teams.filter((team: any) => {
@@ -353,7 +358,7 @@ export const getTournamentById = async (req: Request, res: Response) => {
       hasMatches,
       isRankingFrozen,
       unassignedPlayers.length,
-      waitingList.length,
+      waitingListTeams.length,
       totalPlayersInTeams
     );
 
@@ -370,7 +375,8 @@ export const getTournamentById = async (req: Request, res: Response) => {
         pools,
         eliminationMatches,
         finalRanking,
-        waitingList,
+        waitingList: waitingListTeams,
+        waitingListTeams,
       }),
     });
   } catch (error) {
@@ -825,6 +831,50 @@ export const createTeam = async (req: Request, res: Response) => {
       ErrorHandlers.forbidden('Cannot create teams in this tournament. Teams will be generated randomly by the admin.');
     }
 
+    // Get current teams to check tournament capacity & waiting list
+    const teamsSnapshot = await adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('teams')
+      .get();
+
+    const allTeams = teamsSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const activeTeams = allTeams.filter((t: any) => !t.isWaitingList);
+    const waitingListTeams = allTeams.filter((t: any) => t.isWaitingList);
+
+    const minPlayers = tournamentData?.minPlayersPerTeam || tournamentData?.playersPerTeam || 2;
+    const completeTeamsCount = activeTeams.filter((t: any) => (t.members?.length || 0) >= minPlayers).length;
+    const maxTeams = tournamentData?.maxTeams || 0;
+    const waitingListMaxSize = tournamentData?.waitingListSize || 0;
+
+    // Check if user is already captain or member of any team in this tournament
+    const isUserAlreadyInTeam = allTeams.some((t: any) =>
+      t.captainId === userId || (t.members && t.members.some((m: any) => m.userId === userId))
+    );
+    if (isUserAlreadyInTeam) {
+      ErrorHandlers.validation('Vous êtes déjà inscrit dans une équipe pour ce tournoi');
+    }
+
+    // Is the tournament full?
+    const isTournamentFull = completeTeamsCount >= maxTeams || activeTeams.length >= maxTeams;
+    let isWaitingList = false;
+    let waitingListOrder: number | null = null;
+    let waitingListJoinedAt: Date | null = null;
+
+    if (isTournamentFull) {
+      if (waitingListMaxSize > 0 && waitingListTeams.length < waitingListMaxSize) {
+        isWaitingList = true;
+        waitingListOrder = waitingListTeams.length + 1;
+        waitingListJoinedAt = new Date();
+      } else {
+        ErrorHandlers.validation(
+          waitingListMaxSize > 0
+            ? 'Le tournoi et la liste d\'attente sont complets'
+            : 'Le tournoi est complet'
+        );
+      }
+    }
+
     // Validate question responses
     validateQuestionResponses(tournamentData?.signupQuestions, questionResponses);
 
@@ -859,7 +909,12 @@ export const createTeam = async (req: Request, res: Response) => {
         },
       ],
       recruitmentOpen: true,
+      isWaitingList,
+      waitingListOrder,
+      waitingListJoinedAt,
+      registeredAt: new Date().toISOString(),
       createdAt: new Date(),
+      updatedAt: new Date(),
     });
 
     // Remove from unassigned players if present
@@ -878,8 +933,12 @@ export const createTeam = async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      message: 'Team created successfully',
+      message: isWaitingList
+        ? `Équipe inscrite avec succès sur la liste d'attente (position #${waitingListOrder})`
+        : 'Équipe créée avec succès',
       teamId: newTeamRef.id,
+      isWaitingList,
+      waitingListOrder,
     });
   } catch (error) {
     handleControllerError(error, 'creating team', 'Error creating team');
@@ -922,33 +981,43 @@ export const joinWaitingList = async (req: Request, res: Response) => {
     }
 
     const teamDoc = teamsSnapshot.docs[0];
-    const teamData = { id: teamDoc.id, ...teamDoc.data() };
+    const teamData = teamDoc.data();
+
+    if (teamData?.isWaitingList) {
+      return res.json({
+        success: true,
+        message: 'Team is already in the waiting list',
+      });
+    }
 
     // Check waiting list size
     const waitingListSnapshot = await adminDb
       .collection('events')
       .doc(tournamentId)
-      .collection('waitingListTeams')
+      .collection('teams')
+      .where('isWaitingList', '==', true)
       .get();
 
     if (waitingListSnapshot.size >= (tournament.waitingListSize || 0)) {
       ErrorHandlers.validation('Waiting list is full');
     }
 
+    const newOrder = waitingListSnapshot.size + 1;
+
     // Add to waiting list
-    await adminDb
-      .collection('events')
-      .doc(tournamentId)
-      .collection('waitingListTeams')
-      .doc(teamData.id)
-      .set({
-        ...teamData,
-        addedAt: new Date(),
-      });
+    await teamDoc.ref.update({
+      isWaitingList: true,
+      waitingListOrder: newOrder,
+      waitingListJoinedAt: new Date(),
+      poolId: null,
+      poolName: null,
+      updatedAt: new Date(),
+    });
 
     res.json({
       success: true,
       message: 'Successfully added to waiting list',
+      waitingListOrder: newOrder,
     });
   } catch (error) {
     handleControllerError(error, 'joining waiting list', 'Error joining waiting list');

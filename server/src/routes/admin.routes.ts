@@ -71,6 +71,9 @@ router.get('/tournaments/:tournamentId/teams', asyncHandler(teamController.getTe
 router.post('/tournaments/:tournamentId/teams', asyncHandler(teamController.createTeam));
 router.put('/tournaments/:tournamentId/teams/:teamId', asyncHandler(teamController.updateTeam));
 router.delete('/tournaments/:tournamentId/teams/:teamId', asyncHandler(teamController.deleteTeam));
+router.post('/tournaments/:tournamentId/teams/:teamId/move-to-waiting-list', asyncHandler(teamController.moveToWaitingList));
+router.post('/tournaments/:tournamentId/teams/:teamId/promote-from-waiting-list', asyncHandler(teamController.promoteFromWaitingList));
+router.post('/tournaments/:tournamentId/teams/reorder-waiting-list', asyncHandler(teamController.reorderWaitingList));
 router.post('/tournaments/:tournamentId/generate-random-teams', asyncHandler(teamController.generateRandomTeams));
 router.post('/tournaments/:tournamentId/teams/recalculate-ranking', asyncHandler(teamController.recalculateTeamsRanking));
 

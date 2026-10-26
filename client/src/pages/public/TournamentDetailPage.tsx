@@ -26,6 +26,8 @@ import {
   Settings,
   Edit,
   ClipboardList,
+  Clock,
+  Crown,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -391,7 +393,10 @@ const TournamentDetailPage = () => {
       team.members?.some((m) => m.userId === user.uid)
     );
     const isInWaitingList = tournament.waitingList?.some(
-      (p: any) => p.userId === user.uid
+      (p: any) =>
+        p.userId === user.uid ||
+        p.captainId === user.uid ||
+        (p.members && p.members.some((m: any) => m.userId === user.uid))
     );
     return isUnassigned || isInTeam || isInWaitingList;
   };
@@ -401,7 +406,11 @@ const TournamentDetailPage = () => {
     return (
       tournament.teams?.find((team) =>
         team.members?.some((m) => m.userId === user.uid)
-      ) || null
+      ) ||
+      tournament.waitingList?.find((team: any) =>
+        team.members?.some((m: any) => m.userId === user.uid)
+      ) ||
+      null
     );
   };
 
@@ -698,6 +707,7 @@ const TournamentDetailPage = () => {
               <span className={`badge ${
                 tournament.status === 'Avenir' ? 'badge-info' :
                 tournament.status === 'Ouvert' ? 'badge-success' :
+                tournament.status === "Liste d'attente" ? 'badge-warning bg-amber-100 text-amber-800 border-amber-300' :
                 tournament.status === 'Complet' ? 'badge-warning' :
                 tournament.status === 'En cours' ? 'badge-info' :
                 'badge-default'
@@ -751,20 +761,39 @@ const TournamentDetailPage = () => {
 
       {/* User Actions Banner - visible for registered users */}
       {isRegistered && (
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+        <div
+          className={`mb-6 p-4 rounded-lg border ${
+            userTeam?.isWaitingList
+              ? 'bg-amber-50 border-amber-200'
+              : 'bg-green-50 border-green-200'
+          }`}
+        >
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-3">
-              <CheckCircle className="text-green-600 flex-shrink-0" size={24} />
+              {userTeam?.isWaitingList ? (
+                <Clock className="text-amber-600 flex-shrink-0" size={24} />
+              ) : (
+                <CheckCircle className="text-green-600 flex-shrink-0" size={24} />
+              )}
               <div>
-                <p className="font-medium text-green-900">
+                <p className={`font-medium ${userTeam?.isWaitingList ? 'text-amber-900' : 'text-green-900'}`}>
                   {userTeam ? (
-                    <>Inscrit · <span className="text-green-700">{userTeam.name}</span></>
+                    userTeam.isWaitingList ? (
+                      <>
+                        En liste d'attente (Position #{userTeam.waitingListOrder || 1}) ·{' '}
+                        <span className="text-amber-800 font-semibold">{userTeam.name}</span>
+                      </>
+                    ) : (
+                      <>
+                        Inscrit · <span className="text-green-700">{userTeam.name}</span>
+                      </>
+                    )
                   ) : (
                     'Inscrit comme joueur solo'
                   )}
                 </p>
                 {userTeam && userTeam.captainId === user?.uid && (
-                  <p className="text-sm text-green-700">Capitaine</p>
+                  <p className="text-sm text-gray-600">Capitaine</p>
                 )}
               </div>
             </div>
@@ -994,20 +1023,45 @@ const TournamentDetailPage = () => {
 
             {/* Tournament Full - Show waiting list option */}
             {registrationButtons.showWaitingList && (
-              <div className="card bg-yellow-50 border-2 border-yellow-200">
-                <h3 className="text-lg font-bold text-gray-900 mb-2">
-                  Tournoi complet
-                </h3>
-                <p className="text-gray-600 mb-4">
-                  Le tournoi est complet (nombre maximum d'équipes complètes atteint), mais vous pouvez rejoindre la liste d'attente.
+              <div className="card bg-amber-50 border-2 border-amber-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <Clock className="text-amber-600 flex-shrink-0" size={22} />
+                  <h3 className="text-lg font-bold text-gray-900">
+                    Tournoi complet - Inscription en liste d'attente
+                  </h3>
+                </div>
+                <p className="text-gray-700 mb-4 text-sm">
+                  Le tournoi principal a atteint son quota d'équipes complètes ({tournament.teams?.length || 0}/{tournament.maxTeams}).
+                  Vous pouvez inscrire votre équipe sur la liste d'attente ({tournament.waitingList?.length || 0}/{tournament.waitingListSize} places).
+                  Vous serez recontacté si une place se libère.
                 </p>
-                <button
-                  onClick={handleJoinWaitingList}
-                  disabled={processingAction}
-                  className="btn-secondary"
-                >
-                  Rejoindre la liste d'attente
-                </button>
+                <div className="flex flex-wrap gap-3">
+                  {tournament?.registrationMode !== 'random' && tournament?.tournamentFormat !== 'king' && (
+                    <button
+                      onClick={() => {
+                        if (!isAuthenticated) {
+                          navigate(`/login?returnTo=/tournoi/${id}`);
+                          return;
+                        }
+                        setShowCreateTeamModal(true);
+                      }}
+                      disabled={processingAction}
+                      className="btn-primary flex items-center gap-2"
+                    >
+                      <Trophy size={18} />
+                      Créer une équipe en liste d'attente
+                    </button>
+                  )}
+                  {user && (
+                    <button
+                      onClick={handleJoinWaitingList}
+                      disabled={processingAction}
+                      className="btn-secondary text-sm"
+                    >
+                      Basculer mon équipe en liste d'attente
+                    </button>
+                  )}
+                </div>
               </div>
             )}
 
@@ -1164,22 +1218,73 @@ const TournamentDetailPage = () => {
               {activeTab === 'waitingList' && (
                 <div>
                   {tournament.waitingList && tournament.waitingList.length > 0 ? (
-                    <div className="card">
-                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                        {tournament.waitingList.map((player: any, index) => (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {tournament.waitingList.map((item: any, index: number) => {
+                        const isTeam = Array.isArray(item.members);
+                        if (isTeam) {
+                          const isComplete =
+                            (item.members?.length || 0) >=
+                            (tournament.minPlayersPerTeam || tournament.playersPerTeam || 2);
+                          return (
+                            <div
+                              key={item.id || index}
+                              className="card hover:shadow-md transition-shadow relative overflow-hidden border border-amber-200"
+                            >
+                              <div className="flex items-start justify-between gap-2 mb-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">
+                                    #{item.waitingListOrder || index + 1}
+                                  </span>
+                                  <h4 className="font-bold text-gray-900">{item.name}</h4>
+                                </div>
+                                <span
+                                  className={`badge text-xs ${
+                                    isComplete ? 'badge-success' : 'badge-warning'
+                                  }`}
+                                >
+                                  {isComplete ? 'Complète' : 'Incomplète'}
+                                </span>
+                              </div>
+                              <div className="text-xs text-gray-500 space-y-1">
+                                <div className="flex items-center gap-1.5">
+                                  <Crown size={12} className="text-yellow-600" />
+                                  <span>Capitaine : {item.captainPseudo || 'Non défini'}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <Users size={12} className="text-gray-400" />
+                                  <span>
+                                    {item.members?.length || 0}/{tournament.playersPerTeam} joueurs
+                                  </span>
+                                </div>
+                                {item.recruitmentOpen && (
+                                  <span className="badge badge-info text-xs mt-1 inline-block">
+                                    Recrutement ouvert
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        return (
                           <div
-                            key={player.userId || player.id}
-                            className="flex items-center gap-2 text-sm"
+                            key={item.userId || item.id || index}
+                            className="card flex items-center gap-3 text-sm border border-amber-200"
                           >
-                            <span className="text-gray-400">#{index + 1}</span>
-                            <Users size={14} className="text-gray-400" />
-                            <span>{player.pseudo || player.name}</span>
+                            <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">
+                              #{index + 1}
+                            </span>
+                            <Users size={16} className="text-gray-400" />
+                            <span className="font-medium text-gray-800">{item.pseudo || item.name}</span>
                           </div>
-                        ))}
-                      </div>
+                        );
+                      })}
                     </div>
                   ) : (
-                    <p className="text-gray-500">Liste d'attente vide</p>
+                    <div className="card text-center py-8 text-gray-500">
+                      <Clock size={36} className="mx-auto text-gray-300 mb-2" />
+                      <p>Aucune équipe en liste d'attente</p>
+                    </div>
                   )}
                 </div>
               )}

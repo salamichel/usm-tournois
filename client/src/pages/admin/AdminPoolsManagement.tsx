@@ -95,7 +95,8 @@ const AdminPoolsManagement = () => {
 
       setTournament(tournamentRes.tournament || tournamentRes.data?.tournament);
       setPools(poolsRes.pools || poolsRes.data?.pools || []);
-      setTeams(teamsRes.teams || teamsRes.data?.teams || []);
+      const allTeams = teamsRes.teams || teamsRes.data?.teams || [];
+      setTeams(allTeams.filter((t: any) => !t.isWaitingList));
     } catch (error: any) {
       toast.error(error.message || 'Erreur lors du chargement');
     } finally {

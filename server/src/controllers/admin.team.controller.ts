@@ -96,7 +96,7 @@ export const getTeams = async (req: Request, res: Response) => {
 export const createTeam = async (req: Request, res: Response) => {
   try {
     const { tournamentId } = req.params;
-    const { name, captainId, members, recruitmentOpen, weight } = req.body;
+    const { name, captainId, members, recruitmentOpen, weight, isWaitingList, waitingListOrder } = req.body;
 
     if (!name) {
       ErrorHandlers.validation('Team name is required');
@@ -110,6 +110,24 @@ export const createTeam = async (req: Request, res: Response) => {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
+
+    if (isWaitingList === true || isWaitingList === 'true') {
+      let order = waitingListOrder ? parseInt(waitingListOrder) : null;
+      if (!order) {
+        const waitingSnapshot = await adminDb
+          .collection('events')
+          .doc(tournamentId)
+          .collection('teams')
+          .where('isWaitingList', '==', true)
+          .get();
+        order = waitingSnapshot.size + 1;
+      }
+      teamData.isWaitingList = true;
+      teamData.waitingListOrder = order;
+      teamData.waitingListJoinedAt = new Date();
+    } else {
+      teamData.isWaitingList = false;
+    }
 
     // Captain ID is optional - admin can create team without captain
     if (captainId) {
@@ -163,7 +181,7 @@ export const createTeam = async (req: Request, res: Response) => {
 export const updateTeam = async (req: Request, res: Response) => {
   try {
     const { tournamentId, teamId } = req.params;
-    const { name, captainId, captainPseudo, members, recruitmentOpen, weight } = req.body;
+    const { name, captainId, captainPseudo, members, recruitmentOpen, weight, isWaitingList, waitingListOrder } = req.body;
 
     const teamRef = adminDb
       .collection('events')
@@ -209,6 +227,29 @@ export const updateTeam = async (req: Request, res: Response) => {
     }
     if (recruitmentOpen !== undefined && recruitmentOpen !== null) updateData.recruitmentOpen = recruitmentOpen === true || recruitmentOpen === 'true';
     if (weight !== undefined && weight !== null) updateData.weight = parseInt(weight) || 0;
+    if (isWaitingList !== undefined && isWaitingList !== null) {
+      const willBeWaitingList = isWaitingList === true || isWaitingList === 'true';
+      updateData.isWaitingList = willBeWaitingList;
+      if (willBeWaitingList && !teamData?.isWaitingList) {
+        updateData.waitingListJoinedAt = new Date();
+        if (waitingListOrder !== undefined && waitingListOrder !== null) {
+          updateData.waitingListOrder = parseInt(waitingListOrder);
+        } else {
+          const waitingSnapshot = await adminDb
+            .collection('events')
+            .doc(tournamentId)
+            .collection('teams')
+            .where('isWaitingList', '==', true)
+            .get();
+          updateData.waitingListOrder = waitingSnapshot.size + 1;
+        }
+      } else if (!willBeWaitingList) {
+        updateData.waitingListOrder = null;
+        updateData.waitingListJoinedAt = null;
+      }
+    } else if (waitingListOrder !== undefined && waitingListOrder !== null) {
+      updateData.waitingListOrder = parseInt(waitingListOrder);
+    }
 
     await teamRef.update(updateData);
 
@@ -249,12 +290,219 @@ export const deleteTeam = async (req: Request, res: Response) => {
 
     await teamRef.delete();
 
+    // If deleted team was in waiting list, compact remaining waiting list orders
+    if (teamData?.isWaitingList) {
+      const remainingWaiting = await adminDb
+        .collection('events')
+        .doc(tournamentId)
+        .collection('teams')
+        .where('isWaitingList', '==', true)
+        .get();
+
+      const listToReorder = remainingWaiting.docs
+        .filter((d) => d.id !== teamId)
+        .map((d) => ({ ref: d.ref, data: d.data() }))
+        .sort((a, b) => (a.data.waitingListOrder || 0) - (b.data.waitingListOrder || 0));
+
+      const batch = adminDb.batch();
+      listToReorder.forEach((item, index) => {
+        const newOrder = index + 1;
+        if (item.data.waitingListOrder !== newOrder) {
+          batch.update(item.ref, { waitingListOrder: newOrder, updatedAt: new Date() });
+        }
+      });
+      await batch.commit();
+    }
+
     res.json({
       success: true,
       message: 'Team deleted successfully',
     });
   } catch (error) {
     handleControllerError(error, 'deleting team');
+  }
+};
+
+/**
+ * Move team to waiting list
+ */
+export const moveToWaitingList = async (req: Request, res: Response) => {
+  try {
+    const { tournamentId, teamId } = req.params;
+
+    const teamRef = adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('teams')
+      .doc(teamId);
+
+    const teamDoc = await teamRef.get();
+    if (!teamDoc.exists) {
+      ErrorHandlers.notFound('Team', teamId);
+    }
+
+    const teamData = teamDoc.data();
+    if (teamData?.isWaitingList) {
+      return res.json({
+        success: true,
+        message: 'L\'équipe est déjà en liste d\'attente',
+      });
+    }
+
+    // Get current waiting list teams to calculate next order
+    const waitingTeamsSnapshot = await adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('teams')
+      .where('isWaitingList', '==', true)
+      .get();
+
+    const nextOrder = waitingTeamsSnapshot.size + 1;
+
+    // If team is in a pool, remove it from pool
+    const poolId = teamData?.poolId;
+    if (poolId) {
+      const poolRef = adminDb
+        .collection('events')
+        .doc(tournamentId)
+        .collection('pools')
+        .doc(poolId);
+      const poolDoc = await poolRef.get();
+      if (poolDoc.exists) {
+        const poolTeams = (poolDoc.data()?.teams || []).filter((t: any) => t.id !== teamId);
+        await poolRef.update({
+          teams: poolTeams,
+          updatedAt: new Date(),
+        });
+      }
+    }
+
+    await teamRef.update({
+      isWaitingList: true,
+      waitingListOrder: nextOrder,
+      waitingListJoinedAt: new Date(),
+      poolId: null,
+      poolName: null,
+      updatedAt: new Date(),
+    });
+
+    res.json({
+      success: true,
+      message: 'Équipe déplacée en liste d\'attente avec succès',
+      data: {
+        waitingListOrder: nextOrder,
+      },
+    });
+  } catch (error) {
+    handleControllerError(error, 'moving team to waiting list');
+  }
+};
+
+/**
+ * Promote team from waiting list to active tournament
+ */
+export const promoteFromWaitingList = async (req: Request, res: Response) => {
+  try {
+    const { tournamentId, teamId } = req.params;
+
+    const teamRef = adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('teams')
+      .doc(teamId);
+
+    const teamDoc = await teamRef.get();
+    if (!teamDoc.exists) {
+      ErrorHandlers.notFound('Team', teamId);
+    }
+
+    const teamData = teamDoc.data();
+    if (!teamData?.isWaitingList) {
+      return res.json({
+        success: true,
+        message: 'L\'équipe est déjà dans le tournoi principal',
+      });
+    }
+
+    // Update team to active
+    await teamRef.update({
+      isWaitingList: false,
+      waitingListOrder: null,
+      waitingListJoinedAt: null,
+      updatedAt: new Date(),
+    });
+
+    // Recompact orders of remaining waiting list teams
+    const waitingTeamsSnapshot = await adminDb
+      .collection('events')
+      .doc(tournamentId)
+      .collection('teams')
+      .where('isWaitingList', '==', true)
+      .get();
+
+    const remainingTeams = waitingTeamsSnapshot.docs
+      .filter((d) => d.id !== teamId)
+      .map((d) => ({ id: d.id, ...d.data(), ref: d.ref }))
+      .sort((a: any, b: any) => (a.waitingListOrder || 0) - (b.waitingListOrder || 0));
+
+    const batch = adminDb.batch();
+    remainingTeams.forEach((team: any, index: number) => {
+      const newOrder = index + 1;
+      if (team.waitingListOrder !== newOrder) {
+        batch.update(team.ref, {
+          waitingListOrder: newOrder,
+          updatedAt: new Date(),
+        });
+      }
+    });
+
+    await batch.commit();
+
+    res.json({
+      success: true,
+      message: 'Équipe intégrée au tournoi principal avec succès',
+    });
+  } catch (error) {
+    handleControllerError(error, 'promoting team from waiting list');
+  }
+};
+
+/**
+ * Reorder teams in waiting list
+ */
+export const reorderWaitingList = async (req: Request, res: Response) => {
+  try {
+    const { tournamentId } = req.params;
+    const { teamIds } = req.body;
+
+    if (!Array.isArray(teamIds) || teamIds.length === 0) {
+      ErrorHandlers.validation('teamIds array is required');
+    }
+
+    const batch = adminDb.batch();
+
+    teamIds.forEach((teamId: string, index: number) => {
+      const teamRef = adminDb
+        .collection('events')
+        .doc(tournamentId)
+        .collection('teams')
+        .doc(teamId);
+
+      batch.update(teamRef, {
+        isWaitingList: true,
+        waitingListOrder: index + 1,
+        updatedAt: new Date(),
+      });
+    });
+
+    await batch.commit();
+
+    res.json({
+      success: true,
+      message: 'Ordre de la liste d\'attente mis à jour avec succès',
+    });
+  } catch (error) {
+    handleControllerError(error, 'reordering waiting list');
   }
 };
 

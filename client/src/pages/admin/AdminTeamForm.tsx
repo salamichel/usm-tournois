@@ -35,6 +35,7 @@ const AdminTeamForm = () => {
     captainId: '',
     captainPseudo: '',
     recruitmentOpen: true,
+    isWaitingList: false,
     weight: 0,
     globalRanking: 0,
   });
@@ -61,6 +62,7 @@ const AdminTeamForm = () => {
             captainId: team.captainId || '',
             captainPseudo: team.captainPseudo || '',
             recruitmentOpen: team.recruitmentOpen !== false,
+            isWaitingList: team.isWaitingList === true,
             weight: team.weight || 0,
             globalRanking: team.globalRanking || 0,
           });
@@ -192,6 +194,7 @@ const AdminTeamForm = () => {
         await adminService.updateTeam(tournamentId!, teamId!, {
           name: formData.name,
           recruitmentOpen: formData.recruitmentOpen,
+          isWaitingList: formData.isWaitingList,
           weight: formData.weight,
           globalRanking: formData.globalRanking
         });
@@ -200,6 +203,7 @@ const AdminTeamForm = () => {
         await adminService.createTeam(tournamentId!, {
           name: formData.name,
           recruitmentOpen: formData.recruitmentOpen,
+          isWaitingList: formData.isWaitingList,
           weight: formData.weight,
           globalRanking: formData.globalRanking
         });
@@ -300,21 +304,37 @@ const AdminTeamForm = () => {
               </div>
             </div>
 
-            {isEditMode && (
+            <div className="space-y-3 pt-2">
               <div className="flex items-center">
                 <input
                   type="checkbox"
-                  id="recruitmentOpen"
-                  name="recruitmentOpen"
-                  checked={formData.recruitmentOpen}
+                  id="isWaitingList"
+                  name="isWaitingList"
+                  checked={formData.isWaitingList}
                   onChange={handleChange}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-amber-600 focus:ring-amber-500 border-gray-300 rounded"
                 />
-                <label htmlFor="recruitmentOpen" className="ml-2 block text-sm text-gray-700">
-                  Recrutement ouvert
+                <label htmlFor="isWaitingList" className="ml-2 block text-sm font-medium text-gray-700">
+                  Positionner cette équipe en liste d'attente
                 </label>
               </div>
-            )}
+
+              {isEditMode && (
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="recruitmentOpen"
+                    name="recruitmentOpen"
+                    checked={formData.recruitmentOpen}
+                    onChange={handleChange}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="recruitmentOpen" className="ml-2 block text-sm text-gray-700">
+                    Recrutement ouvert
+                  </label>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Members Card - Only in edit mode */}

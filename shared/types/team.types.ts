@@ -27,8 +27,15 @@ export interface Team {
   poolName?: string;
   weight?: number; // Poids de l'équipe pour répartition homogène des poules
   globalRanking?: number; // Nombre de points global (ranking) de l'équipe
+  isWaitingList?: boolean; // Indique si l'équipe est sur liste d'attente
+  waitingListOrder?: number; // Ordre de priorité sur liste d'attente (1, 2, 3...)
+  waitingListJoinedAt?: string | Date; // Date d'entrée en liste d'attente
   createdAt?: Date;
   updatedAt?: Date;
+}
+
+export interface ReorderWaitingListDto {
+  teamIds: string[];
 }
 
 export interface CreateTeamDto {
@@ -36,6 +43,8 @@ export interface CreateTeamDto {
   tournamentId: string;
   captainId: string;
   recruitmentOpen?: boolean;
+  isWaitingList?: boolean;
+  waitingListOrder?: number;
   questionResponses?: QuestionResponse[];
 }
 
@@ -43,6 +52,8 @@ export interface UpdateTeamDto {
   tournamentId: string;
   teamName?: string;
   recruitmentOpen?: boolean;
+  isWaitingList?: boolean;
+  waitingListOrder?: number;
 }
 
 export interface AddTeamMemberDto {
